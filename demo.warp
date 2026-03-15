@@ -1,0 +1,107 @@
+screen(
+    id:main
+
+    Header(
+        text:"Warp Pro"
+        button(
+            text:"リセット"
+            tonalButton:true
+            oneClick:reset(now)
+        )
+    )
+
+    scrollView(
+        vStack(
+            padding:16
+            gap:12
+
+            text(
+                text:"Warp Engine v2.0"
+                fontWeight:bold
+                fontSize:24
+            )
+            text(
+                text:"ネイティブのような操作感をWebで。フォーカス保護と洗練されたUIを導入しました。"
+                color:gray
+                fontSize:14
+            )
+
+            card(
+                vStack(
+                    gap:12
+                    text(text:"1. 状態の保持と入力" fontWeight:bold)
+                    textField(placeholder:"お名前を入力してください..." text:~~persistName)
+                    text(text:"こんにちは、"+~~persistName+" さん" color:blue fontWeight:600)
+                    divider()
+                    text(text:"この入力欄は、文字を打ってもフォーカスが外れません。" fontSize:12 color:gray)
+                )
+            )
+
+            card(
+                vStack(
+                    gap:12
+                    text(text:"2. 高機能計算機" fontWeight:bold)
+                    text(
+                        --calc:""
+                        text:--calc
+                        fontSize:32
+                        fontWeight:bold
+                        align:trailing
+                    )
+                    text(
+                        --calc-a:0
+                        text:"結果: "+--calc-a
+                        color:blue
+                        align:trailing
+                    )
+                    vStack(
+                        gap:8
+                        hStack(gap:8, tonalButton(text:"7",oneClick:--calc=--calc+"7",width:max), tonalButton(text:"8",oneClick:--calc=--calc+"8",width:max), tonalButton(text:"9",oneClick:--calc=--calc+"9",width:max), button(text:"÷",oneClick:--calc=--calc+"/",width:max))
+                        hStack(gap:8, tonalButton(text:"4",oneClick:--calc=--calc+"4",width:max), tonalButton(text:"5",oneClick:--calc=--calc+"5",width:max), tonalButton(text:"6",oneClick:--calc=--calc+"6",width:max), button(text:"×",oneClick:--calc=--calc+"*",width:max))
+                        hStack(gap:8, tonalButton(text:"1",oneClick:--calc=--calc+"1",width:max), tonalButton(text:"2",oneClick:--calc=--calc+"2",width:max), tonalButton(text:"3",oneClick:--calc=--calc+"3",width:max), button(text:"-",oneClick:--calc=--calc+"-",width:max))
+                        hStack(gap:8, tonalButton(text:"0",oneClick:--calc=--calc+"0",width:max), tonalButton(text:"C",oneClick:--calc="",--calc-a=0,width:max), button(text:"=",oneClick:--calc-a=calc(--calc),width:max), button(text:"+",oneClick:--calc=--calc+"+",width:max))
+                    )
+                )
+            )
+
+            card(
+                vStack(
+                    gap:12
+                    text(text:"3. コンポーネント制御" fontWeight:bold)
+                    hStack(
+                        toggle(isOn:--showExtra)
+                        text(text:"詳細オプションを表示")
+                    )
+                    
+                    if:--showExtra=true(
+                        vStack(
+                            gap:8
+                            padding:12
+                            background:#f0f0f5
+                            cornerRadius:12
+                            text(text:"スライダーで不透明度調整")
+                            slider(value:--alpha min:0 max:1)
+                            text(text:"現在の値: "+--alpha opacity:--alpha)
+                        )
+                    )
+                )
+            )
+
+            card(
+                vStack(
+                    gap:12
+                    text(text:"4. 動的リスト追加" fontWeight:bold)
+                    hStack(
+                        gap:8
+                        button(text:"追加", oneClick:add(myList:'text(text:"新しいアイテム "+random(1,100), padding:8, background:#f0f9ff, cornerRadius:8)'))
+                        button(text:"削除", tonalButton:true, oneClick:del(myList))
+                    )
+                    vStack(id:myList gap:4)
+                )
+            )
+            
+            --alpha:1
+            --showExtra:false
+        )
+    )
+)
