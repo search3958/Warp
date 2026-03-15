@@ -106,7 +106,7 @@ screen(
 ---
 
 ## 状況
-- **Android**: Jetpack Compose Native
+- **Web**: 最も高速に対応します。
+- **Android**: ほとんど対応しています
+- **BaramOS ネイティブUI**: 基礎部分のみ対応しています。
 - **iOS**: 開発予定
-- **Web**: Vanilla JS Engine
-- **BaramOS ネイティブUI**: 対応予定です。UIが完成しますと取り掛かります。
