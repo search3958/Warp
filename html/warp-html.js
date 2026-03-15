@@ -1,4 +1,12 @@
 (function() {
+    function logSuccess(msg, data = null) {
+        console.log(`%c[Warp Engine] ✅ ${msg}`, 'color: #2e7d32; font-weight: bold;', data);
+    }
+
+    function logError(msg, detail = "") {
+        console.error(`%c[Warp Engine] ❌ ${msg}`, 'color: #c62828; font-weight: bold;', detail);
+    }
+
     function loadCSS() {
         const cssPath = 'warp-html.css';
         if (!document.querySelector(`link[href="${cssPath}"]`)) {
@@ -9,585 +17,390 @@
         }
     }
 
+    // トークナイザー
     function tokenize(code) {
         const tokens = [];
         let pos = 0;
         while (pos < code.length) {
             let c = code[pos];
-            if (/\s/.test(c)) {
-                pos++;
+            if (/\s/.test(c)) { pos++; continue; }
+            if (c === '/' && code[pos + 1] === '/') {
+                while (pos < code.length && code[pos] !== '\n') pos++;
                 continue;
             }
             if (c === '"' || c === "'") {
-                let quote = c;
-                let str = quote;
-                pos++;
+                let quote = c; let str = quote; pos++;
                 while (pos < code.length) {
-                    if (code[pos] === '\\') { 
-                        str += code[pos];
-                        pos++;
-                        if (pos < code.length) {
-                            str += code[pos];
-                            pos++;
-                        }
-                        continue;
-                    }
-                    if (code[pos] === quote) {
-                        str += code[pos];
-                        pos++;
-                        break;
-                    }
-                    str += code[pos];
-                    pos++;
+                    if (code[pos] === '\\') { str += code[pos] + (code[pos+1] || ''); pos += 2; continue; }
+                    if (code[pos] === quote) { str += code[pos]; pos++; break; }
+                    str += code[pos]; pos++;
                 }
-                tokens.push(str);
-                continue;
+                tokens.push(str); continue;
             }
-            if (['(', ')', ',', ':', '=', '+'].includes(c)) {
-                tokens.push(c);
-                pos++;
-                continue;
+            if (['(', ')', '{', '}', ',', ':', '=', '+', '*', '/', ';'].includes(c)) {
+                tokens.push(c); pos++; continue;
             }
             let word = "";
-            while (pos < code.length && !/\s/.test(code[pos]) && !['(', ')', ',', ':', '=', '+', '"', "'"].includes(code[pos])) {
-                word += code[pos];
-                pos++;
+            while (pos < code.length && !/\s/.test(code[pos]) && !['(', ')', '{', '}', ',', ':', '=', '+', '*', '/', '"', "'", ';'].includes(code[pos])) {
+                word += code[pos]; pos++;
             }
             if (word.length > 0) tokens.push(word);
         }
         return tokens;
     }
 
+    // パーサー
     function parseCode(code) {
         const tokens = tokenize(code);
         let pos = 0;
-
-        // 【追加】アクション用の関数リスト（これらはUIコンポーネントとして扱わない）
-        function isReservedFunc(name) {
-            return ['reset', 'calc', 'script', 'add', 'del', 'clr', 'show', 'hide'].includes(name) || name.startsWith('setScreen');
-        }
+        const isReserved = (n) => ['reset', 'calc', 'script', 'add', 'del', 'clr', 'show', 'hide', 'wait', 'setScreen'].includes(n);
 
         function parseNode() {
             if (pos >= tokens.length) return null;
             let token = tokens[pos];
-            
+
             if (token.startsWith('@')) {
-                let name = token.slice(1);
-                let node = { type: 'script', name: name, blocks: [] };
+                let node = { type: 'script', name: token.slice(1), blocks: [] };
                 pos += 2; 
-                while(pos < tokens.length && tokens[pos] !== ')') {
-                    let blockTypeToken = tokens[pos];
-                    if (blockTypeToken === 'if' || blockTypeToken === 'elseIf') {
-                        let blockType = blockTypeToken;
-                        pos++;
-                        if (tokens[pos] === ':') pos++;
-                        
-                        let condTokens = [];
-                        while(pos < tokens.length && tokens[pos] !== '(' && tokens[pos] !== ')') {
-                            condTokens.push(tokens[pos]);
-                            pos++;
-                        }
-                        let condition = condTokens.join('');
-                        if (tokens[pos] === '(') pos++; 
-                        
-                        let actionTokens = [];
-                        let parenCount = 0;
-                        while(pos < tokens.length) {
-                            if (parenCount === 0 && tokens[pos] === ')') break;
-                            if (tokens[pos] === '(') parenCount++;
-                            if (tokens[pos] === ')') parenCount--;
-                            actionTokens.push(tokens[pos]);
-                            pos++;
-                        }
-                        node.blocks.push({ type: blockType, condition: condition, actions: actionTokens.join('') });
-                        if (tokens[pos] === ')') pos++;
-                    } else {
-                        pos++;
+                while (pos < tokens.length && tokens[pos] !== '}') {
+                    let type = tokens[pos++]; if (tokens[pos] === ':') pos++;
+                    if (tokens[pos] === '(') pos++;
+                    let cond = []; while (pos < tokens.length && tokens[pos] !== ')') cond.push(tokens[pos++]);
+                    if (tokens[pos] === ')') pos++;
+                    if (tokens[pos] === '{') pos++;
+                    let acts = []; let p = 1;
+                    while (pos < tokens.length && p > 0) {
+                        if (tokens[pos] === '{') p++; if (tokens[pos] === '}') p--;
+                        if (p > 0) acts.push(tokens[pos++]); else pos++;
                     }
+                    node.blocks.push({ type, condition: cond.join(''), actions: acts.join('') });
+                    if (tokens[pos] === ',') pos++;
                 }
-                pos++; 
-                return node;
+                pos++; return node;
             }
 
-            if (pos + 1 < tokens.length && tokens[pos + 1] === '(') {
-                let node = {
-                    type: 'component',
-                    name: token,
-                    props: {},
-                    events: {},
-                    children: []
-                };
+            if (pos + 1 < tokens.length && tokens[pos + 1] === '{') {
+                let node = { type: 'component', name: token, props: {}, events: {}, children: [] };
                 pos += 2;
-                while (pos < tokens.length && tokens[pos] !== ')') {
+                while (pos < tokens.length && tokens[pos] !== '}') {
                     let t = tokens[pos];
-                    
-                    // 【修正】子コンポーネントかどうかの判定に isReservedFunc を使用
-                    if (pos + 1 < tokens.length && tokens[pos + 1] === '(' && !isReservedFunc(t)) {
-                        let child = parseNode();
-                        if (child) node.children.push(child);
-                        continue;
+                    if (pos + 1 < tokens.length && tokens[pos+1] === ':') {
+                        let key = t; pos += 2;
+                        if (tokens[pos] !== '(') { pos++; continue; }
+                        pos++; let val = []; let p = 1;
+                        while (pos < tokens.length && p > 0) {
+                            if (tokens[pos] === '(') p++; if (tokens[pos] === ')') p--;
+                            if (p > 0) val.push(tokens[pos++]); else pos++;
+                        }
+                        if (['oneClick', 'longPress', 'output'].includes(key)) node.events[key] = val.join('');
+                        else node.props[key] = val;
+                        if (tokens[pos] === ',') pos++; continue;
                     }
-                    if (pos + 1 < tokens.length && tokens[pos + 1] === ':') {
-                        let key = t;
-                        pos += 2;
-                        let expr = [];
-                        let parenCount = 0;
-                        
-                        while (pos < tokens.length) {
-                            let currentToken = tokens[pos];
-                            if (parenCount === 0) {
-                                if (currentToken === ')') break;
-                                // 【修正】プロパティ読み取りの終了判定にも isReservedFunc を使用
-                                if (pos + 1 < tokens.length && tokens[pos + 1] === '(' && !isReservedFunc(currentToken)) break;
-                                if (pos + 1 < tokens.length && tokens[pos + 1] === ':') break; 
-                            }
-                            if (currentToken === '(') parenCount++;
-                            else if (currentToken === ')') parenCount--;
-                            expr.push(currentToken);
-                            pos++;
-                        }
-                        
-                        if (key === 'oneClick' || key === 'longPress') {
-                            node.events[key] = expr.join('');
-                        } else {
-                            node.props[key] = expr;
-                        }
-                        continue;
+                    if (pos + 1 < tokens.length && tokens[pos+1] === '{') {
+                        let child = parseNode(); if (child) node.children.push(child);
+                        if (tokens[pos] === ',') pos++; continue;
                     }
                     pos++;
                 }
-                pos++;
-                return node;
+                pos++; return node;
             }
-            pos++;
             return null;
         }
-        
-        const ast = [];
-        while (pos < tokens.length) {
-            let node = parseNode();
-            if (node) ast.push(node);
-        }
+        const ast = []; while (pos < tokens.length) { let n = parseNode(); if (n) ast.push(n); else pos++; }
         return ast;
     }
 
+    // 表示用評価
     function evalExpr(exprArr, state) {
-        if (!exprArr || exprArr.length === 0) return "";
-        let result = "";
-        for (let i = 0; i < exprArr.length; i++) {
-            let t = exprArr[i];
+        if (!exprArr) return "";
+        let res = "";
+        for (let t of exprArr) {
             if (t === '+') continue;
-            if (t.startsWith('--')) {
-                result += state[t] !== undefined ? String(state[t]) : "";
-            } else if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
-                let inner = t.slice(1, -1);
-                inner = inner.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\'/g, "'").replace(/\\\\/g, "\\").replace(/\\ /g, " ").replace(/\\\(/g, "(").replace(/\\\)/g, ")").replace(/\\:/g, ":");
-                result += inner;
+            if (t.startsWith('--') || t.startsWith('~~')) {
+                let v = state[t];
+                res += (v !== undefined && v !== null) ? String(v) : "";
+            } else if (t.startsWith('"') || t.startsWith("'")) {
+                res += t.slice(1, -1).replace(/\\n/g, '\n').replace(/\\"/g, '"');
+            } else if (t === 'null') {
+                res += "";
             } else {
-                result += t;
+                res += t;
             }
         }
-        return result;
+        return res;
     }
 
-    function evaluateRHS(exprStr, state) {
-        if (exprStr.startsWith('calc(') && exprStr.endsWith(')')) {
-            let inner = exprStr.slice(5, -1);
-            inner = inner.replace(/--[a-zA-Z0-9_-]+/g, match => state[match] !== undefined ? String(state[match]) : "");
-            try {
-                if (!inner.trim()) return "";
-                if (/^[0-9+\-*/().\s]*$/.test(inner)) {
-                    let res = new Function('return ' + inner)();
-                    return (res !== undefined && res !== null) ? String(res) : "";
-                }
-                return "Error";
-            } catch(e) {
-                return "Error";
-            }
+    // 値の評価 (代入・条件用)
+    function evaluateValue(valStr, state) {
+        valStr = valStr.trim();
+        if (valStr.startsWith('(') && valStr.endsWith(')')) valStr = valStr.slice(1, -1).trim();
+        if (valStr === 'null') return null;
+        if (valStr === 'true') return true;
+        if (valStr === 'false') return false;
+
+        // .replace{}
+        if (valStr.includes('.replace{')) {
+            let parts = valStr.split('.replace{');
+            let vn = parts[0].trim();
+            let argsStr = parts[1].split('}')[0];
+            let args = argsStr.split(',').map(a => evaluateValue(a.trim(), state));
+            let base = state[vn] !== undefined ? String(state[vn]) : evaluateValue(vn, state);
+            return String(base || "").replace(args[0], args[1] || "");
         }
 
-        let parts = [];
-        let current = "";
-        let inQuote = false;
-        for(let i = 0; i < exprStr.length; i++) {
-            let c = exprStr[i];
-            if (c === '"' || c === "'") {
-                inQuote = !inQuote;
-                current += c;
-            } else if (c === '+' && !inQuote) {
-                parts.push(current.trim());
-                current = "";
-            } else {
-                current += c;
-            }
+        // calc{}
+        if (valStr.startsWith('calc{') && valStr.endsWith('}')) {
+            let inner = valStr.slice(5, -1).replace(/(--[a-zA-Z0-9_-]+|~~[a-zA-Z0-9_-]+)/g, m => state[m] || "0");
+            try { return String(eval(inner.replace(/[^0-9+\-*/().\s]/g, ''))); } catch(e) { return "Error"; }
         }
-        if (current) parts.push(current.trim());
+        
+        // 文字列結合
+        if (valStr.includes('+')) {
+            let parts = []; let cur = ""; let q = false;
+            for(let i=0; i<valStr.length; i++){
+                if(valStr[i] === '"' || valStr[i] === "'") q = !q;
+                if(valStr[i] === '+' && !q) { parts.push(cur.trim()); cur = ""; } else cur += valStr[i];
+            }
+            parts.push(cur.trim());
+            return parts.map(p => {
+                let pv = p.trim();
+                if (pv.startsWith('"') || pv.startsWith("'")) return pv.slice(1, -1);
+                if (pv.startsWith('--') || pv.startsWith('~~')) return state[pv] !== undefined && state[pv] !== null ? state[pv] : "";
+                return pv;
+            }).join('');
+        }
 
-        let result = "";
-        for(let p of parts) {
-            if ((p.startsWith('"') && p.endsWith('"')) || (p.startsWith("'") && p.endsWith("'"))) {
-                let inner = p.slice(1, -1);
-                inner = inner.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\'/g, "'").replace(/\\\\/g, "\\").replace(/\\ /g, " ").replace(/\\\(/g, "(").replace(/\\\)/g, ")").replace(/\\:/g, ":");
-                result += inner;
-            } else if (p.startsWith('--')) {
-                result += state[p] !== undefined ? String(state[p]) : "";
-            } else if (p !== "") {
-                result += p;
-            }
-        }
-        return result;
+        if (!isNaN(valStr) && valStr !== "") return parseFloat(valStr);
+        if (valStr.startsWith('"') || valStr.startsWith("'")) return valStr.slice(1, -1);
+        return state[valStr] !== undefined ? state[valStr] : valStr;
     }
 
-    function evaluateCondition(condStr, state) {
-        try {
-            let parts = condStr.split('=');
-            if (parts.length === 2) {
-                let left = evalExpr([parts[0].trim()], state);
-                let right = evalExpr([parts[1].trim()], state);
-                return left === right;
-            }
-            console.warn(`[Warp Engine] ⚠ 不正な条件式です: '${condStr}'`);
-            return false;
-        } catch (e) {
-            console.error(`[Warp Engine] ❌ 条件の評価に失敗しました '${condStr}':`, e);
-            return false;
+    function evaluateCondition(cond, state) {
+        cond = cond.trim();
+        if (cond.includes('.contains{')) {
+            let parts = cond.split('.contains{');
+            let vn = parts[0].trim();
+            let search = evaluateValue(parts[1].split('}')[0], state);
+            let has = String(state[vn] || "").includes(search);
+            return cond.includes('= false') ? !has : has;
         }
-    }
-
-    function initState(ast, state) {
-        if (!state._currentScreen) {
-            state._currentScreen = 'main';
+        if (cond.includes('=')) {
+            let parts = cond.split('=');
+            let left = evaluateValue(parts[0], state);
+            let right = evaluateValue(parts.slice(1).join('='), state);
+            return String(left) === String(right);
         }
-        function walk(node) {
-            if (node.type === 'script') return;
-            for (let key in node.props) {
-                if (key.startsWith('--')) {
-                    state[key] = evalExpr(node.props[key], state);
-                }
-            }
-            node.children.forEach(walk);
-        }
-        ast.forEach(walk);
+        return !!evaluateValue(cond, state);
     }
 
     function initWarp() {
         loadCSS();
-        const warpBlocks = document.querySelectorAll('warp-code');
-        warpBlocks.forEach((block) => {
-            const code = block.textContent;
-            const container = document.createElement('div');
-            container.className = 'warp-app-container';
-            block.parentNode.insertBefore(container, block.nextSibling);
-            block.style.display = 'none';
-            const state = {};
-            const ast = parseCode(code);
+        document.querySelectorAll('warp-code').forEach(block => {
+            const container = document.createElement('div'); container.className = 'warp-app-container';
+            block.parentNode.insertBefore(container, block.nextSibling); block.style.display = 'none';
+            const state = new Proxy({}, {
+                get(t, p) { return p.startsWith('~~') ? localStorage.getItem('warp_'+p) || t[p] : t[p]; },
+                set(t, p, v) { t[p] = v; if(p.startsWith('~~')) localStorage.setItem('warp_'+p, v); return true; }
+            });
+            const ast = parseCode(block.textContent);
+            state._currentScreen = 'main'; state._dynamicNodes = {}; state._visibility = {}; state._status = {};
 
-            function executeAction(actionStr) {
-                let actions = [];
-                let currentAct = '';
-                let inQuote = false;
-                let parenLevel = 0;
-                
+            async function executeAction(actionStr) {
+                let acts = []; let cur = ""; let q = false; let p_curly = 0; let p_round = 0;
                 for (let i = 0; i < actionStr.length; i++) {
-                    let char = actionStr[i];
-                    if (char === '"' || char === "'") inQuote = !inQuote;
-                    if (!inQuote && char === '(') parenLevel++;
-                    if (!inQuote && char === ')') parenLevel--;
-                    
-                    if (char === ',' && !inQuote && parenLevel === 0) {
-                        actions.push(currentAct.trim());
-                        currentAct = '';
-                    } else {
-                        currentAct += char;
+                    let c = actionStr[i]; if (c === '"' || c === "'") q = !q;
+                    if (!q) {
+                        if (c === '{') p_curly++; if (c === '}') p_curly--;
+                        if (c === '(') p_round++; if (c === ')') p_round--;
                     }
+                    if (c === ',' && !q && p_curly === 0 && p_round === 0) { acts.push(cur.trim()); cur = ""; } else cur += c;
                 }
-                if (currentAct) actions.push(currentAct.trim());
+                if (cur.trim()) acts.push(cur.trim());
 
-                for (let act of actions) {
-                    let assignIdx = act.indexOf('=');
-                    let colonIdx = act.indexOf(':');
-                    
-                    if (assignIdx === -1 && colonIdx > -1 && act.startsWith('--')) {
-                        act = act.slice(0, colonIdx) + '=' + act.slice(colonIdx + 1);
-                    }
-
+                for (let act of acts) {
+                    act = act.trim();
                     try {
-                        if (act.startsWith('add(')) {
-                            let inner = act.slice(4, -1);
-                            let colIdx = inner.indexOf(':');
-                            if (colIdx === -1) throw new Error("add() の形式が間違っています (例: add(targetId: 'component(...)'))");
-                            let targetId = inner.slice(0, colIdx).trim();
-                            let compStr = inner.slice(colIdx + 1).trim();
-                            if (compStr.startsWith("'") || compStr.startsWith('"')) compStr = compStr.slice(1, -1);
-                            let dynAst = parseCode(compStr);
-                            if (!state._dynamicNodes) state._dynamicNodes = {};
-                            if (!state._dynamicNodes[targetId]) state._dynamicNodes[targetId] = [];
-                            state._dynamicNodes[targetId].push(...dynAst);
-                            console.log(`[Warp Engine] ➕ ノードを追加しました -> ${targetId}`);
-                        } else if (act.startsWith('del(')) {
-                            let inner = act.slice(4, -1);
-                            let colIdx = inner.indexOf(':');
-                            let targetId = colIdx > -1 ? inner.slice(0, colIdx).trim() : inner.trim();
-                            let compName = colIdx > -1 ? inner.slice(colIdx + 1).trim() : null;
-                            if (state._dynamicNodes && state._dynamicNodes[targetId] && state._dynamicNodes[targetId].length > 0) {
-                                let list = state._dynamicNodes[targetId];
-                                if (compName) {
-                                    let removed = false;
-                                    for(let i = list.length - 1; i >= 0; i--) {
-                                        if (list[i].name === compName) {
-                                            list.splice(i, 1);
-                                            removed = true;
-                                            break;
-                                        }
-                                    }
-                                    if (!removed) console.warn(`[Warp Engine] ⚠ 削除対象 (${compName}) が見つかりません`);
-                                } else {
-                                    list.pop();
-                                }
-                                console.log(`[Warp Engine] 🗑 ノードを削除しました <- ${targetId}`);
-                            } else {
-                                console.warn(`[Warp Engine] ⚠ 削除対象リスト '${targetId}' が存在しないか空です。`);
+                        if (act.startsWith('if:')) {
+                            let p = act.indexOf('(');
+                            let depth = 0; let condEnd = -1;
+                            for (let i = p; i < act.length; i++) {
+                                if (act[i] === '(') depth++;
+                                if (act[i] === ')') { depth--; if (depth === 0) { condEnd = i; break; } }
                             }
-                        } else if (act.startsWith('clr(')) {
-                            let targetId = act.slice(4, -1).trim();
-                            if (state._dynamicNodes) state._dynamicNodes[targetId] = [];
-                            console.log(`[Warp Engine] 🧹 リストをクリアしました -> ${targetId}`);
-                        } else if (act.startsWith('show(')) {
-                            let targetId = act.slice(5, -1).trim();
-                            if (!state._visibility) state._visibility = {};
-                            state._visibility[targetId] = true;
-                            console.log(`[Warp Engine] 👁 表示化 -> ${targetId}`);
-                        } else if (act.startsWith('hide(')) {
-                            let targetId = act.slice(5, -1).trim();
-                            if (!state._visibility) state._visibility = {};
-                            state._visibility[targetId] = false;
-                            console.log(`[Warp Engine] 🙈 非表示化 -> ${targetId}`);
-                        } else if (act.startsWith('script(')) {
-                            let scriptName = act.slice(7, -1).trim();
-                            executeScript(scriptName);
-                        } else if (act.startsWith('reset(')) {
-                            setTimeout(() => {
-                                let currentScreen = state._currentScreen;
-                                Object.keys(state).forEach(k => delete state[k]);
-                                state._currentScreen = currentScreen;
-                                initState(ast, state);
-                                render();
-                            }, 500);
-                        } else if (act.startsWith('setScreen(')) {
-                            let targetScreen = act.slice(10, -1).trim();
-                            state._currentScreen = targetScreen;
+                            let cond = act.slice(p + 1, condEnd).trim();
+                            let aStart = act.indexOf('{', condEnd);
+                            let aDepth = 0; let aEnd = -1;
+                            for (let i = aStart; i < act.length; i++) {
+                                if (act[i] === '{') aDepth++;
+                                if (act[i] === '}') { aDepth--; if (aDepth === 0) { aEnd = i; break; } }
+                            }
+                            let inner = act.slice(aStart + 1, aEnd);
+                            if (evaluateCondition(cond, state)) await executeAction(inner);
+                        } else if (act.startsWith('wait:')) {
+                            let val = act.split('wait:')[1].trim();
+                            await new Promise(r => setTimeout(r, parseFloat(evaluateValue(val, state)) * 1000));
+                        } else if (act.startsWith('setScreen{')) {
+                            state._currentScreen = act.slice(10, -1).trim();
+                        } else if (act.startsWith('script{')) {
+                            await executeScript(act.slice(7, -1).trim());
+                        } else if (act.startsWith('show{')) {
+                            state._visibility[act.slice(5, -1).trim()] = true;
+                        } else if (act.startsWith('hide{')) {
+                            state._visibility[act.slice(5, -1).trim()] = false;
+                        } else if (act.startsWith('clr{')) {
+                            state._dynamicNodes[act.slice(4, -1).trim()] = [];
+                        } else if (act.startsWith('add{')) {
+                            let idx = act.indexOf(':'); let target = act.slice(4, idx).trim();
+                            let comp = evaluateValue(act.slice(idx+1, -1).trim(), state);
+                            if (!state._dynamicNodes[target]) state._dynamicNodes[target] = [];
+                            state._dynamicNodes[target].push(...parseCode(comp));
+                        } else if (act.startsWith('del{')) {
+                            let target = act.slice(4, -1).split(':')[0].trim();
+                            if (state._dynamicNodes[target]) state._dynamicNodes[target].pop();
+                        } else if (act.startsWith('reset{')) {
+                            location.reload();
+                        } else if (act.includes('.setStatus{')) {
+                            let [id, val] = act.split('.setStatus{'); state._status[id.trim()] = val.slice(0, -1).trim();
+                        } else if (act.includes('.changeContent{')) {
+                            let id = act.split('.changeContent{')[0].trim();
+                            let val = evaluateValue(act.split('.changeContent{')[1].slice(0, -1).trim(), state);
+                            let el = document.getElementById(id); if (el) { el.value = val; el.dispatchEvent(new Event('input')); }
                         } else if (act.includes('=')) {
                             let parts = act.split('=');
-                            let key = parts[0].trim();
-                            let valStr = parts.slice(1).join('=').trim();
-                            state[key] = evaluateRHS(valStr, state);
-                        } else {
-                            console.warn(`[Warp Engine] ⚠ 不明なアクションを無視しました: '${act}'`);
+                            let k = parts[0].trim();
+                            state[k] = evaluateValue(parts.slice(1).join('='), state);
                         }
-                    } catch (err) {
-                        console.error(`[Warp Engine] ❌ アクションの実行に失敗しました '${act}':`, err);
-                    }
+                    } catch (e) { logError(`Action failed: ${act}`, e); }
                 }
                 render();
             }
 
-            function executeScript(scriptName) {
-                let scriptNode = ast.find(n => n.type === 'script' && n.name === scriptName);
-                if (!scriptNode) {
-                    console.error(`[Warp Engine] ❌ 存在しないスクリプトを呼び出しました: @${scriptName}`);
-                    return;
+            async function executeScript(name) {
+                let s = ast.find(n => n.type === 'script' && n.name === name);
+                if (!s) return; let done = false;
+                for (let b of s.blocks) {
+                    let match = evaluateCondition(b.condition, state);
+                    if (match && (!done || b.type === 'if')) { await executeAction(b.actions); done = true; }
                 }
-                
-                console.groupCollapsed(`[Warp Engine] 📜 スクリプト実行: @${scriptName}`);
-                let matchedIf = false;
-                let conditionMet = false;
+            }
 
-                for (let block of scriptNode.blocks) {
-                    if (block.type === 'if') {
-                        matchedIf = evaluateCondition(block.condition, state);
-                        if (matchedIf) {
-                            console.log(`✅ [if: ${block.condition}] 合致しました。処理を実行します。`);
-                            conditionMet = true;
-                            executeAction(block.actions);
-                        } else {
-                            console.log(`❌ [if: ${block.condition}] 不一致`);
-                        }
-                    } else if (block.type === 'elseIf') {
-                        if (!matchedIf) {
-                            let cond = evaluateCondition(block.condition, state);
-                            if (cond) {
-                                console.log(`✅ [elseIf: ${block.condition}] 合致しました。処理を実行します。`);
-                                matchedIf = true;
-                                conditionMet = true;
-                                executeAction(block.actions);
-                            } else {
-                                console.log(`❌ [elseIf: ${block.condition}] 不一致`);
-                            }
-                        } else {
-                            console.log(`⏩ [elseIf: ${block.condition}] 前の条件が合致したためスキップしました`);
-                        }
+            function applyStyles(el, node) {
+                const palette = { yellow: '#fbc02d', red: '#b3261e', blue: '#0a56d0', gray: '#808080', black: '#000000', white: '#ffffff' };
+                const format = (v) => {
+                    if (isNaN(v) && /[+\-*/]/.test(v) && !v.includes('calc')) {
+                        let spaced = v.replace(/([+\-*/])/g, ' $1 ').replace(/\s+/g, ' ').trim();
+                        let withPx = spaced.replace(/\b([0-9.]+)\b(?!\s*[a-zA-Z%])/g, '$1px');
+                        return `calc(${withPx})`;
                     }
+                    return (isNaN(v) || v === "") ? v : v + "px";
+                };
+
+                if (node.props['width']) {
+                    let w = evalExpr(node.props['width'], state);
+                    el.style.width = w === 'max' ? '100%' : format(w);
                 }
-                
-                if (!conditionMet) {
-                    console.warn(`⚠ スクリプト @${scriptName} 内で合致する条件がありませんでした`);
+                if (node.props['height']) {
+                    let h = evalExpr(node.props['height'], state);
+                    el.style.height = h === 'max' ? '100%' : format(h);
                 }
-                console.groupEnd();
+
+                ['frame', 'position', 'offset'].forEach(k => {
+                    if (node.props[k]) {
+                        if (k === 'position') el.style.position = 'fixed';
+                        node.props[k].join('').split(',').forEach(s => {
+                            let [p, v] = s.split('=').map(x => x.trim()); if (!p || !v) return;
+                            if (k === 'offset') el.style['margin'+p.charAt(0).toUpperCase()+p.slice(1)] = format(v);
+                            else el.style[p] = format(v);
+                        });
+                    }
+                });
+                if (node.props['zIndex']) el.style.zIndex = node.props['zIndex'].join('');
+                let bgColor = evalExpr(node.props['color'], state);
+                if (bgColor) el.style.backgroundColor = palette[bgColor] || bgColor;
+                let textColor = evalExpr(node.props['textColor'], state);
+                if (textColor) el.style.color = palette[textColor] || textColor;
             }
 
             function renderNode(node) {
-                if (node.type === 'script') return document.createDocumentFragment();
-
+                if (!node || node.type === 'script') return null;
                 let el;
-                switch (node.name) {
-                    case 'Header':
-                        el = document.createElement('div');
-                        el.className = 'warp-header';
-                        let title = document.createElement('h1');
-                        title.className = 'warp-header-title';
-                        title.innerText = evalExpr(node.props['text'], state);
-                        el.appendChild(title);
-                        let rightEl = document.createElement('div');
-                        rightEl.className = 'warp-header-actions';
-                        node.children.forEach(c => rightEl.appendChild(renderNode(c)));
-                        el.appendChild(rightEl);
-                        break;
-                    case 'text':
-                        el = document.createElement('div');
-                        el.className = 'warp-text';
-                        el.style.whiteSpace = 'pre-wrap'; 
-                        el.innerText = evalExpr(node.props['text'], state);
-                        break;
-                    case 'card':
-                        el = document.createElement('div');
-                        el.className = 'warp-card';
-                        if (node.props['text']) {
-                            let ct = document.createElement('h3');
-                            ct.className = 'warp-card-title';
-                            ct.innerText = evalExpr(node.props['text'], state);
-                            el.appendChild(ct);
-                        }
-                        node.children.forEach(c => el.appendChild(renderNode(c)));
-                        break;
-                    case 'hStack':
-                        el = document.createElement('div');
-                        el.className = 'warp-hstack';
-                        node.children.forEach(c => el.appendChild(renderNode(c)));
-                        break;
-                    case 'vStack':
-                        el = document.createElement('div');
-                        el.className = 'warp-vstack';
-                        el.style.display = 'flex';
-                        el.style.flexDirection = 'column';
-                        node.children.forEach(c => el.appendChild(renderNode(c)));
-                        break;
-                    case 'button':
-                    case 'tonalButton':
-                        el = document.createElement('button');
-                        el.className = node.name === 'tonalButton' ? 'warp-button tonal' : 'warp-button';
-                        el.innerText = evalExpr(node.props['text'], state);
-                        
-                        if (evalExpr(node.props['width'], state) === 'max') {
-                            el.style.width = '100%';
-                        }
-
-                        if (node.events['oneClick']) {
-                            el.addEventListener('click', () => executeAction(node.events['oneClick']));
-                        }
-                        if (node.events['longPress']) {
-                            let timer;
-                            const startPress = () => {
-                                timer = setTimeout(() => executeAction(node.events['longPress']), 600);
-                            };
-                            const endPress = () => clearTimeout(timer);
-                            el.addEventListener('mousedown', startPress);
-                            el.addEventListener('mouseup', endPress);
-                            el.addEventListener('mouseleave', endPress);
-                            el.addEventListener('touchstart', startPress);
-                            el.addEventListener('touchend', endPress);
-                        }
-                        break;
-                    default:
-                        el = document.createElement('div');
-                        el.innerText = `[Unknown Component:${node.name}]`;
-                }
-
-                if (el && el.nodeType === 1) {
-                    let idVal = evalExpr(node.props['id'], state) || (node.props['id'] ? node.props['id'].join('') : '');
-                    if (idVal) {
-                        el.id = idVal;
-                        
-                        if (state._visibility && state._visibility[idVal] === false) {
-                            el.style.display = 'none';
-                        }
-                        
-                        if (state._dynamicNodes && state._dynamicNodes[idVal]) {
-                            state._dynamicNodes[idVal].forEach(dNode => {
-                                el.appendChild(renderNode(dNode));
-                            });
-                        }
+                try {
+                    switch (node.name) {
+                        case 'Header':
+                            el = document.createElement('div'); el.className = 'warp-header';
+                            let t = document.createElement('h1'); t.innerText = evalExpr(node.props['text'], state); el.appendChild(t);
+                            let as = document.createElement('div'); as.className = 'warp-header-actions';
+                            node.children.forEach(c => { let r = renderNode(c); if(r) as.appendChild(r); });
+                            el.appendChild(as); break;
+                        case 'card':
+                            el = document.createElement('div'); el.className = 'warp-card';
+                            if (node.props['text']) { let h = document.createElement('h3'); h.innerText = evalExpr(node.props['text'], state); el.appendChild(h); }
+                            node.children.forEach(c => { let r = renderNode(c); if(r) el.appendChild(r); }); break;
+                        case 'text':
+                            el = document.createElement('div'); el.className = 'warp-text'; el.innerText = evalExpr(node.props['text'], state); break;
+                        case 'button':
+                        case 'tonalButton':
+                            el = document.createElement('button'); el.className = 'warp-button' + (node.name === 'tonalButton' ? ' tonal' : '');
+                            el.innerText = evalExpr(node.props['text'], state);
+                            if (node.events['oneClick']) el.onclick = () => executeAction(node.events['oneClick']);
+                            break;
+                        case 'hStack': case 'vStack':
+                            el = document.createElement('div'); el.className = node.name === 'hStack' ? 'warp-hstack' : 'warp-vstack';
+                            node.children.forEach(c => { let r = renderNode(c); if(r) el.appendChild(r); }); break;
+                        case 'switch':
+                            el = document.createElement('input'); el.type = 'checkbox'; el.className = 'warp-switch';
+                            let sVal = String(state[node.events['output']] || evalExpr(node.props['status'], state));
+                            el.checked = sVal.includes('true'); el.disabled = sVal.includes('Disabled');
+                            el.onchange = () => { state[node.events['output']] = el.checked ? "true" : "false"; render(); }; break;
+                        case 'slider':
+                            el = document.createElement('input'); el.type = 'range'; el.className = 'warp-slider';
+                            el.max = evalExpr(node.props['max'], state) || 100;
+                            el.value = state[node.events['output']] || evalExpr(node.props['status'], state) || 0;
+                            el.oninput = () => { state[node.events['output']] = el.value; render(); }; break;
+                        case 'input':
+                            el = document.createElement('input'); el.className = 'warp-input';
+                            el.placeholder = evalExpr(node.props['placeholder'], state) || "";
+                            el.value = state[node.events['output']] || evalExpr(node.props['--inputMain'], state) || "";
+                            el.oninput = () => { state[node.events['output']] = el.value; render(); }; break;
+                        default: el = document.createElement('div'); el.innerText = `[${node.name}]`;
                     }
-
-                    let colorVal = evalExpr(node.props['color'], state) || (node.props['color'] ? node.props['color'].join('') : '');
-                    if (colorVal) {
-                        const cssColors = {
-                            'yellow': '#fbc02d',
-                            'red': '#b3261e',
-                            'blue': '#0a56d0',
-                            'gray': '#808080',
-                            'black': '#000000'
-                        };
-                        let hex = cssColors[colorVal] || colorVal;
-                        el.style.setProperty('--warp-color-primary', hex);
-
-                        if (node.name === 'tonalButton') {
-                            el.style.color = hex;
-                            el.style.backgroundColor = hex + '13';
-                        } else if (node.name === 'text' || node.name === 'card') {
-                            el.style.color = hex;
+                    if (el) {
+                        let id = evalExpr(node.props['id'], state);
+                        if (id) {
+                            el.id = id;
+                            let status = state._status[id] || evalExpr(node.props['status'], state);
+                            if (status === 'disabled' || status === 'falseDisabled') el.disabled = true;
+                            else if (status === 'unset') el.disabled = false;
+                            if (state._visibility[id] === false) el.style.display = 'none';
+                            if (state._dynamicNodes[id]) state._dynamicNodes[id].forEach(dn => { let r = renderNode(dn); if(r) el.appendChild(r); });
                         }
-                    } else if (node.name === 'tonalButton') {
-                        el.style.color = '#0a56d0';
-                        el.style.backgroundColor = '#0a56d013';
+                        applyStyles(el, node);
                     }
-                }
-                return el;
+                    return el;
+                } catch (e) { return null; }
             }
 
             function render() {
-                container.innerHTML = ''; 
-                ast.forEach(node => {
-                    if (node.type === 'script') return;
-                    
-                    if (node.name === 'screen') {
-                        let screenId = node.props['id'] ? node.props['id'].join('') : '';
-                        let screenBox = document.createElement('div');
-                        screenBox.className = 'warp-screen-box';
-                        screenBox.id = 'warp-screen-' + screenId;
-                        
-                        if (screenId === state._currentScreen) {
-                            screenBox.style.display = 'block';
-                            node.children.forEach(child => {
-                                screenBox.appendChild(renderNode(child));
-                            });
-                        } else {
-                            screenBox.style.display = 'none';
-                        }
-                        container.appendChild(screenBox);
-                    } else {
-                        container.appendChild(renderNode(node));
+                container.innerHTML = '';
+                ast.forEach(n => {
+                    if (n.name === 'screen' && evalExpr(n.props['id'], state) === state._currentScreen) {
+                        n.children.forEach(c => { let r = renderNode(c); if(r) container.appendChild(r); });
                     }
                 });
             }
 
-            initState(ast, state);
+            (function init(ns) {
+                ns.forEach(n => {
+                    if (n.type === 'component') {
+                        for(let k in n.props) if (k.startsWith('--')) state[k] = evaluateValue(n.props[k].join(''), state);
+                        init(n.children);
+                    }
+                });
+            })(ast);
             render();
+            logSuccess("Warp App Initialized", ast);
         });
     }
-    
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initWarp);
-    } else {
-        initWarp();
-    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initWarp); else initWarp();
 })();
