@@ -180,111 +180,111 @@ screen{
         text: ("小計算機"),
         
         text{
-            --calc: (""),
-            text: (--calc),
+            --calcui: (""),
+            text: (--calcui),
             id: (calcDebug),
             textColor: (gray)
         },
         
         text{
-            --calc-a: (0),
-            text: (--calc-a)
+            --calcui-a: (0),
+            text: (--calcui-a)
         },
         
         hStack{
             tonalButton{
                 text: ("1"),
-                oneClick: (--calc = --calc + "1")
+                oneClick: (--calcui = --calcui + "1")
             },
             
             tonalButton{
                 text: ("2"),
-                oneClick: (--calc = --calc + "2")
+                oneClick: (--calcui = --calcui + "2")
             },
             
             tonalButton{
                 text: ("3"),
-                oneClick: (--calc = --calc + "3")
+                oneClick: (--calcui = --calcui + "3")
             },
             
             button{
                 text: ("+"),
-                oneClick: (--calc = --calc + "+")
+                oneClick: (--calcui = --calcui + "+")
             }
         },
         
         hStack{
             tonalButton{
                 text: ("4"),
-                oneClick: (--calc = --calc + "4")
+                oneClick: (--calcui = --calcui + "4")
             },
             
             tonalButton{
                 text: ("5"),
-                oneClick: (--calc = --calc + "5")
+                oneClick: (--calcui = --calcui + "5")
             },
             
             tonalButton{
                 text: ("6"),
-                oneClick: (--calc = --calc + "6")
+                oneClick: (--calcui = --calcui + "6")
             },
             
             button{
                 text: ("-"),
-                oneClick: (--calc = --calc + "-")
+                oneClick: (--calcui = --calcui + "-")
             }
         },
         
         hStack{
             tonalButton{
                 text: ("7"),
-                oneClick: (--calc = --calc + "7")
+                oneClick: (--calcui = --calcui + "7")
             },
             
             tonalButton{
                 text: ("8"),
-                oneClick: (--calc = --calc + "8")
+                oneClick: (--calcui = --calcui + "8")
             },
             
             tonalButton{
                 text: ("9"),
-                oneClick: (--calc = --calc + "9")
+                oneClick: (--calcui = --calcui + "9")
             },
             
             button{
                 text: ("×"),
-                oneClick: (--calc = --calc + "*")
+                oneClick: (--calcui = --calcui + "*")
             }
         },
         
         hStack{
             tonalButton{
                 text: ("0"),
-                oneClick: (--calc = --calc + "0")
+                oneClick: (--calcui = --calcui + "0")
             },
             
             button{
                 text: ("="),
-                oneClick: (--calc-a = calc{--calc}),
+                oneClick: (--calcui-a = calc{--calcui}),
                 color: (yellow)
             },
             
             tonalButton{
                 text: ("C"),
-                oneClick: (--calc = "0", --calc-a = 0),
+                oneClick: (--calcui = "0", --calcui-a = 0),
                 color: (yellow)
             },
             
             button{
                 text: ("÷"),
-                oneClick: (--calc = --calc + "/")
+                oneClick: (--calcui = --calcui + "/")
             }
         },
         
         button{
-            --calcButtonText: ("途中式を非表示"),
-            --calcDebugHide: (false),
-            text: (--calcButtonText),
+            --calcuiButtonText: ("途中式を非表示"),
+            --calcuiDebugHide: (false),
+            text: (--calcuiButtonText),
             oneClick: (script{calcText})
         }
     },
@@ -330,16 +330,16 @@ screen{
 }
 
 @calcText{
-    if: (--calcDebugHide = false) {
-        --calcButtonText = "途中式を表示",
+    if: (--calcuiDebugHide = false) {
+        --calcuiButtonText = "途中式を表示",
         hide{calcDebug},
-        --calcDebugHide = true
+        --calcuiDebugHide = true
     },
     
-    elseIf: (--calcDebugHide = true) {
-        --calcButtonText = "途中式を非表示",
+    elseIf: (--calcuiDebugHide = true) {
+        --calcuiButtonText = "途中式を非表示",
         show{calcDebug},
-        --calcDebugHide = false
+        --calcuiDebugHide = false
     }
 }
 
