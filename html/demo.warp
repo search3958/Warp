@@ -1,16 +1,4 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warp Demo</title>
-    <link rel="stylesheet" href="warp-html.css">
-    <script src="warp-html.js" defer></script>
-</head>
-<body>
 
-<warp-code style="display:none">
-// Warp Language v3 - Refined Swift-like Syntax
 @App var warpVersion = 2
 @App var themeColor = "blue"
 @App var currentScreen = "main"
@@ -252,8 +240,3 @@ func ctrl() {
         container("cList").clear()
     }
 }
-
-</warp-code>
-
-</body>
-</html>

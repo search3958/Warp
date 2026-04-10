@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>warp-mirae インタープリタ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: #2d2d30;
+            padding: 15px 20px;
+            border-bottom: 2px solid #007acc;
+        }
+        
+        h1 {
+            font-size: 20px;
+            color: #007acc;
+        }
+        
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #3e3e42;
+        }
+        
+        .toolbar {
+            background: #2d2d30;
+            padding: 10px;
+            border-bottom: 1px solid #3e3e42;
+        }
+        
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin-right: 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #1177bb;
+        }
+        
+        button:active {
+            background: #0d5a8f;
+        }
+        
+        #code-editor {
+            flex: 1;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+        }
+        
+        .output-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #252526;
+        }
+        
+        .tabs {
+            background: #2d2d30;
+            display: flex;
+            border-bottom: 1px solid #3e3e42;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .tab:hover {
+            background: #37373d;
+        }
+        
+        .tab.active {
+            border-bottom-color: #007acc;
+            color: #007acc;
+        }
+        
+        .tab-content {
+            display: none;
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .output-line {
+            margin-bottom: 5px;
+        }
+        
+        .error {
+            color: #f48771;
+        }
+        
+        .success {
+            color: #4ec9b0;
+        }
+        
+        .info {
+            color: #9cdcfe;
+        }
+        
+        .debug-section {
+            margin-bottom: 20px;
+        }
+        
+        .debug-title {
+            color: #007acc;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .debug-item {
+            background: #1e1e1e;
+            padding: 8px 12px;
+            margin-bottom: 5px;
+            border-radius: 3px;
+            border-left: 3px solid #4ec9b0;
+        }
+        
+        .debug-item-name {
+            color: #9cdcfe;
+            font-weight: bold;
+        }
+        
+        .debug-item-value {
+            color: #ce9178;
+            margin-left: 10px;
+        }
+
+        #screen-canvas {
+            background: #000;
+            border: 2px solid #3e3e42;
+            image-render: pixelated;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .screen-info {
+            text-align: center;
+            color: #808080;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>warp-mirae インタープリタ</h1>
+    </div>
+
+    <div class="container">
+        <div class="editor-panel">
+            <div class="toolbar">
+                <button onclick="runCode()">▶ 実行</button>
+                <button onclick="clearAll()">🗑 全クリア</button>
+                <button onclick="loadExample()">📝 サンプル読み込み</button>
+            </div>
+            <textarea id="code-editor" placeholder="warp-miraeコードをここに入力してください..."></textarea>
+        </div>
+
+        <div class="output-panel">
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('output')">出力</div>
+                <div class="tab" onclick="switchTab('debug')">変数・リスト</div>
+                <div class="tab" onclick="switchTab('canvas')">キャンバス</div>
+            </div>
+            <div id="output-tab" class="tab-content active"></div>
+            <div id="debug-tab" class="tab-content"></div>
+            <div id="canvas-tab" class="tab-content">
+                <canvas id="screen-canvas" width="256" height="256"></canvas>
+                <div class="screen-info" id="screen-info"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class WarpMiraeInterpreter {
+            constructor() {
+                this.variables = {};
+                this.lists = {};
+                this.blocks = {};
+                this.output = [];
+                this.caseSensitive = true;
+            }
+            
+            log(message, type = 'info') {
+                this.output.push({ message, type });
+            }
+            
+            normalize(str) {
+                return this.caseSensitive ? str : str.toLowerCase();
+            }
+            
+            execute(code) {
+                this.output = [];
+                try {
+                    const lines = code.split('\n');
+                    this.processLines(lines);
+                    return this.output;
+                } catch (error) {
+                    this.log(`エラー: ${error.message}`, 'error');
+                    return this.output;
+                }
+            }
+            
+            processLines(lines, startIndex = 0, endIndex = null) {
+                endIndex = endIndex || lines.length;
+                let i = startIndex;
+                
+                while (i < endIndex) {
+                    let line = lines[i].trim();
+                    
+                    // コメントと空行をスキップ
+                    if (!line || line.startsWith('//')) {
+                        i++;
+                        continue;
+                    }
+                    
+                    // ブロック定義
+                    if (line.startsWith('block(')) {
+                        const blockName = line.match(/block\((\w+)\)/)[1];
+                        const blockEnd = this.findBlockEnd(lines, i);
+                        this.blocks[blockName] = lines.slice(i + 1, blockEnd);
+                        i = blockEnd + 1;
+                        continue;
+                    }
+                    
+                    // ブロック実行
+                    if (this.blocks[line]) {
+                        this.processLines(this.blocks[line]);
+                        i++;
+                        continue;
+                    }
+                    
+                    // loop
+                    if (line.startsWith('loop(')) {
+                        i = this.executeLoop(lines, i);
+                        continue;
+                    }
+                    
+                    // if文
+                    if (line.startsWith('if(')) {
+                        i = this.executeIf(lines, i);
+                        continue;
+                    }
+                    
+                    // その他の命令
+                    this.executeLine(line);
+                    i++;
+                }
+                
+                return i;
+            }
+            
+            findBlockEnd(lines, startIndex) {
+                let depth = 0;
+                for (let i = startIndex; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line.includes('{')) depth++;
+                    if (line.includes('}')) {
+                        depth--;
+                        if (depth === 0) return i;
+                    }
+                }
+                return lines.length;
+            }
+            
+            executeLoop(lines, startIndex) {
+                const line = lines[startIndex].trim();
+                const conditionMatch = line.match(/loop\((.*?)\)/);
+                const condition = conditionMatch[1];
+                
+                const loopEnd = this.findBlockEnd(lines, startIndex);
+                const loopBody = lines.slice(startIndex + 1, loopEnd);
+                
+                let count = this.evaluateExpression(condition);
+                
+                // 条件式の場合
+                if (typeof count === 'string' || isNaN(count)) {
+                    let iterations = 0;
+                    const maxIterations = 10000;
+                    while (this.evaluateCondition(condition) && iterations < maxIterations) {
+                        this.processLines(loopBody);
+                        iterations++;
+                    }
+                } else {
+                    // 回数指定の場合
+                    for (let i = 0; i < count; i++) {
+                        this.processLines(loopBody);
+                    }
+                }
+                
+                return loopEnd + 1;
+            }
+            
+            executeIf(lines, startIndex) {
+                const line = lines[startIndex].trim();
+                const conditionMatch = line.match(/if\((.*?)\)/);
+                const condition = conditionMatch[1];
+                
+                let currentIndex = startIndex;
+                const ifEnd = this.findBlockEnd(lines, currentIndex);
+                
+                if (this.evaluateCondition(condition)) {
+                    const ifBody = lines.slice(currentIndex + 1, ifEnd);
+                    this.processLines(ifBody);
+                    return this.skipElse(lines, ifEnd);
+                } else {
+                    // else if / else の処理
+                    currentIndex = ifEnd + 1;
+                    while (currentIndex < lines.length) {
+                        const nextLine = lines[currentIndex].trim();
+                        if (nextLine.startsWith('else if(')) {
+                            const elseIfCondition = nextLine.match(/else if\((.*?)\)/)[1];
+                            const elseIfEnd = this.findBlockEnd(lines, currentIndex);
+                            if (this.evaluateCondition(elseIfCondition)) {
+                                const elseIfBody = lines.slice(currentIndex + 1, elseIfEnd);
+                                this.processLines(elseIfBody);
+                                return this.skipElse(lines, elseIfEnd);
+                            }
+                            currentIndex = elseIfEnd + 1;
+                        } else if (nextLine.startsWith('else{')) {
+                            const elseEnd = this.findBlockEnd(lines, currentIndex);
+                            const elseBody = lines.slice(currentIndex + 1, elseEnd);
+                            this.processLines(elseBody);
+                            return elseEnd + 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    return currentIndex;
+                }
+            }
+            
+            skipElse(lines, currentIndex) {
+                while (currentIndex < lines.length) {
+                    const line = lines[currentIndex].trim();
+                    if (line.startsWith('else if(') || line.startsWith('else{')) {
+                        currentIndex = this.findBlockEnd(lines, currentIndex) + 1;
+                    } else {
+                        break;
+                    }
+                }
+                return currentIndex;
+            }
+            
+            evaluateCondition(condition) {
+                // 比較演算子のチェック
+                const operators = ['==', '!=', '>=', '<=', '>', '<'];
+                for (const op of operators) {
+                    if (condition.includes(op)) {
+                        const parts = condition.split(op).map(p => p.trim());
+                        const left = this.evaluateExpression(parts[0]);
+                        const right = this.evaluateExpression(parts[1]);
+                        
+                        switch (op) {
+                            case '==': return left == right;
+                            case '!=': return left != right;
+                            case '>': return Number(left) > Number(right);
+                            case '<': return Number(left) < Number(right);
+                            case '>=': return Number(left) >= Number(right);
+                            case '<=': return Number(left) <= Number(right);
+                        }
+                    }
+                }
+                
+                // .includes() のチェック
+                if (condition.includes('.includes(')) {
+                    const match = condition.match(/(\w+)\.includes\("(.+?)"\)/);
+                    if (match) {
+                        const name = match[1];
+                        const value = match[2];
+                        if (this.lists[name]) {
+                            return this.lists[name].some(item => 
+                                this.normalize(String(item)) === this.normalize(value)
+                            );
+                        }
+                        if (this.variables[name]) {
+                            return this.normalize(String(this.variables[name])).includes(this.normalize(value));
+                        }
+                    }
+                }
+                
+                return false;
+            }
+            
+            evaluateExpression(expr) {
+                expr = expr.trim();
+                
+                // 文字列リテラル
+                if (expr.startsWith('"') && expr.endsWith('"')) {
+                    return expr.slice(1, -1).replace(/\\n/g, '\n');
+                }
+                
+                // 数値リテラル
+                if (!isNaN(expr)) {
+                    return Number(expr);
+                }
+                
+                // 関数呼び出し
+                if (expr.includes('ran(')) {
+                    const match = expr.match(/ran\((\d+),(\d+)\)/);
+                    if (match) {
+                        const min = parseInt(match[1]);
+                        const max = parseInt(match[2]);
+                        return Math.floor(Math.random() * (max - min + 1)) + min;
+                    }
+                }
+                
+                if (expr.includes('long(')) {
+                    const match = expr.match(/long\("(.+?)"\)/);
+                    if (match) {
+                        return match[1].length;
+                    }
+                    const varMatch = expr.match(/long\((\w+)\)/);
+                    if (varMatch) {
+                        const name = varMatch[1];
+                        if (this.lists[name]) {
+                            return this.lists[name].length;
+                        }
+                        if (this.variables[name]) {
+                            return String(this.variables[name]).length;
+                        }
+                    }
+                }
+                
+                if (expr.includes('list(')) {
+                    const match = expr.match(/list\((\w+),(\d+)\)/);
+                    if (match) {
+                        const listName = match[1];
+                        const index = parseInt(match[2]) - 1;
+                        return this.lists[listName]?.[index] ?? '';
+                    }
+                }
+                
+                // 変数
+                if (this.variables[expr] !== undefined) {
+                    return this.variables[expr];
+                }
+                
+                // 算術式（乗算、除算、加算、減算）
+                const arithmeticOps = [
+                    { op: '*', fn: (a, b) => a * b },
+                    { op: '/', fn: (a, b) => a / b },
+                    { op: '+', fn: (a, b) => {
+                        if (typeof a === 'string' || typeof b === 'string') {
+                            return String(a) + String(b);
+                        }
+                        return a + b;
+                    }},
+                    { op: '-', fn: (a, b) => a - b }
+                ];
+                
+                for (const { op, fn } of arithmeticOps) {
+                    if (expr.includes(op) && !expr.includes('$' + op)) {
+                        const parts = expr.split(op).map(p => p.trim());
+                        if (parts.length === 2) {
+                            const left = this.evaluateExpression(parts[0]);
+                            const right = this.evaluateExpression(parts[1]);
+                            return fn(Number(left), Number(right));
+                        }
+                    }
+                }
+                
+                return expr;
+            }
+            
+            executeLine(line) {
+                // wait
+                if (line.startsWith('wait(')) {
+                    this.log('⏳ 待機中...', 'info');
+                    return;
+                }
+                
+                // list/var 宣言
+                if (line.startsWith('list(')) {
+                    const listName = line.match(/list\((\w+)\)/)[1];
+                    this.lists[listName] = [];
+                    this.log(`📋 リスト ${listName} を作成`, 'success');
+                    return;
+                }
+                
+                if (line.startsWith('var(')) {
+                    const varName = line.match(/var\((\w+)\)/)[1];
+                    this.variables[varName] = '';
+                    this.log(`📦 変数 ${varName} を作成`, 'success');
+                    return;
+                }
+                
+                // deleteList/deleteVar
+                if (line.startsWith('deleteList(')) {
+                    const listName = line.match(/deleteList\((\w+)\)/)[1];
+                    delete this.lists[listName];
+                    this.log(`🗑 リスト ${listName} を削除`, 'info');
+                    return;
+                }
+                
+                if (line.startsWith('deleteVar(')) {
+                    const varName = line.match(/deleteVar\((\w+)\)/)[1];
+                    delete this.variables[varName];
+                    this.log(`🗑 変数 ${varName} を削除`, 'info');
+                    return;
+                }
+                
+                // upperMode
+                if (line.startsWith('upperMode(')) {
+                    const mode = line.includes('true');
+                    this.caseSensitive = mode;
+                    this.log(`🔤 大文字区別: ${mode ? 'ON' : 'OFF'}`, 'info');
+                    return;
+                }
+                
+                // リスト操作
+                if (line.includes('.add(')) {
+                    const match = line.match(/(\w+)\.add\((.*)\)/);
+                    if (match) {
+                        const listName = match[1];
+                        const items = match[2].split(',').map(item => {
+                            item = item.trim();
+                            if (item.startsWith('"') && item.endsWith('"')) {
+                                return item.slice(1, -1);
+                            }
+                            return this.variables[item] ?? item;
+                        });
+                        this.lists[listName] = this.lists[listName] || [];
+                        this.lists[listName].push(...items);
+                        this.log(`➕ ${listName} に追加: [${items.join(', ')}]`, 'success');
+                        return;
+                    }
+                }
+                
+                if (line.includes('.set(')) {
+                    const match = line.match(/(\w+)\.set\((\d+),"(.+?)"\)/);
+                    if (match) {
+                        const listName = match[1];
+                        const index = parseInt(match[2]) - 1;
+                        const value = match[3];
+                        this.lists[listName][index] = value;
+                        this.log(`✏️ ${listName}[${index + 1}] = "${value}"`, 'success');
+                        return;
+                    }
+                }
+                
+                if (line.includes('.delete(')) {
+                    const match = line.match(/(\w+)\.delete\((\d+)\)/);
+                    if (match) {
+                        const listName = match[1];
+                        const index = parseInt(match[2]) - 1;
+                        this.lists[listName].splice(index, 1);
+                        this.log(`➖ ${listName}[${index + 1}] を削除`, 'info');
+                        return;
+                    }
+                }
+                
+                // 変数操作
+                if (line.includes('.')) {
+                    const parts = line.split('.');
+                    const varName = parts[0];
+                    const operation = parts[1];
+                    
+                    // .null
+                    if (operation === 'null') {
+                        this.variables[varName] = '';
+                        this.log(`🔄 ${varName} を空にしました`, 'info');
+                        return;
+                    }
+                    
+                    // .$+[ 配列形式
+                    if (operation.startsWith('$+[')) {
+                        return;
+                    }
+                    
+                    // .$+ 加算
+                    if (operation.startsWith('$+')) {
+                        const value = operation.slice(2);
+                        const evalValue = this.evaluateExpression(value);
+                        if (value.startsWith('"') && value.endsWith('"')) {
+                            this.variables[varName] = (this.variables[varName] || '') + value.slice(1, -1);
+                        } else {
+                            this.variables[varName] = (Number(this.variables[varName]) || 0) + Number(evalValue);
+                        }
+                        this.log(`${varName} = ${this.variables[varName]}`, 'success');
+                        return;
+                    }
+                    
+                    // .$* 乗算
+                    if (operation.startsWith('$*')) {
+                        const value = operation.slice(2);
+                        const evalValue = this.evaluateExpression(value);
+                        this.variables[varName] = (Number(this.variables[varName]) || 0) * Number(evalValue);
+                        this.log(`${varName} = ${this.variables[varName]}`, 'success');
+                        return;
+                    }
+                    
+                    // .$/ 除算
+                    if (operation.startsWith('$/')) {
+                        const value = operation.slice(2);
+                        const evalValue = this.evaluateExpression(value);
+                        this.variables[varName] = (Number(this.variables[varName]) || 0) / Number(evalValue);
+                        this.log(`${varName} = ${this.variables[varName]}`, 'success');
+                        return;
+                    }
+                    
+                    // .$- 減算
+                    if (operation.startsWith('$-')) {
+                        const value = operation.slice(2);
+                        const evalValue = this.evaluateExpression(value);
+                        this.variables[varName] = (Number(this.variables[varName]) || 0) - Number(evalValue);
+                        this.log(`${varName} = ${this.variables[varName]}`, 'success');
+                        return;
+                    }
+                    
+                    // その他の操作（通常の代入）
+                    const value = this.evaluateExpression(operation);
+                    this.variables[varName] = value;
+                    this.log(`${varName} = ${value}`, 'success');
+                }
+            }
+        }
+        
+        const interpreter = new WarpMiraeInterpreter();
+
+        function updateCanvas() {
+            const canvas = document.getElementById('screen-canvas');
+            const ctx = canvas.getContext('2d');
+            const infoEl = document.getElementById('screen-info');
+
+            const screenX = interpreter.variables.screenX;
+            const screenY = interpreter.variables.screenY;
+            const pixelData = interpreter.variables.pixelData;
+
+            if (screenX === undefined || screenY === undefined || pixelData === undefined) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                infoEl.textContent = 'キャンバスを表示するには screenX, screenY, pixelData を設定してください';
+                return;
+            }
+
+            const width = Number(screenX);
+            const height = Number(screenY);
+            const data = String(pixelData);
+
+            if (!width || !height || width <= 0 || height <= 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                infoEl.textContent = '';
+                return;
+            }
+
+            const maxCanvasSize = 256;
+            const pixelSize = Math.floor(maxCanvasSize / Math.max(width, height));
+            const actualWidth = width * pixelSize;
+            const actualHeight = height * pixelSize;
+
+            canvas.width = actualWidth;
+            canvas.height = actualHeight;
+
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, actualWidth, actualHeight);
+
+            ctx.fillStyle = '#ffffff';
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = y * width + x;
+                    if (data[idx] === '1') {
+                        ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+                    }
+                }
+            }
+
+            infoEl.textContent = `${width}×${height} (pixels: ${data.length})`;
+        }
+
+        function switchTab(tabName) {
+            // タブボタンの切り替え
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // タブコンテンツの切り替え
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+        
+        function runCode() {
+            const code = document.getElementById('code-editor').value;
+            const outputDiv = document.getElementById('output-tab');
+            const debugDiv = document.getElementById('debug-tab');
+            
+            outputDiv.innerHTML = '';
+            debugDiv.innerHTML = '';
+            
+            const results = interpreter.execute(code);
+            
+            // 出力タブ
+            results.forEach(result => {
+                const div = document.createElement('div');
+                div.className = `output-line ${result.type}`;
+                div.textContent = result.message;
+                outputDiv.appendChild(div);
+            });
+            
+            if (results.length === 0) {
+                outputDiv.innerHTML = '<div class="output-line info">出力はありません</div>';
+            }
+            
+            // デバッグタブ
+            if (Object.keys(interpreter.variables).length > 0) {
+                const varSection = document.createElement('div');
+                varSection.className = 'debug-section';
+                varSection.innerHTML = '<div class="debug-title">📦 変数</div>';
+                
+                Object.entries(interpreter.variables).forEach(([key, value]) => {
+                    const item = document.createElement('div');
+                    item.className = 'debug-item';
+                    item.innerHTML = `<span class="debug-item-name">${key}</span><span class="debug-item-value">${JSON.stringify(value)}</span>`;
+                    varSection.appendChild(item);
+                });
+                
+                debugDiv.appendChild(varSection);
+            }
+            
+            if (Object.keys(interpreter.lists).length > 0) {
+                const listSection = document.createElement('div');
+                listSection.className = 'debug-section';
+                listSection.innerHTML = '<div class="debug-title">📋 リスト</div>';
+                
+                Object.entries(interpreter.lists).forEach(([key, value]) => {
+                    const item = document.createElement('div');
+                    item.className = 'debug-item';
+                    item.innerHTML = `<span class="debug-item-name">${key}</span><span class="debug-item-value">[${value.join(', ')}]</span>`;
+                    listSection.appendChild(item);
+                });
+                
+                debugDiv.appendChild(listSection);
+            }
+            
+            if (Object.keys(interpreter.variables).length === 0 && Object.keys(interpreter.lists).length === 0) {
+                debugDiv.innerHTML = '<div class="output-line info">変数・リストはありません</div>';
+            }
+
+            // キャンバスタブを更新
+            updateCanvas();
+        }
+        
+        function clearAll() {
+            document.getElementById('output-tab').innerHTML = '';
+            document.getElementById('debug-tab').innerHTML = '';
+            interpreter.variables = {};
+            interpreter.lists = {};
+            interpreter.blocks = {};
+        }
+        
+        function loadExample() {
+            const example = `block(pixelkit_reset){
+    var(screenX)
+    var(screenY)
+    var(pixelData)
+    var(pixelCount)
+    pixelData.null
+}
+block(pixelkit_start){
+    pixelCount.screenX
+    pixelCount.$*screenY
+    loop(pixelCount){
+        pixelData.$+"1"
+    }
+}
+pixelkit_reset
+screenX.128
+screenY.64
+pixelkit_start`;
+            
+            document.getElementById('code-editor').value = example;
+        }
+        
+        // 初期サンプル読み込み
+        window.onload = () => {
+            loadExample();
+        };
+    </script>
+</body>
+</html>

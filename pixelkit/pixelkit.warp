@@ -1,0 +1,29 @@
+block(pixelkit_reset){
+    var(screenX)
+    var(screenY)
+    var(pixelData)
+    var(pixelCount)
+    var(pxlLine)
+    pixelData.null
+}
+
+block(pixelkit_start){
+    pixelCount.screenX
+    pixelCount.$*screenY
+    loop(pixelCount){
+        pixelData.$+"0"
+    }
+}
+
+block(pixelkit_start){
+    
+}
+
+pixelkit_reset
+screenX.128
+screenY.64
+pixelkit_start
+
+
+pxlLine.V010100900
+pixelkit_line

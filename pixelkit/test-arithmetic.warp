@@ -1,0 +1,41 @@
+// Test arithmetic expressions
+
+// Test basic arithmetic
+var1.10
+var2.5
+var3.3
+
+// var1 * var2 = 50
+result1.var1*var2
+
+// var1 / var2 = 2
+result2.var1/var2
+
+// var1 + var2 - var3 = 12
+result3.var1+var2-var3
+
+// Test $ operations
+val.10
+val.*3
+// val should be 30 now
+
+val./2
+// val should be 15 now
+
+val.-5
+// val should be 10 now
+
+// Test loop with arithmetic
+loop.5
+  cnt.$+1
+
+// Test loop(var1*var2)
+a.3
+b.4
+loop(a*b){
+  loopCnt.$+1
+}
+
+// Test ran with arithmetic
+ranMax.10
+ranVal.ran(1, ranMax*2)

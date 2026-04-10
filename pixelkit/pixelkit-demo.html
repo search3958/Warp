@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>warp-mirae IDE</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', 'Meiryo', sans-serif; height: 100vh; display: flex; background: #1e1e2e; color: #cdd6f4; }
+  
+  #left-panel { width: 50%; display: flex; flex-direction: column; border-right: 2px solid #313244; }
+  #editor-header { padding: 10px 16px; background: #181825; font-weight: 600; font-size: 14px; border-bottom: 1px solid #313244; display: flex; align-items: center; gap: 8px; }
+  #editor-header::before { content: "📝"; }
+  #run-btn { margin-left: auto; padding: 6px 16px; background: #a6e3a1; color: #1e1e2e; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px; }
+  #run-btn:hover { background: #94e291; }
+  #run-btn:active { transform: scale(0.97); }
+  #stop-btn { padding: 6px 16px; background: #f38ba8; color: #1e1e2e; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px; display: none; }
+  #stop-btn:hover { background: #e76b8a; }
+  #settings-btn { padding: 6px 10px; background: transparent; color: #6c7086; border: 1px solid #45475a; border-radius: 4px; cursor: pointer; font-size: 16px; line-height: 1; transition: 0.2s; }
+  #settings-btn:hover { background: #313244; color: #cdd6f4; }
+
+  /* Library modal */
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: none; align-items: center; justify-content: center; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: #1e1e2e; border: 1px solid #45475a; border-radius: 8px; width: 600px; max-width: 90vw; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  .modal-header { padding: 12px 16px; border-bottom: 1px solid #313244; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+  .modal-header::before { content: "📚"; }
+  .modal-header .close-btn { margin-left: auto; background: transparent; border: none; color: #6c7086; font-size: 20px; cursor: pointer; line-height: 1; }
+  .modal-header .close-btn:hover { color: #cdd6f4; }
+  .modal-body { padding: 16px; overflow-y: auto; flex: 1; }
+  .modal-footer { padding: 12px 16px; border-top: 1px solid #313244; display: flex; gap: 8px; justify-content: flex-end; }
+
+  .lib-item { background: #181825; border: 1px solid #313244; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
+  .lib-item.disabled { opacity: 0.5; }
+  .lib-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .lib-toggle { width: 18px; height: 18px; cursor: pointer; accent-color: #a6e3a1; }
+  .lib-name { font-weight: 600; color: #89b4fa; font-size: 13px; flex: 1; }
+  .lib-delete { background: transparent; border: none; color: #f38ba8; cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 3px; }
+  .lib-delete:hover { background: #45475a; }
+  .lib-code { width: 100%; background: #1e1e2e; border: 1px solid #313244; border-radius: 4px; padding: 8px; color: #cdd6f4; font-family: 'Fira Code', monospace; font-size: 12px; resize: vertical; min-height: 60px; }
+  .lib-code:focus { border-color: #89b4fa; outline: none; }
+
+  .add-lib-btn { background: #313244; border: 1px dashed #45475a; border-radius: 6px; padding: 12px; width: 100%; color: #6c7086; cursor: pointer; font-size: 13px; transition: 0.2s; }
+  .add-lib-btn:hover { background: #45475a; color: #cdd6f4; border-color: #6c7086; }
+
+  #editor-container { flex: 1; position: relative; }
+  #code-editor { width: 100%; height: 100%; background: #1e1e2e; color: #cdd6f4; border: none; padding: 16px; font-family: 'Fira Code', 'Consolas', 'Courier New', monospace; font-size: 14px; line-height: 1.6; resize: none; outline: none; tab-size: 4; }
+  #code-editor::placeholder { color: #585b70; }
+
+  #output-container { border-top: 1px solid #313244; background: #181825; max-height: 35%; display: flex; flex-direction: column; }
+  #output-header { padding: 8px 16px; font-size: 13px; font-weight: 600; border-bottom: 1px solid #313244; }
+  #output-header::before { content: "🖥️ "; }
+  #output-log { padding: 8px 16px; font-family: 'Fira Code', monospace; font-size: 12px; overflow-y: auto; flex: 1; color: #a6e3a1; white-space: pre-wrap; word-break: break-all; }
+  #output-log .error { color: #f38ba8; }
+  #output-log .info { color: #89b4fa; }
+
+  #right-panel { width: 50%; display: flex; flex-direction: column; background: #181825; }
+  #viewer-tabs { display: flex; border-bottom: 1px solid #313244; }
+  .tab-btn { flex: 1; padding: 10px; background: transparent; color: #6c7086; border: none; cursor: pointer; font-size: 13px; font-weight: 600; border-bottom: 2px solid transparent; transition: 0.2s; }
+  .tab-btn:hover { color: #cdd6f4; background: #1e1e2e; }
+  .tab-btn.active { color: #89b4fa; border-bottom-color: #89b4fa; }
+
+  .tab-content { flex: 1; overflow-y: auto; padding: 12px; display: none; }
+  .tab-content.active { display: block; }
+
+  .var-item, .list-item { background: #1e1e2e; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; border-left: 3px solid #89b4fa; }
+  .list-item { border-left-color: #f9e2af; }
+  .var-name, .list-name { font-weight: 600; color: #89b4fa; font-size: 13px; margin-bottom: 4px; }
+  .list-name { color: #f9e2af; }
+  .var-value, .list-value { color: #cdd6f4; font-size: 13px; word-break: break-all; white-space: pre-wrap; }
+  .list-element { padding: 4px 8px; margin: 2px 0; background: #313244; border-radius: 3px; font-size: 12px; display: flex; gap: 6px; }
+  .list-element .idx { color: #6c7086; min-width: 30px; }
+  .empty-msg { color: #585b70; text-align: center; padding: 40px 20px; font-size: 13px; }
+
+  #line-numbers { position: absolute; left: 0; top: 0; padding: 16px 8px 16px 12px; font-family: 'Fira Code', monospace; font-size: 14px; line-height: 1.6; color: #585b70; text-align: right; user-select: none; pointer-events: none; min-width: 36px; }
+  #code-editor { padding-left: 52px; }
+</style>
+</head>
+<body>
+
+<div id="left-panel">
+  <div id="editor-header">
+    Editor
+    <button id="settings-btn" onclick="openLibraryModal()" title="ライブラリ管理">⚙</button>
+    <button id="run-btn" onclick="runCode()">▶ 実行</button>
+    <button id="stop-btn" onclick="stopCode()">⏹ 停止</button>
+  </div>
+  <div id="editor-container">
+    <div id="line-numbers"></div>
+    <textarea id="code-editor" placeholder="ここにwarp-miraeコードを入力..." spellcheck="false"></textarea>
+  </div>
+  <div id="output-container">
+    <div id="output-header">Output</div>
+    <div id="output-log"></div>
+  </div>
+</div>
+
+<div id="right-panel">
+  <div id="viewer-tabs">
+    <button class="tab-btn active" data-tab="vars">変数 (Variables)</button>
+    <button class="tab-btn" data-tab="lists">リスト (Lists)</button>
+  </div>
+  <div id="tab-vars" class="tab-content active">
+    <div class="empty-msg">変数が定義されていません</div>
+  </div>
+  <div id="tab-lists" class="tab-content">
+    <div class="empty-msg">リストが定義されていません</div>
+  </div>
+</div>
+
+<!-- Library Modal -->
+<div class="modal-overlay" id="lib-modal">
+  <div class="modal">
+    <div class="modal-header">
+      ライブラリ管理
+      <button class="close-btn" onclick="closeLibraryModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="lib-list"></div>
+      <button class="add-lib-btn" onclick="addLibrary()">+ ライブラリを追加</button>
+    </div>
+    <div class="modal-footer">
+      <button style="margin-left:auto;padding:6px 16px;background:#a6e3a1;color:#1e1e2e;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:13px;" onclick="closeLibraryModal()">完了</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== State =====
+const state = {
+  variables: {},
+  lists: {},
+  upperMode: true,
+  blocks: {},
+  running: false,
+  stopRequested: false,
+  callStack: []
+};
+
+// ===== Library Management =====
+const LIBRARY_STORAGE_KEY = 'warp-mirae-libraries';
+
+function loadLibraries() {
+  try {
+    const data = localStorage.getItem(LIBRARY_STORAGE_KEY);
+    if (data) return JSON.parse(data);
+  } catch (e) {
+    console.error('Library load error:', e);
+  }
+  return [];
+}
+
+function saveLibraries(libs) {
+  try {
+    localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(libs));
+  } catch (e) {
+    console.error('Library save error:', e);
+  }
+}
+
+function getActiveLibraries() {
+  return loadLibraries().filter(lib => lib.enabled);
+}
+
+function getCombinedLibraryCode() {
+  const libs = getActiveLibraries();
+  return libs.map(lib => lib.code).filter(c => c.trim()).join('\n\n');
+}
+
+let libCounter = 0;
+
+function addLibrary() {
+  const libs = loadLibraries();
+  libCounter++;
+  const newLib = {
+    id: Date.now(),
+    name: `Library ${libCounter}`,
+    code: '',
+    enabled: true
+  };
+  libs.push(newLib);
+  saveLibraries(libs);
+  renderLibraryList();
+  // Focus on the new library's code textarea
+  setTimeout(() => {
+    const textarea = document.querySelector(`[data-lib-id="${newLib.id}"] .lib-code`);
+    if (textarea) textarea.focus();
+  }, 50);
+}
+
+function deleteLibrary(id) {
+  if (!confirm('このライブラリを削除してもよろしいですか？')) return;
+  let libs = loadLibraries();
+  libs = libs.filter(lib => lib.id !== id);
+  saveLibraries(libs);
+  renderLibraryList();
+}
+
+function toggleLibrary(id) {
+  const libs = loadLibraries();
+  const lib = libs.find(l => l.id === id);
+  if (lib) {
+    lib.enabled = !lib.enabled;
+    saveLibraries(libs);
+    renderLibraryList();
+  }
+}
+
+function updateLibraryCode(id, code) {
+  const libs = loadLibraries();
+  const lib = libs.find(l => l.id === id);
+  if (lib) {
+    lib.code = code;
+    saveLibraries(libs);
+  }
+}
+
+function renderLibraryList() {
+  const libs = loadLibraries();
+  const container = document.getElementById('lib-list');
+  if (!container) return;
+
+  if (libs.length === 0) {
+    container.innerHTML = '<div class="empty-msg">ライブラリがありません。下のボタンクリックして追加してください。</div>';
+    return;
+  }
+
+  container.innerHTML = libs.map(lib => `
+    <div class="lib-item ${lib.enabled ? '' : 'disabled'}" data-lib-id="${lib.id}">
+      <div class="lib-item-header">
+        <input type="checkbox" class="lib-toggle" ${lib.enabled ? 'checked' : ''} onchange="toggleLibrary(${lib.id})" title="オン/オフ">
+        <span class="lib-name">${escHtml(lib.name)}</span>
+        <button class="lib-delete" onclick="deleteLibrary(${lib.id})" title="削除">🗑</button>
+      </div>
+      <textarea class="lib-code" placeholder="ライブラリのコードを貼り付け..." oninput="updateLibraryCode(${lib.id}, this.value)">${escHtml(lib.code)}</textarea>
+    </div>
+  `).join('');
+}
+
+function openLibraryModal() {
+  renderLibraryList();
+  document.getElementById('lib-modal').classList.add('active');
+}
+
+function closeLibraryModal() {
+  document.getElementById('lib-modal').classList.remove('active');
+}
+
+// Close modal on overlay click
+document.addEventListener('click', (e) => {
+  if (e.target.id === 'lib-modal') {
+    closeLibraryModal();
+  }
+});
+
+// ESC key to close modal
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeLibraryModal();
+  }
+});
+
+// ===== Editor Setup =====
+const editor = document.getElementById('code-editor');
+const lineNumbers = document.getElementById('line-numbers');
+
+editor.addEventListener('input', updateLineNumbers);
+editor.addEventListener('scroll', () => { lineNumbers.scrollTop = editor.scrollTop; });
+editor.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    editor.value = editor.value.substring(0, start) + '    ' + editor.value.substring(end);
+    editor.selectionStart = editor.selectionEnd = start + 4;
+  }
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    runCode();
+  }
+});
+
+function updateLineNumbers() {
+  const lines = editor.value.split('\n').length;
+  lineNumbers.textContent = Array.from({length: lines}, (_, i) => i + 1).join('\n');
+}
+updateLineNumbers();
+
+// ===== Tab Setup =====
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ===== Output Log =====
+function logOutput(msg, cls = '') {
+  const el = document.getElementById('output-log');
+  const span = document.createElement('span');
+  span.className = cls;
+  span.textContent = msg + '\n';
+  el.appendChild(span);
+  el.scrollTop = el.scrollHeight;
+}
+function clearOutput() {
+  document.getElementById('output-log').innerHTML = '';
+}
+
+// ===== Viewer Update =====
+function updateViewers() {
+  // Variables
+  const varsEl = document.getElementById('tab-vars');
+  const varKeys = Object.keys(state.variables);
+  if (varKeys.length === 0) {
+    varsEl.innerHTML = '<div class="empty-msg">変数が定義されていません</div>';
+  } else {
+    varsEl.innerHTML = varKeys.map(k =>
+      `<div class="var-item"><div class="var-name">${escHtml(k)}</div><div class="var-value">${escHtml(String(state.variables[k]))}</div></div>`
+    ).join('');
+  }
+
+  // Lists
+  const listsEl = document.getElementById('tab-lists');
+  const listKeys = Object.keys(state.lists);
+  if (listKeys.length === 0) {
+    listsEl.innerHTML = '<div class="empty-msg">リストが定義されていません</div>';
+  } else {
+    listsEl.innerHTML = listKeys.map(k => {
+      const items = state.lists[k].map((v, i) =>
+        `<div class="list-element"><span class="idx">[${i + 1}]</span><span>${escHtml(String(v))}</span></div>`
+      ).join('');
+      return `<div class="list-item"><div class="list-name">${escHtml(k)} (length: ${state.lists[k].length})</div>${items}</div>`;
+    }).join('');
+  }
+}
+
+function escHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+// ===== Parser / Interpreter =====
+
+function caseCompare(a, b) {
+  if (state.upperMode) return a === b;
+  return String(a).toLowerCase() === String(b).toLowerCase();
+}
+
+function parseValue(expr, ctx) {
+  expr = expr.trim();
+  if (expr === 'undefined') return undefined;
+  if (expr === 'null') return null;
+
+  // String literal
+  if ((expr.startsWith('"') && expr.endsWith('"')) || (expr.startsWith("'") && expr.endsWith("'"))) {
+    let s = expr.slice(1, -1);
+    s = s.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\r/g, '\r').replace(/\\\\/g, '\\');
+    return s;
+  }
+
+  // Number literal
+  if (/^-?\d+(\.\d+)?$/.test(expr)) return Number(expr);
+
+  // ran(1,10)
+  let ranMatch = expr.match(/^ran\((.+),\s*(.+)\)$/);
+  if (ranMatch) {
+    const min = Math.floor(parseValue(ranMatch[1], ctx));
+    const max = Math.floor(parseValue(ranMatch[2], ctx));
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  // long("aa") or long(varname) or long(listname)
+  let longMatch = expr.match(/^long\((.+)\)$/);
+  if (longMatch) {
+    const inner = parseValue(longMatch[1], ctx);
+    if (Array.isArray(inner)) return inner.length;
+    return String(inner).length;
+  }
+
+  // list(listname) or list(listname, index)
+  let listMatch = expr.match(/^list\((.+?)(?:\s*,\s*(.+))?\)$/);
+  if (listMatch) {
+    const listName = listMatch[1].trim();
+    if (state.lists[listName] !== undefined) {
+      if (listMatch[2] !== undefined) {
+        const idx = parseValue(listMatch[2], ctx);
+        if (typeof idx === 'string' && !/^\d+$/.test(idx)) {
+          // find by value
+          return state.lists[listName].findIndex(v => caseCompare(v, idx)) + 1;
+        }
+        return state.lists[listName][Number(idx) - 1];
+      }
+      return state.lists[listName];
+    }
+    if (ctx && ctx[listName] !== undefined) {
+      if (state.lists[ctx[listName]] !== undefined) {
+        return state.lists[ctx[listName]];
+      }
+    }
+    return state.lists[listName] || [];
+  }
+
+  // Variable reference
+  if (state.variables[expr] !== undefined) return state.variables[expr];
+  if (state.lists[expr] !== undefined) return state.lists[expr];
+
+  return expr;
+}
+
+function getTargetInfo(leftSide) {
+  // varname.get(listname, 1:3) or varname.get(2:6, varname1)
+  let getMatch = leftSide.match(/^(.+?)\.get\((.+)\)$/);
+  if (getMatch) return { type: 'get', target: getMatch[1].trim(), args: getMatch[2] };
+
+  // varname.long(...)
+  let longMatch = leftSide.match(/^(.+?)\.long\((.+)\)$/);
+  if (longMatch) return { type: 'long', target: longMatch[1].trim(), args: longMatch[2] };
+
+  // varname."string"
+  let strMatch = leftSide.match(/^(.+?)\.(.+)$/);
+  if (strMatch) {
+    let rightPart = strMatch[2];
+    // Check if it's a list or var reference
+    if (rightPart.startsWith('"') && rightPart.endsWith('"')) {
+      return { type: 'stringLiteral', target: strMatch[1].trim(), args: rightPart.slice(1, -1).replace(/\\n/g, '\n') };
+    }
+    // Could be a reference to another variable or list element
+    let listElemMatch = rightPart.match(/^list\((.+?),\s*(.+)\)$/);
+    if (listElemMatch) {
+      return { type: 'listElem', target: strMatch[1].trim(), listName: listElemMatch[1].trim(), listIdx: listElemMatch[2].trim() };
+    }
+    // varname.varname1 style reference
+    return { type: 'varRef', target: strMatch[1].trim(), ref: rightPart };
+  }
+
+  return { type: 'simple', target: leftSide.trim() };
+}
+
+function computeValue(targetInfo, rightValue, ctx) {
+  switch (targetInfo.type) {
+    case 'simple':
+      return rightValue;
+
+    case 'get': {
+      const args = targetInfo.args;
+      // varname.get(listname, 1:3) or varname.get(2:6, varname1)
+      let parts = args.split(',');
+      let rangePart = parts[0].trim();
+      let sourcePart = parts.slice(1).join(',').trim();
+
+      // Parse range
+      let rangeMatch = rangePart.match(/^(\d+):(\d+)$/);
+      if (rangeMatch) {
+        const start = Number(rangeMatch[1]) - 1;
+        const end = Number(rangeMatch[2]);
+        const source = parseValue(sourcePart, ctx);
+        if (Array.isArray(source)) {
+          return source.slice(start, end);
+        }
+        return String(source).substring(start, end);
+      }
+
+      // Single index/value
+      let source = parseValue(sourcePart, ctx);
+      let idx = parseValue(rangePart, ctx);
+      if (Array.isArray(source)) {
+        if (typeof idx === 'string' && !/^\d+$/.test(idx)) {
+          return source.findIndex(v => caseCompare(v, idx)) + 1;
+        }
+        return source[Number(idx) - 1];
+      }
+      // String substring
+      let s = String(source);
+      return s[Number(idx) - 1] || '';
+    }
+
+    case 'long': {
+      const arg = parseValue(targetInfo.args, ctx);
+      if (Array.isArray(arg)) return arg.length;
+      return String(arg).length;
+    }
+
+    case 'stringLiteral': {
+      return targetInfo.args + String(rightValue);
+    }
+
+    case 'listElem': {
+      const listVal = state.lists[targetInfo.listName];
+      if (!listVal) return rightValue;
+      const idx = Number(parseValue(targetInfo.listIdx, ctx)) - 1;
+      return String(rightValue) + String(listVal[idx] || '');
+    }
+
+    case 'varRef': {
+      const refVal = parseValue(targetInfo.ref, ctx);
+      return String(rightValue) + String(refVal);
+    }
+
+    default:
+      return rightValue;
+  }
+}
+
+function setTargetValue(targetInfo, value) {
+  switch (targetInfo.type) {
+    case 'simple':
+      state.variables[targetInfo.target] = value;
+      break;
+    default:
+      state.variables[targetInfo.target] = value;
+      break;
+  }
+}
+
+function executeStatement(stmt, ctx) {
+  stmt = stmt.trim();
+  if (!stmt || stmt.startsWith('//')) return;
+
+  // block(name){...}
+  let blockMatch = stmt.match(/^block\((\w+)\)\s*\{([\s\S]*)\}$/);
+  if (blockMatch) {
+    state.blocks[blockMatch[1]] = blockMatch[2];
+    return;
+  }
+
+  // blockname (execute block)
+  if (state.blocks[stmt] !== undefined) {
+    executeCode(state.blocks[stmt], ctx);
+    return;
+  }
+
+  // upperMode(true/false)
+  let upperMatch = stmt.match(/^upperMode\((true|false)\)$/);
+  if (upperMatch) {
+    state.upperMode = upperMatch[1] === 'true';
+    return;
+  }
+
+  // wait(1ms) or wait(1000)
+  let waitMatch = stmt.match(/^wait\((\d+)ms\)$/);
+  if (waitMatch) {
+    logOutput(`[待機] ${waitMatch[1]}ms`, 'info');
+    return; // handled specially in async execution
+  }
+
+  // varname.null
+  let nullMatch = stmt.match(/^(\w[\w.]*?)\.null$/);
+  if (nullMatch) {
+    state.variables[nullMatch[1]] = '';
+    return;
+  }
+
+  // listname.add(...)
+  let addMatch = stmt.match(/^(\w[\w.]*)\.add\((.+)\)$/);
+  if (addMatch) {
+    if (!state.lists[addMatch[1]]) state.lists[addMatch[1]] = [];
+    const args = parseArgs(addMatch[2], ctx);
+    args.forEach(a => state.lists[addMatch[1]].push(a));
+    return;
+  }
+
+  // listname.set(1,"first")
+  let setMatch = stmt.match(/^(\w[\w.]*)\.set\((.+?),\s*(.+)\)$/);
+  if (setMatch) {
+    if (!state.lists[setMatch[1]]) state.lists[setMatch[1]] = [];
+    const idx = Number(parseValue(setMatch[2], ctx)) - 1;
+    const val = parseValue(setMatch[3], ctx);
+    state.lists[setMatch[1]][idx] = val;
+    return;
+  }
+
+  // listname.delete(1)
+  let delMatch = stmt.match(/^(\w[\w.]*)\.delete\((.+)\)$/);
+  if (delMatch && state.lists[delMatch[1]]) {
+    const idx = Number(parseValue(delMatch[2], ctx)) - 1;
+    state.lists[delMatch[1]].splice(idx, 1);
+    return;
+  }
+
+  // deleteList(name)
+  let delListMatch = stmt.match(/^deleteList\((\w+)\)$/);
+  if (delListMatch) {
+    delete state.lists[delListMatch[1]];
+    return;
+  }
+
+  // deleteVar(name)
+  let delVarMatch = stmt.match(/^deleteVar\((\w+)\)$/);
+  if (delVarMatch) {
+    delete state.variables[delVarMatch[1]];
+    return;
+  }
+
+  // varname.replace("a","b")
+  let replaceMatch = stmt.match(/^([\w.]+)\.replace\("([^"]*)",\s*"([^"]*)"\)$/);
+  if (replaceMatch) {
+    const name = replaceMatch[1];
+    if (state.variables[name] !== undefined) {
+      state.variables[name] = String(state.variables[name]).replaceAll(replaceMatch[2], replaceMatch[3]);
+    } else if (state.lists[name]) {
+      state.lists[name] = state.lists[name].map(v => {
+        if (String(v) === replaceMatch[2]) return replaceMatch[3];
+        return v;
+      });
+    }
+    return;
+  }
+
+  // loop(...)
+  let loopMatch = stmt.match(/^loop\((.+?)\)\s*\{([\s\S]*)\}$/);
+  if (loopMatch) {
+    executeLoop(loopMatch[1], loopMatch[2], ctx);
+    return;
+  }
+
+  // if(...)
+  let ifMatch = stmt.match(/^if\((.+?)\)\s*\{([\s\S]*)\}(?:\s*else\s+if\((.+?)\)\s*\{([\s\S]*)\})*(?:\s*else\s*\{([\s\S]*)\})?$/);
+  if (ifMatch) {
+    executeIf(stmt, ctx);
+    return;
+  }
+
+  // Assignment: varname.1, varname.$+1, varname.$+"1", varname.varname1+1, varname.ran(1,10), varname.get(...)
+  let assignMatch = stmt.match(/^([\w.]+?)\.((?:\$[+](?:"[^"]*"|[^(]+)|[\w.].*|get\(.+?\)|long\(.+?\)|"[^"]*"|ran\(.+?\))?)\s*$/);
+  if (assignMatch) {
+    let leftName = assignMatch[1];
+    let rightExpr = assignMatch[2].trim();
+
+    // varname.ran(1,10)
+    let ranM = rightExpr.match(/^ran\((.+),\s*(.+)\)$/);
+    if (ranM) {
+      const min = Math.floor(parseValue(ranM[1], ctx));
+      const max = Math.floor(parseValue(ranM[2], ctx));
+      state.variables[leftName] = Math.floor(Math.random() * (max - min + 1)) + min;
+      return;
+    }
+
+    // varname.get(...)
+    let getM = rightExpr.match(/^get\((.+)\)$/);
+    if (getM) {
+      const targetInfo = { type: 'get', target: leftName, args: getM[1] };
+      const val = computeValue(targetInfo, null, ctx);
+      state.variables[leftName] = val;
+      return;
+    }
+
+    // varname.long(...)
+    let longM = rightExpr.match(/^long\((.+)\)$/);
+    if (longM) {
+      const arg = parseValue(longM[1], ctx);
+      if (Array.isArray(arg)) {
+        state.variables[leftName] = arg.length;
+      } else {
+        state.variables[leftName] = String(arg).length;
+      }
+      return;
+    }
+
+    // varname.$+"string" (concat)
+    let concatDollarM = rightExpr.match(/^\$\+"([^"]*)"$/);
+    if (concatDollarM) {
+      const current = state.variables[leftName] !== undefined ? String(state.variables[leftName]) : '';
+      state.variables[leftName] = current + concatDollarM[1];
+      return;
+    }
+
+    // varname.$+varname1 or varname.$+1
+    let addDollarM = rightExpr.match(/^\$\+(.+)$/);
+    if (addDollarM) {
+      const addVal = parseValue(addDollarM[1], ctx);
+      // Check if it's a string
+      if (rightExpr.startsWith('$+"') || typeof addVal === 'string') {
+        const current = state.variables[leftName] !== undefined ? String(state.variables[leftName]) : '';
+        state.variables[leftName] = current + String(addVal);
+      } else {
+        const current = state.variables[leftName] !== undefined ? Number(state.variables[leftName]) : 0;
+        state.variables[leftName] = current + Number(addVal);
+      }
+      return;
+    }
+
+    // varname.varname1+1
+    let varAddM = rightExpr.match(/^([\w.]+)\+(\d+)$/);
+    if (varAddM && !rightExpr.startsWith('"')) {
+      const refVal = parseValue(varAddM[1], ctx);
+      state.variables[leftName] = Number(refVal) + Number(varAddM[2]);
+      return;
+    }
+
+    // varname."string" (string concat with prefix)
+    let strM = rightExpr.match(/^"([^"]*)"$/);
+    if (strM) {
+      state.variables[leftName] = strM[1].replace(/\\n/g, '\n');
+      return;
+    }
+
+    // Simple assignment: varname.expr
+    // Check if it's a reference to another variable or a literal
+    let val = parseValue(rightExpr, ctx);
+    state.variables[leftName] = val;
+    return;
+  }
+
+  // Fallback: print (console output)
+  // Try to evaluate as expression and print
+  try {
+    let val = parseValue(stmt, ctx);
+    if (val !== undefined) {
+      if (Array.isArray(val)) {
+        logOutput('[ ' + val.map(v => escHtml(String(v))).join(', ') + ' ]');
+      } else {
+        logOutput(String(val));
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+function parseArgs(argStr, ctx) {
+  const args = [];
+  let depth = 0;
+  let current = '';
+  let inQuote = false;
+  for (let ch of argStr) {
+    if (ch === '"' && !inQuote) { inQuote = true; current += ch; continue; }
+    if (ch === '"' && inQuote) { inQuote = false; current += ch; continue; }
+    if (inQuote) { current += ch; continue; }
+    if (ch === '(') depth++;
+    if (ch === ')') depth--;
+    if (ch === ',' && depth === 0) {
+      args.push(parseValue(current.trim(), ctx));
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  if (current.trim()) args.push(parseValue(current.trim(), ctx));
+  return args;
+}
+
+function executeIf(stmt, ctx) {
+  // Parse if/else if/else chain
+  const parts = [];
+  let remaining = stmt;
+
+  // Match if
+  let ifM = remaining.match(/^if\((.+?)\)\s*\{([\s\S]*?)\}(?=\s*(?:else|$))/);
+  if (ifM) {
+    parts.push({ type: 'if', cond: ifM[1], body: ifM[2] });
+    remaining = remaining.slice(ifM[0].length);
+  }
+
+  // Match else if
+  while (true) {
+    let elseIfM = remaining.match(/^\s*else\s+if\((.+?)\)\s*\{([\s\S]*?)\}(?=\s*(?:else|$))/);
+    if (elseIfM) {
+      parts.push({ type: 'elif', cond: elseIfM[1], body: elseIfM[2] });
+      remaining = remaining.slice(elseIfM[0].length);
+    } else {
+      break;
+    }
+  }
+
+  // Match else
+  let elseM = remaining.match(/^\s*else\s*\{([\s\S]*)\}$/);
+  if (elseM) {
+    parts.push({ type: 'else', body: elseM[1] });
+  }
+
+  for (let part of parts) {
+    if (part.type === 'if' || part.type === 'elif') {
+      if (evaluateCondition(part.cond, ctx)) {
+        executeCode(part.body, ctx);
+        return;
+      }
+    } else if (part.type === 'else') {
+      executeCode(part.body, ctx);
+      return;
+    }
+  }
+}
+
+function evaluateCondition(cond, ctx) {
+  cond = cond.trim();
+
+  // listname.includes("a")
+  let incLM = cond.match(/^(\w+)\.includes\((.+)\)$/);
+  if (incLM) {
+    const list = state.lists[incLM[1]];
+    if (list) {
+      const val = parseValue(incLM[2], ctx);
+      return list.some(v => caseCompare(v, val));
+    }
+  }
+
+  // varname.includes("a")
+  let incVM = cond.match(/^(\w[\w.]*)\.includes\((.+)\)$/);
+  if (incVM) {
+    const val = state.variables[incVM[1]];
+    if (val !== undefined) {
+      const search = parseValue(incVM[2], ctx);
+      return String(val).includes(search);
+    }
+  }
+
+  // Comparisons
+  let compM = cond.match(/^(.+?)(==|!=|>=|<=|>|<)(.+)$/);
+  if (compM) {
+    const left = parseValue(compM[1], ctx);
+    const op = compM[2];
+    const right = parseValue(compM[3], ctx);
+
+    switch (op) {
+      case '==': return caseCompare(left, right);
+      case '!=': return !caseCompare(left, right);
+      case '>=': return Number(left) >= Number(right);
+      case '<=': return Number(left) <= Number(right);
+      case '>': return Number(left) > Number(right);
+      case '<': return Number(left) < Number(right);
+    }
+  }
+
+  // Variable truthy check
+  let val = parseValue(cond, ctx);
+  return !!val;
+}
+
+async function executeLoop(condExpr, body, ctx) {
+  // Determine if it's a count loop or a condition loop
+  let countM = condExpr.match(/^(\d+)$/);
+  if (countM) {
+    const count = Number(countM[1]);
+    for (let i = 0; i < count; i++) {
+      if (state.stopRequested) return;
+      executeCode(body, ctx);
+      updateViewers();
+      await tick();
+    }
+    return;
+  }
+
+  // loop(long("aa")) etc.
+  let longM = condExpr.match(/^long\((.+)\)$/);
+  if (longM) {
+    const arg = parseValue(longM[1], ctx);
+    const count = Array.isArray(arg) ? arg.length : String(arg).length;
+    for (let i = 0; i < count; i++) {
+      if (state.stopRequested) return;
+      executeCode(body, ctx);
+      updateViewers();
+      await tick();
+    }
+    return;
+  }
+
+  // loop(ran(1,10))
+  let ranM = condExpr.match(/^ran\((.+),\s*(.+)\)$/);
+  if (ranM) {
+    const min = Math.floor(parseValue(ranM[1], ctx));
+    const max = Math.floor(parseValue(ranM[2], ctx));
+    const count = Math.floor(Math.random() * (max - min + 1)) + min;
+    for (let i = 0; i < count; i++) {
+      if (state.stopRequested) return;
+      executeCode(body, ctx);
+      updateViewers();
+      await tick();
+    }
+    return;
+  }
+
+  // Condition loop: loop(varname=="10"){ ... }
+  let maxIter = 100000;
+  let iter = 0;
+  while (!evaluateCondition(condExpr, ctx) && iter < maxIter) {
+    if (state.stopRequested) return;
+    executeCode(body, ctx);
+    updateViewers();
+    await tick();
+    iter++;
+  }
+}
+
+async function executeCode(code, ctx) {
+  const statements = splitStatements(code);
+  for (let stmt of statements) {
+    if (state.stopRequested) return;
+    await executeStatementAsync(stmt.trim(), ctx);
+    updateViewers();
+  }
+}
+
+function splitStatements(code) {
+  const stmts = [];
+  let depth = 0;
+  let current = '';
+  let inQuote = false;
+  for (let ch of code) {
+    if (ch === '"' && !inQuote) { inQuote = true; current += ch; continue; }
+    if (ch === '"' && inQuote) { inQuote = false; current += ch; continue; }
+    if (inQuote) { current += ch; continue; }
+    if (ch === '{') depth++;
+    if (ch === '}') depth--;
+    if (ch === '\n' && depth === 0) {
+      if (current.trim()) stmts.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  if (current.trim()) stmts.push(current.trim());
+  return stmts;
+}
+
+async function executeStatementAsync(stmt, ctx) {
+  if (state.stopRequested) return;
+  stmt = stmt.trim();
+  if (!stmt || stmt.startsWith('//')) return;
+
+  // wait(Nms) - async
+  let waitMatch = stmt.match(/^wait\((\d+)ms\)$/);
+  if (waitMatch) {
+    const ms = Number(waitMatch[1]);
+    logOutput(`[待機] ${ms}ms`, 'info');
+    await sleep(ms);
+    return;
+  }
+
+  executeStatement(stmt, ctx);
+  updateViewers();
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function tick() {
+  await new Promise(r => setTimeout(r, 0));
+}
+
+// ===== Run / Stop =====
+async function runCode() {
+  if (state.running) return;
+  state.running = true;
+  state.stopRequested = false;
+  state.variables = {};
+  state.lists = {};
+  state.blocks = {};
+  state.upperMode = true;
+
+  clearOutput();
+  updateViewers();
+
+  document.getElementById('run-btn').style.display = 'none';
+  document.getElementById('stop-btn').style.display = 'inline-block';
+
+  const code = editor.value;
+  logOutput('=== 実行開始 ===', 'info');
+
+  try {
+    // First pass: extract blocks
+    const blockRegex = /block\((\w+)\)\s*\{([\s\S]*?)\}/g;
+    let bm;
+    while ((bm = blockRegex.exec(code)) !== null) {
+      state.blocks[bm[1]] = bm[2];
+    }
+
+    // Get library code and prepend
+    const libraryCode = getCombinedLibraryCode();
+    let fullCode = libraryCode ? libraryCode + '\n\n' + code : code;
+
+    // Extract blocks from library code too
+    while ((bm = blockRegex.exec(fullCode)) !== null) {
+      if (!state.blocks[bm[1]]) {
+        state.blocks[bm[1]] = bm[2];
+      }
+    }
+
+    // Remove blocks from code for execution
+    let executable = fullCode.replace(/block\(\w+\)\s*\{[\s\S]*?\}/g, '').trim();
+
+    await executeCode(executable, {});
+
+    if (state.stopRequested) {
+      logOutput('=== 停止しました ===', 'info');
+    } else {
+      logOutput('=== 実行完了 ===', 'info');
+    }
+  } catch (e) {
+    logOutput('エラー: ' + e.message, 'error');
+    console.error(e);
+  }
+
+  state.running = false;
+  document.getElementById('run-btn').style.display = 'inline-block';
+  document.getElementById('stop-btn').style.display = 'none';
+}
+
+function stopCode() {
+  state.stopRequested = true;
+}
+</script>
+
+</body>
+</html>

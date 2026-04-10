@@ -1,350 +1,242 @@
+// Warp Language v3 - Refined Swift-like Syntax
+@App var warpVersion = 2
+@App var themeColor = "blue"
+@App var currentScreen = "main"
 
-screen{
-    id: (main),
+// ==========================================
+// Main Screen
+// ==========================================
+Screen main {
     
-    Header{
-        text: ("Warp Demo"),
-        
-        button{
-            --headerText: (""),
-            text: ("⚠️" + --headerText),
-            oneClick: (--headerText = "Please wait", reset{now})
+    Header("Warp Demo") {
+        @State var headerStatus = ""
+
+        Button("再読み込み \(headerStatus)") {
+            headerStatus = ": 少々お待ちください"
+            reset()
         }
-    },
+    }
     
-    button{
-        text: ("FAB"),
-        frame: (width = 100vw - 40, height = 40),
-        position: (bottom = 20, left = 20),
-        zIndex: (10)
-    },
+    Button("FAB") { }
+        .frame(width: 100% - 40, height: 40)
+        .position(bottom: 20, left: 20)
+        .zIndex(10)
     
-    text{
-        text: ("これは新しい、ネイティブとWeb技術が融合する言語です。気になる反応は" + --mainText),
-        --mainText: ("...")
-    },
+    @State var mainText = "..."
+
+    Text("これは新しい、ネイティブとWeb技術が融合する言語です。気になる反応は \(mainText)")
     
-    card{
-        text: ("内容変更"),
+    Card("内容変更") {
+        Text("クリックすると表示内容が変更されます")
         
-        text{
-            text: ("クリックにより表示内容が変更されます")
-        },
-        
-        hStack{
-            button{
-                text: ("👍"),
-                oneClick: (--mainText = "良いみたいです!")
-            },
-            
-            button{
-                text: ("🤔"),
-                oneClick: (--mainText = "あまり良くないようですね。"),
-                offset: (left = 10)
-            },
-            
-            button{
-                text: ("❌"),
-                status: (disabled),
-                oneClick: (--mainText = "最悪ですね"),
-                id: (disabledButton)
-            },
-            
-            button{
-                text: ("ボタンを有効化"),
-                oneClick: (disabledButton.setStatus{unset})
+        HStack {
+            Button("👍") {
+                mainText = "良いみたいです!"
             }
-        },
-        
-        button{
-            text: ("Click"),
-            --color: (yellow),
-            color: (--color),
-            oneClick: (--color = red),
-            longPress: (--color = blue)
-        }
-    },
-    
-    card{
-        text: ("button"),
-        
-        text{
-            text: ("通常ボタン")
-        },
-        
-        hStack{
-            button{
-                text: ("戻る")
-            },
             
-            tonalButton{
-                text: ("注文"),
-                width: (max)
+            Button("🤔") {
+                mainText = "あまり良くないようですね。"
             }
-        },
-        
-        card{
-            text: ("使用例"),
-            color: (#091529),
-            textColor: (#eeeeff),
+            .offset(left: 10)
             
-            text{
-                text: ("button{\n  text: (\"戻る\")\n}")
+            @State var buttonStatus = "disabled"
+
+            Button("❌") {
+                mainText = "最悪ですね"
+            }
+            .status(buttonStatus)
+            .id("disabledButton")
+            
+            Button("ボタンを有効化") {
+                buttonStatus = "unset"
             }
         }
-    },
-    
-    card{
-        text: ("複数画面"),
-        
-        button{
-            text: ("Screen1に移動する"),
-            oneClick: (setScreen{screen1})
+
+        @State var currentColor = "yellow"
+        Button("Click") {
+            currentColor = "red"
         }
-    },
-    
-    card{
-        text: ("入力"),
-        
-        switch{
-            --switchMain: (falseDisabled),
-            status: (--switchMain),
-            output: (--switchMain)
-        },
-        
-        text{
-            text: ("スイッチの状態は" + --switchMain + "となっています")
-        },
-        
-        button{
-            text: ("スイッチを無効化"),
-            oneClick: (--switchMain = --switchMain + "Disabled"
-                
-            )
-        },
-        
-        button{
-            text: ("スイッチを有効化"),
-            oneClick: (
-                --switchMain = --switchMain.replace{"Disabled", ""}
-            )
-        },
-        
-        slider{
-            --sliderMain: (50),
-            status: (--sliderMain),
-            output: (--sliderMain),
-            max: (100),
-            step: (0.5)
-        },
-        
-        text{
-            text: ("スライダー値は" + --sliderMain + "です。")
-        },
-        
-        input{
-            --inputMain: ("私の名前はです。"),
-            output: (--inputMain),
-            placeholder: ("自己紹介文を入力"),
-            id: (nameInput)
-        },
-        
-        button{
-            text: ("保存"),
-            oneClick: (~~name = --inputMain, --saveStatus = "保存完了", wait: (1), --saveStatus = null)
-        },
-        
-        button{
-            text: ("復元"),
-            oneClick: (nameInput.changeContent{~~name}, --saveStatus = "復元完了", wait: (1), --saveStatus = null)
-        },
-        
-        text{
-            --saveStatus: (null),
-            text: (--saveStatus)
+        .backgroundColor(currentColor)
+        .onLongPress {
+            currentColor = "blue"
         }
-    },
+    }
     
-    card{
-        text: ("小計算機"),
+    Card("ボタン類") {
+        Text("通常ボタン")
         
-        text{
-            --calc: (""),
-            text: (--calc),
-            id: (calcDebug),
-            textColor: (gray)
-        },
-        
-        text{
-            --calc-a: (0),
-            text: (--calc-a)
-        },
-        
-        hStack{
-            tonalButton{
-                text: ("1"),
-                oneClick: (--calc = --calc + "1")
-            },
+        HStack {
+            Button("戻る") { }
             
-            tonalButton{
-                text: ("2"),
-                oneClick: (--calc = --calc + "2")
-            },
-            
-            tonalButton{
-                text: ("3"),
-                oneClick: (--calc = --calc + "3")
-            },
-            
-            button{
-                text: ("+"),
-                oneClick: (--calc = --calc + "+")
-            }
-        },
-        
-        hStack{
-            tonalButton{
-                text: ("4"),
-                oneClick: (--calc = --calc + "4")
-            },
-            
-            tonalButton{
-                text: ("5"),
-                oneClick: (--calc = --calc + "5")
-            },
-            
-            tonalButton{
-                text: ("6"),
-                oneClick: (--calc = --calc + "6")
-            },
-            
-            button{
-                text: ("-"),
-                oneClick: (--calc = --calc + "-")
-            }
-        },
-        
-        hStack{
-            tonalButton{
-                text: ("7"),
-                oneClick: (--calc = --calc + "7")
-            },
-            
-            tonalButton{
-                text: ("8"),
-                oneClick: (--calc = --calc + "8")
-            },
-            
-            tonalButton{
-                text: ("9"),
-                oneClick: (--calc = --calc + "9")
-            },
-            
-            button{
-                text: ("×"),
-                oneClick: (--calc = --calc + "*")
-            }
-        },
-        
-        hStack{
-            tonalButton{
-                text: ("0"),
-                oneClick: (--calc = --calc + "0")
-            },
-            
-            button{
-                text: ("="),
-                oneClick: (--calc-a = calc{--calc}),
-                color: (yellow)
-            },
-            
-            tonalButton{
-                text: ("C"),
-                oneClick: (--calc = "0", --calc-a = 0),
-                color: (yellow)
-            },
-            
-            button{
-                text: ("÷"),
-                oneClick: (--calc = --calc + "/")
-            }
-        },
-        
-        button{
-            --calcButtonText: ("途中式を非表示"),
-            --calcDebugHide: (false),
-            text: (--calcButtonText),
-            oneClick: (script{calcText})
+            TonalButton("注文") { }
+                .width(.max)
         }
-    },
+        
+        Card("使用例") {
+            Text("Button(\"戻る\") {\n  // ここにアクションを書く\n}")
+        }
+        .backgroundColor("#091529")
+        .foregroundColor("#eeeeff")
+    }
     
-    card{
-        text: ("要素追加"),
-        
-        hStack{
-            button{
-                text: ("追加"),
-                oneClick: (--cb = "add", script{ctrl})
-            },
-            
-            button{
-                text: ("1つ削除"),
-                oneClick: (--cb = "del", script{ctrl})
-            },
-            
-            button{
-                text: ("クリア"),
-                oneClick: (--cb = "clr", script{ctrl})
-            }
-        },
-        
-        vStack{
-            id: (cList)
+    Card("複数画面") {
+        Button("Screen1に移動する") {
+            currentScreen = "screen1"
         }
+    }
+    
+    Card("入力") {
+        @State var switchValue = false
+        @State var isSwitchDisabled = false
+        
+        Toggle(isOn: $switchValue)
+            .disabled(isSwitchDisabled)
+        
+        Text("スイッチの状態は \(switchValue) となっています")
+        
+        Button("スイッチを無効化") {
+            isSwitchDisabled = true
+        }
+        
+        Button("スイッチを有効化") {
+            isSwitchDisabled = false
+        }
+        
+        @State var sliderValue = 50.0
+        Slider(value: $sliderValue, in: 0...100, step: 1)
+        
+        Text("スライダー値は \(sliderValue) です。")
+        
+        @State var inputText = "私の名前はです。"
+        TextField("自己紹介文を入力", text: $inputText)
+            .id("nameInput")
+        
+        @Storage var savedName = ""
+        @State var saveStatus = ""
+
+        HStack {
+            Button("保存") {
+                savedName = inputText
+                saveStatus = "保存完了"
+                wait(1)
+                saveStatus = ""
+            }
+            
+            Button("復元") {
+                inputText = savedName
+                saveStatus = "復元完了"
+                wait(1)
+                saveStatus = ""
+            }
+        }
+        
+        Text(saveStatus)
+    }
+    
+    Card("小計算機") {
+        @State var expression = ""
+        @State var showDebug = true
+        @State var calculationResult = 0
+        
+        Text(expression)
+            .foregroundColor(.gray)
+            .hidden(!showDebug)
+            .id("calcDebug")
+        
+        Text("\(calculationResult)")
+        
+        HStack {
+            TonalButton("1") { expression += "1" }
+            TonalButton("2") { expression += "2" }
+            TonalButton("3") { expression += "3" }
+            Button("+") { expression += "+" }
+        }
+        
+        HStack {
+            TonalButton("4") { expression += "4" }
+            TonalButton("5") { expression += "5" }
+            TonalButton("6") { expression += "6" }
+            Button("-") { expression += "-" }
+        }
+        
+        HStack {
+            TonalButton("7") { expression += "7" }
+            TonalButton("8") { expression += "8" }
+            TonalButton("9") { expression += "9" }
+            Button("×") { expression += "*" }
+        }
+        
+        HStack {
+            TonalButton("0") { expression += "0" }
+            Button("=") { 
+                calculationResult = evaluate(expression) 
+            }
+            .backgroundColor(.yellow)
+            
+            TonalButton("C") { 
+                expression = "0"
+                calculationResult = 0 
+            }
+            .backgroundColor(.yellow)
+            
+            Button("÷") { expression += "/" }
+        }
+        
+        @State var debugToggleText = "途中式を非表示"
+        Button(debugToggleText) {
+            showDebug.toggle()
+            debugToggleText = showDebug ? "途中式を非表示" : "途中式を表示"
+        }
+    }
+    
+    Card("要素追加") {
+        @State var actionType = ""
+        HStack {
+            Button("追加") { 
+                actionType = "add"
+                ctrl() 
+            }
+            Button("1つ削除") { 
+                actionType = "del"
+                ctrl() 
+            }
+            Button("クリア") { 
+                actionType = "clr"
+                ctrl() 
+            }
+        }
+        
+        VStack { }
+            .id("cList")
     }
 }
 
-@ctrl{
-    if: (--cb = "add") {
-        add{cList: ("button{text: ('ボタンを追加')}")}
-    },
+// ==========================================
+// Screen 1
+// ==========================================
+Screen screen1 {
+    Header("Screen") { }
     
-    if: (--cb = "del") {
-        del{cList: (button)}
-    },
+    Text("Screen1の内容です。")
     
-    if: (--cb = "clr") {
-        clr{cList}
+    Button("mainに戻る") {
+        currentScreen = "main"
     }
 }
 
-@calcText{
-    if: (--calcDebugHide = false) {
-        --calcButtonText = "途中式を表示",
-        hide{calcDebug},
-        --calcDebugHide = true
-    },
-    
-    elseIf: (--calcDebugHide = true) {
-        --calcButtonText = "途中式を非表示",
-        show{calcDebug},
-        --calcDebugHide = false
+// ==========================================
+// Logic Blocks
+// ==========================================
+func ctrl() {
+    if actionType == "add" {
+        container("cList").add(Button("ボタンを追加") { })
     }
-}
-
-screen{
-    id: (screen1),
     
-    Header{
-        text: ("Screen")
-    },
+    if actionType == "del" {
+        container("cList").removeLast()
+    }
     
-    text{
-        text: ("Screen1の内容です。")
-    },
-    
-    button{
-        text: ("mainに戻る"),
-        oneClick: (setScreen{main})
+    if actionType == "clr" {
+        container("cList").clear()
     }
 }
