@@ -3,7 +3,10 @@ block(pixelkit_reset){
     var(screenY)
     var(pixelData)
     var(pixelCount)
-    var(pxlLine)
+    var(pxlX)
+    var(pxlY)
+    var(pxlLen)
+    var(pxlMode)
     pixelData.null
 }
 
@@ -15,15 +18,61 @@ block(pixelkit_start){
     }
 }
 
-block(pixelkit_start){
-    
+block(pixelkit_line){
+    var(xCol)
+    var(yRow)
+    var(isLine)
+    var(pxlEndY)
+    var(pxlEndX)
+
+    pxlEndY.pxlY
+    pxlEndY.$+pxlLen
+
+    pxlEndX.pxlX
+    pxlEndX.$+pxlLen
+
+    pixelData.null
+    yRow.0
+    loop(screenY){
+        xCol.0
+        loop(screenX){
+            isLine.0
+            if(pxlMode==0){
+                if(xCol==pxlX){
+                    if(yRow>=pxlY){
+                        if(pxlEndY>yRow){
+                            isLine.1
+                        }
+                    }
+                }
+            }
+            if(pxlMode==1){
+                if(yRow==pxlY){
+                    if(xCol>=pxlX){
+                        if(pxlEndX>xCol){
+                            isLine.1
+                        }
+                    }
+                }
+            }
+            if(isLine==1){
+                pixelData.$+"1"
+            }
+            if(isLine==0){
+                pixelData.$+"0"
+            }
+            xCol.$+1
+        }
+        yRow.$+1
+    }
 }
 
 pixelkit_reset
 screenX.128
 screenY.64
-pixelkit_start
 
-
-pxlLine.V010100900
+pxlMode.0
+pxlX.10
+pxlY.5
+pxlLen.50
 pixelkit_line
