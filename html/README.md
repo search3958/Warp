@@ -1,6 +1,6 @@
 # Warp 3 Compiler
 
-`.w2u` の UI と `.w2s` の動作を、ブラウザでそのまま開ける HTML・JavaScript・CSS に変換する Rust 製コンパイラです。
+`.w3u` の UI と `.w3s` の動作を、ブラウザでそのまま開ける HTML・JavaScript・CSS に変換する Rust 製コンパイラです。
 
 ```sh
 ./w3cp.sh
@@ -12,15 +12,15 @@ open dist/index.html
 ## ファイル
 
 - `config.ini`: `version=3`、起動画面 `screen`、アプリ名 `name`
-- `<画面名>.w2u`: UI。ファイル名が画面名になります
-- `.w2s`: `config { script("...") }` から読み込むイベントと関数
+- `<画面名>.w3u`: UI。ファイル名が画面名になります
+- `.w3s`: `config { script("...") }` から読み込むイベントと関数
 
 ### UI の例
 
 ```text
 config {
     title("画面タイトル")
-    script("app.w2s")
+    script("app.w3s")
 }
 
 head,scroll-point.top {
@@ -48,3 +48,5 @@ fun = update
 ```
 
 対応命令は `scroll`、`screen`、`print`、`wait`、`fun`、`setText`、`getText` と変数への代入・加減算です。
+
+`scroll = "top-point"` のようにクラス名、またはスクロールポイントに表示されている文字を指定できます。`scroll = +1` と `scroll = -1` は、現在スクロール位置の次・前にあるポイントへ移動します。

@@ -1,6 +1,6 @@
 config {
     title("UIデモ")
-    script("nav.w2s")
+    script("nav.w3s")
 }
 
 // config,scroll-pointは表示されない

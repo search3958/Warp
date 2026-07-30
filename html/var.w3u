@@ -1,7 +1,7 @@
 config {
     title("変数デモ")
-    script("nav.w2s")
-    script("var-demo.w2s")
+    script("nav.w3s")
+    script("var-demo.w3s")
 }
 
 toolbar{

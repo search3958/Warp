@@ -505,6 +505,14 @@ fn value_expr(value: &str, variables: &BTreeSet<String>) -> String {
     }
 }
 
+fn command_text(value: &str) -> &str {
+    let trimmed = value.trim();
+    trimmed
+        .strip_prefix('"')
+        .and_then(|value| value.strip_suffix('"'))
+        .unwrap_or(trimmed)
+}
+
 fn render_actions(
     actions: &[(String, String)],
     variables: &BTreeSet<String>,
@@ -517,14 +525,20 @@ fn render_actions(
                 if matches!(value.as_str(), "+1" | "-1") {
                     out.push_str(&format!("  scrollRelative({value});\n"));
                 } else {
-                    out.push_str(&format!("  scrollToPoint({});\n", js_string(value)));
+                    out.push_str(&format!(
+                        "  scrollToPoint({});\n",
+                        js_string(command_text(value))
+                    ));
                 }
             }
             ["print"] => out.push_str(&format!(
                 "  console.log({});\n",
                 js_string(value.trim_matches('"'))
             )),
-            ["screen"] => out.push_str(&format!("  showScreen({});\n", js_string(value))),
+            ["screen"] => out.push_str(&format!(
+                "  showScreen({});\n",
+                js_string(command_text(value))
+            )),
             ["wait"] => {
                 let milliseconds = value
                     .strip_suffix("ms")
@@ -536,7 +550,10 @@ fn render_actions(
                     })?;
                 out.push_str(&format!("  await delay({milliseconds});\n"));
             }
-            ["fun"] => out.push_str(&format!("  await functions[{}]();\n", js_string(value))),
+            ["fun"] => out.push_str(&format!(
+                "  await functions[{}]();\n",
+                js_string(command_text(value))
+            )),
             ["setText", target] => out.push_str(&format!(
                 "  setElementText({}, {});\n",
                 js_string(target),
@@ -589,6 +606,8 @@ fn generate_js(
 const state = Object.create(null);
 const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 const namedElement = name => document.querySelector(`.${CSS.escape(name)}`);
+let currentScrollPoint = null;
+let scrollUpdatePending = false;
 
 function elementValue(element) {
   if (!element) return "";
@@ -614,24 +633,74 @@ function getElementText(name) {
 
 function currentPoints() {
   const screen = document.querySelector(".w3-screen.is-active");
-  return [...(screen?.querySelectorAll("[data-w3-scroll-point]") ?? [])];
+  return [...(screen?.querySelectorAll("[data-w3-scroll-point]") ?? [])]
+    .filter(point => point.getClientRects().length > 0);
+}
+
+function setCurrentScrollPoint(point, points = currentPoints()) {
+  currentScrollPoint = point ?? null;
+  points.forEach(item => {
+    const isCurrent = item === currentScrollPoint;
+    item.classList.toggle("is-current-scroll-point", isCurrent);
+    if (isCurrent) item.dataset.w3CurrentScrollPoint = "true";
+    else delete item.dataset.w3CurrentScrollPoint;
+  });
+}
+
+function updateCurrentScrollPoint() {
+  const points = currentPoints();
+  const currentY = window.scrollY + 48;
+  let nearest = null;
+  let nearestY = -Infinity;
+  for (const point of points) {
+    const pointY = point.getBoundingClientRect().top + window.scrollY;
+    if (pointY <= currentY && pointY >= nearestY) {
+      nearest = point;
+      nearestY = pointY;
+    }
+  }
+  setCurrentScrollPoint(nearest, points);
+  return nearest;
+}
+
+function scheduleScrollPointUpdate() {
+  if (scrollUpdatePending) return;
+  scrollUpdatePending = true;
+  requestAnimationFrame(() => {
+    scrollUpdatePending = false;
+    updateCurrentScrollPoint();
+  });
+}
+
+function findScrollPoint(name) {
+  const wanted = String(name).trim();
+  const points = currentPoints();
+  return points.find(point => point.classList.contains(wanted))
+    ?? points.find(point => point.textContent.trim() === wanted)
+    ?? null;
 }
 
 function scrollToPoint(name) {
-  const target = namedElement(name);
-  if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-  else console.warn(`w3cp: scroll point ".${name}" was not found`);
+  const target = findScrollPoint(name);
+  if (target) {
+    setCurrentScrollPoint(target);
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  } else {
+    console.warn(`w3cp: scroll point "${name}" was not found`);
+  }
 }
 
 function scrollRelative(direction) {
   const points = currentPoints();
   if (!points.length) return;
-  const y = window.scrollY + 8;
-  let index = points.findIndex(point => point.getBoundingClientRect().top + window.scrollY >= y);
-  if (index < 0) index = points.length - 1;
-  if (direction < 0 && points[index].getBoundingClientRect().top + window.scrollY >= y) index--;
-  else if (direction > 0 && points[index].getBoundingClientRect().top + window.scrollY < y) index++;
-  points[Math.max(0, Math.min(points.length - 1, index))]?.scrollIntoView({
+  updateCurrentScrollPoint();
+  const currentIndex = currentScrollPoint ? points.indexOf(currentScrollPoint) : -1;
+  const nextIndex = currentIndex < 0
+    ? 0
+    : Math.max(0, Math.min(points.length - 1, currentIndex + Math.sign(direction)));
+  const target = points[nextIndex];
+  setCurrentScrollPoint(target, points);
+  target.scrollIntoView({
     behavior: "smooth",
     block: "start"
   });
@@ -648,6 +717,7 @@ function showScreen(name) {
   });
   document.title = target.dataset.title || document.title;
   window.scrollTo({ top: 0, behavior: "instant" });
+  updateCurrentScrollPoint();
 }
 
 function initializeTabs() {
@@ -661,7 +731,10 @@ function initializeTabs() {
       });
       pages.forEach((page, i) => page.classList.toggle("is-active", i === index));
     };
-    buttons.forEach((button, index) => button.addEventListener("click", () => select(index)));
+    buttons.forEach((button, index) => button.addEventListener("click", () => {
+      select(index);
+      updateCurrentScrollPoint();
+    }));
     select(0);
   });
 }
@@ -681,7 +754,7 @@ const functions = Object.create(null);
     }
 
     out.push_str(
-        "\ndocument.addEventListener(\"DOMContentLoaded\", () => {\n  initializeTabs();\n",
+        "\ndocument.addEventListener(\"DOMContentLoaded\", () => {\n  initializeTabs();\n  window.addEventListener(\"scroll\", scheduleScrollPointUpdate, { passive: true });\n  window.addEventListener(\"resize\", scheduleScrollPointUpdate);\n",
     );
     out.push_str(&format!("  showScreen({});\n", js_string(start_screen)));
     for section in sections {
@@ -713,7 +786,7 @@ const CSS: &str = r#":root {
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; background: var(--w3-bg); color: var(--w3-text); }
-body { margin: 0; min-height: 100vh; padding: 32px 28px 96px; background: radial-gradient(circle at 15% 0, rgba(0,103,192,.08), transparent 30rem), var(--w3-bg); }
+body { margin: 0; min-height: 100vh; padding: 32px 28px 96px; background: var(--w3-bg); }
 button, input, textarea { font: inherit; }
 .w3-screen { display: none; width: min(960px, 100%); margin: 0 auto; }
 .w3-screen.is-active { display: block; animation: w3-enter .18s ease-out; }
@@ -722,6 +795,7 @@ button, input, textarea { font: inherit; }
 .w3-text { line-height: 1.55; }
 .w3-detail { color: var(--w3-muted); font-size: 13px; line-height: 1.45; }
 .w3-button, .w3-tab-controls button {
+  display: block; width: fit-content; margin: 8px 0;
   min-height: 34px; padding: 5px 14px; border: 1px solid var(--w3-stroke); border-bottom-color: rgba(0,0,0,.25);
   border-radius: 4px; color: var(--w3-text); background: var(--w3-layer-solid); box-shadow: 0 1px 1px rgba(0,0,0,.04);
   cursor: pointer; transition: background .1s, transform .1s, border-color .1s;
@@ -737,7 +811,9 @@ button, input, textarea { font: inherit; }
   backdrop-filter: blur(20px);
 }
 .w3-flex { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.w3-flex > .w3-button, .w3-flex > .w3-input, .w3-flex > .w3-textarea { margin: 0; }
 .w3-input, .w3-textarea {
+  display: block; margin: 8px 0;
   width: min(420px, 100%); min-height: 34px; padding: 6px 10px; color: var(--w3-text); background: var(--w3-layer-solid);
   border: 1px solid var(--w3-stroke); border-bottom: 2px solid #777; border-radius: 4px;
 }
@@ -745,9 +821,11 @@ button, input, textarea { font: inherit; }
 .w3-textarea { min-height: 100px; resize: vertical; }
 .w3-toolbar {
   position: fixed; z-index: 100; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px;
-  width: min(900px, calc(100% - 32px)); padding: 9px; border: 1px solid var(--w3-stroke); border-radius: 8px;
+  width: fit-content; max-width: calc(100% - 32px); padding: 9px; border: 1px solid var(--w3-stroke); border-radius: 8px;
   background: rgba(250,250,250,.82); box-shadow: 0 8px 28px rgba(0,0,0,.16); backdrop-filter: blur(28px) saturate(1.4);
 }
+.w3-toolbar:has(> .w3-space) { width: min(900px, calc(100% - 32px)); }
+.w3-toolbar > .w3-button, .w3-tab-controls > button { margin: 0; }
 .w3-toolbar .w3-space { flex: 1; }
 .w3-list-title { margin: 18px 0 8px; font-size: 20px; font-weight: 600; }
 .w3-list-box { padding: 0; list-style: none; overflow: hidden; }
@@ -816,11 +894,11 @@ fn run() -> Result<(), String> {
         .map_err(|error| format!("{} を読めません: {error}", source_dir.display()))?
         .filter_map(Result::ok)
         .map(|entry| entry.path())
-        .filter(|path| path.extension().and_then(|value| value.to_str()) == Some("w2u"))
+        .filter(|path| path.extension().and_then(|value| value.to_str()) == Some("w3u"))
         .collect();
     ui_files.sort();
     if ui_files.is_empty() {
-        return Err("`.w2u` ファイルが見つかりません".into());
+        return Err("`.w3u` ファイルが見つかりません".into());
     }
 
     let mut screens = Vec::new();
@@ -910,10 +988,22 @@ mod tests {
     fn parses_script_sections() {
         let sections = parse_script(
             "[onClick = add]\ncount = +1\nfun = update\n",
-            Path::new("test.w2s"),
+            Path::new("test.w3s"),
         )
         .unwrap();
         assert_eq!(sections.len(), 1);
         assert_eq!(sections[0].actions.len(), 2);
+    }
+
+    #[test]
+    fn scroll_accepts_quoted_names() {
+        let actions = vec![
+            ("scroll".to_string(), "\"top-point\"".to_string()),
+            ("scroll".to_string(), "+1".to_string()),
+        ];
+        let js = render_actions(&actions, &BTreeSet::new()).unwrap();
+        assert!(js.contains("scrollToPoint(\"top-point\")"));
+        assert!(js.contains("scrollRelative(+1)"));
+        assert!(!js.contains("\\\"top-point\\\""));
     }
 }

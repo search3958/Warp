@@ -4,7 +4,7 @@ print = "更新済み"
 
 [fun = boostAnm]
 myVar = +1
-wait = 10ms
+wait = 50ms
 fun = updateDisplay
 
 [onClick = count]
