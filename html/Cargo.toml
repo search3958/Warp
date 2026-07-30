@@ -1,0 +1,10 @@
+[package]
+name = "w3cp"
+version = "0.1.0"
+edition = "2024"
+description = "Warp 3 UI compiler"
+
+[profile.release]
+strip = true
+lto = true
+

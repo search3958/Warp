@@ -6,7 +6,7 @@ config {
 
 toolbar{
     button.home-btn{
-        text("上部へ")
+        text("戻る")
     }
 }
 

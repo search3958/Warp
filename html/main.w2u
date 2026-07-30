@@ -347,6 +347,7 @@ tab{
         text("サンプル")
         
         tab{
+            control("left")
             content{
                 text("Tab 1")
                 text{
@@ -474,16 +475,9 @@ head,scroll-point{
 tab{
     control("top")
     content{
-        text("サンプル")
-        
-        scroll-point{
-            text("Hello, World.")
-        }
-    }
-    content{
         text("詳細")
         
-        code{
+        text{
             text("text,head要素には直接scroll-pointも指定することができます。")
         }
     }
