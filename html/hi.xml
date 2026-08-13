@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            style="@style/SectionTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Android XML Compatibility Preview"
+            android:textSize="24sp"
+            android:textStyle="bold"/>
+
+        <TextView
+            style="@style/SectionDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="6 layouts + 26+ standard widgets — rendered by the HTML compatibility layer."/>
+
+        <TextView style="@style/SectionTitle" android:text="6 Layouts"/>
+
+        <TextView style="@style/ComponentLabel" android:text="1. LinearLayout"/>
+        <LinearLayout
+            style="@style/ComponentBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="A"/>
+            <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:text="B (weight 2)"/>
+            <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="C"/>
+        </LinearLayout>
+
+        <TextView style="@style/ComponentLabel" android:text="2. RelativeLayout"/>
+        <RelativeLayout
+            style="@style/ComponentBox"
+            android:layout_width="match_parent"
+            android:layout_height="90dp">
+            <Button
+                android:id="@+id/relativeLeft"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentLeft="true"
+                android:layout_centerVertical="true"
+                android:text="Left"/>
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentRight="true"
+                android:layout_centerVertical="true"
+                android:text="Right"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:text="Center"/>
+        </RelativeLayout>
+
+        <TextView style="@style/ComponentLabel" android:text="3. FrameLayout"/>
+        <FrameLayout
+            style="@style/ComponentBox"
+            android:layout_width="match_parent"
+            android:layout_height="100dp">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:background="#e8eefc"
+                android:text="Background"/>
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="Overlay"/>
+        </FrameLayout>
+
+        <TextView style="@style/ComponentLabel" android:text="4. TableLayout / TableRow"/>
+        <TableLayout
+            style="@style/ComponentBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:stretchColumns="*">
+            <TableRow>
+                <Button android:layout_width="0dp" android:layout_height="wrap_content" android:text="1,1"/>
+                <Button android:layout_width="0dp" android:layout_height="wrap_content" android:text="1,2"/>
+                <Button android:layout_width="0dp" android:layout_height="wrap_content" android:text="1,3"/>
+            </TableRow>
+            <TableRow>
+                <Button android:layout_width="0dp" android:layout_height="wrap_content" android:text="2,1"/>
+                <Button android:layout_width="0dp" android:layout_height="wrap_content" android:text="2,2"/>
+                <Button android:layout_width="0dp" android:layout_height="wrap_content" android:text="2,3"/>
+            </TableRow>
+        </TableLayout>
+
+        <TextView style="@style/ComponentLabel" android:text="5. GridLayout"/>
+        <GridLayout
+            style="@style/ComponentBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="3">
+            <Button android:text="1"/>
+            <Button android:text="2"/>
+            <Button android:text="3"/>
+            <Button android:text="4"/>
+            <Button android:text="5"/>
+            <Button android:text="6"/>
+        </GridLayout>
+
+        <TextView style="@style/ComponentLabel" android:text="6. AbsoluteLayout"/>
+        <AbsoluteLayout
+            style="@style/ComponentBox"
+            android:layout_width="match_parent"
+            android:layout_height="110dp">
+            <Button
+                android:layout_width="150dp"
+                android:layout_height="wrap_content"
+                android:layout_x="70dp"
+                android:layout_y="20dp"
+                android:text="x=70 y=20"/>
+        </AbsoluteLayout>
+
+        <TextView style="@style/SectionTitle" android:text="Text &amp; Input"/>
+        <TextView style="@style/ComponentLabel" android:text="TextView"/>
+        <TextView style="@style/ComponentBox" android:text="Hello Android XML" android:textSize="18sp"/>
+
+        <TextView style="@style/ComponentLabel" android:text="EditText"/>
+        <EditText style="@style/ComponentBox" android:hint="Type something..." android:singleLine="true"/>
+
+        <TextView style="@style/ComponentLabel" android:text="AutoCompleteTextView"/>
+        <AutoCompleteTextView style="@style/ComponentBox" android:hint="Type A..." android:singleLine="true"/>
+
+        <TextView style="@style/ComponentLabel" android:text="MultiAutoCompleteTextView"/>
+        <MultiAutoCompleteTextView style="@style/ComponentBox" android:hint="Android, Apple..."/>
+
+        <TextView style="@style/SectionTitle" android:text="Buttons"/>
+        <TextView style="@style/ComponentLabel" android:text="Button"/>
+        <Button style="@style/ComponentBox" android:text="Button"/>
+
+        <TextView style="@style/ComponentLabel" android:text="ImageButton"/>
+        <ImageButton style="@style/ComponentBox" android:contentDescription="Camera"/>
+
+        <TextView style="@style/ComponentLabel" android:text="CheckBox"/>
+        <CheckBox style="@style/ComponentBox" android:checked="true" android:text="CheckBox"/>
+
+        <TextView style="@style/ComponentLabel" android:text="RadioButton / RadioGroup"/>
+        <RadioGroup style="@style/ComponentBox" android:orientation="vertical">
+            <RadioButton android:checked="true" android:text="Option A"/>
+            <RadioButton android:text="Option B"/>
+            <RadioButton android:text="Option C"/>
+        </RadioGroup>
+
+        <TextView style="@style/ComponentLabel" android:text="ToggleButton"/>
+        <ToggleButton style="@style/ComponentBox" android:checked="true"/>
+
+        <TextView style="@style/ComponentLabel" android:text="Switch"/>
+        <Switch style="@style/ComponentBox" android:checked="true" android:text="Switch"/>
+
+        <TextView style="@style/SectionTitle" android:text="Selection"/>
+        <TextView style="@style/ComponentLabel" android:text="Spinner"/>
+        <Spinner style="@style/ComponentBox"/>
+
+        <TextView style="@style/ComponentLabel" android:text="SeekBar"/>
+        <SeekBar style="@style/ComponentBox" android:max="100" android:progress="55"/>
+
+        <TextView style="@style/ComponentLabel" android:text="RatingBar"/>
+        <RatingBar android:numStars="5" android:rating="3.5" android:stepSize="0.5"/>
+
+        <TextView style="@style/ComponentLabel" android:text="NumberPicker"/>
+        <NumberPicker style="@style/ComponentBox" android:minValue="0" android:maxValue="10" android:value="4"/>
+
+        <TextView style="@style/SectionTitle" android:text="Progress"/>
+        <TextView style="@style/ComponentLabel" android:text="ProgressBar (indeterminate)"/>
+        <ProgressBar/>
+
+        <TextView style="@style/ComponentLabel" android:text="ProgressBar Horizontal"/>
+        <ProgressBar
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:max="100"
+            android:progress="65"/>
+
+        <TextView style="@style/SectionTitle" android:text="Date &amp; Time"/>
+        <TextView style="@style/ComponentLabel" android:text="Chronometer"/>
+        <Chronometer android:textSize="22sp"/>
+
+        <TextView style="@style/ComponentLabel" android:text="DatePicker"/>
+        <DatePicker style="@style/ComponentBox"/>
+
+        <TextView style="@style/ComponentLabel" android:text="TimePicker"/>
+        <TimePicker style="@style/ComponentBox"/>
+
+        <TextView style="@style/ComponentLabel" android:text="CalendarView"/>
+        <CalendarView style="@style/ComponentBox"/>
+
+        <TextView style="@style/SectionTitle" android:text="Images / Collections / Other"/>
+        <TextView style="@style/ComponentLabel" android:text="ImageView"/>
+        <ImageView
+            style="@style/ComponentBox"
+            android:layout_width="120dp"
+            android:layout_height="80dp"
+            android:contentDescription="Image"/>
+
+        <TextView style="@style/ComponentLabel" android:text="ListView"/>
+        <ListView style="@style/ComponentBox" android:layout_width="match_parent" android:layout_height="130dp"/>
+
+        <TextView style="@style/ComponentLabel" android:text="GridView"/>
+        <GridView
+            style="@style/ComponentBox"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:numColumns="3"/>
+
+        <TextView style="@style/ComponentLabel" android:text="ExpandableListView"/>
+        <ExpandableListView style="@style/ComponentBox" android:layout_width="match_parent" android:layout_height="130dp"/>
+
+        <TextView style="@style/ComponentLabel" android:text="SearchView"/>
+        <SearchView style="@style/ComponentBox" android:queryHint="Search..."/>
+
+        <TextView style="@style/ComponentLabel" android:text="WebView"/>
+        <WebView style="@style/ComponentBox" android:layout_width="match_parent" android:layout_height="100dp"/>
+
+        <TextView style="@style/ComponentLabel" android:text="VideoView"/>
+        <VideoView style="@style/ComponentBox" android:layout_width="match_parent" android:layout_height="120dp"/>
+
+        <TextView style="@style/ComponentLabel" android:text="HorizontalScrollView"/>
+        <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content">
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal">
+                <Button android:text="Item 1"/>
+                <Button android:text="Item 2"/>
+                <Button android:text="Item 3"/>
+                <Button android:text="Item 4"/>
+                <Button android:text="Item 5"/>
+                <Button android:text="Item 6"/>
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <TextView style="@style/ComponentLabel" android:text="ViewFlipper"/>
+        <ViewFlipper
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:autoStart="true"
+            android:flipInterval="2000">
+            <TextView android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="View 1" android:textSize="24sp"/>
+            <TextView android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="View 2" android:textSize="24sp"/>
+        </ViewFlipper>
+
+        <Space android:layout_width="match_parent" android:layout_height="40dp"/>
+    </LinearLayout>
+</ScrollView>

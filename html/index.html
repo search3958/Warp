@@ -1,0 +1,1014 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>App</title>
+<style>
+:root{
+  --holo-blue:#33b5e5;
+  --holo-blue-dark:#0099cc;
+  --holo-bg:#f5f5f5;
+  --holo-surface:#ffffff;
+  --holo-text:#222222;
+  --holo-secondary:#666666;
+  --holo-divider:#cccccc;
+  --holo-control:#e6e6e6;
+  --holo-control-top:#fafafa;
+  --holo-control-bottom:#d7d7d7;
+}
+*{box-sizing:border-box}
+html,body,#app{width:100%;height:100%;margin:0;padding:0}
+html,body{overflow:hidden;background:linear-gradient(#f2f2f2 0%,#ffffff 22%,#f7f7f7 100%)}
+body{
+  font-family:Roboto,"Helvetica Neue",Arial,sans-serif;
+  color:var(--holo-text);
+  font-size:14px;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+#app{overflow:hidden;background:linear-gradient(#f1f1f1 0%,#ffffff 18%,#fafafa 100%)}
+.android-view{box-sizing:border-box;min-width:0;min-height:0;gap:8px}
+.android-linear{display:flex;min-width:0;min-height:0}
+.android-scroll{
+  min-width:0;min-height:0;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.android-relative{position:relative;min-width:0;min-height:0}
+.android-frame{position:relative;min-width:0;min-height:0}
+.android-frame>.android-view{position:absolute}
+.android-absolute{position:relative;min-width:0;min-height:0}
+.android-grid{display:grid;min-width:0;min-height:0}
+.android-table{
+  border-collapse:separate;
+  border-spacing:6px 6px;
+  width:auto;
+  max-width:100%;
+}
+.android-table.stretch-all{width:100%;table-layout:fixed}
+.android-table td{
+  vertical-align:middle;
+  padding:0;
+  min-width:0;
+}
+.android-table.stretch-all td>.android-view{
+  width:100%!important;
+  max-width:100%;
+}
+.android-table .table-row{height:auto}
+.android-space{display:block}
+
+/* Styles referenced by the supplied XML */
+.style-SectionTitle{
+  width:100%!important;
+  margin:22px 0 8px 0!important;
+  padding:0!important;
+  font-size:24px!important;
+  line-height:30px!important;
+  font-weight:700!important;
+  color:#222!important;
+}
+.style-SectionDescription{
+  width:100%!important;
+  margin:0 0 14px 0!important;
+  padding:0!important;
+  color:#777!important;
+  font-size:13px!important;
+  line-height:18px!important;
+}
+.style-ComponentLabel{
+  width:100%!important;
+  margin:14px 0 6px 0!important;
+  padding:0!important;
+  color:#555!important;
+  font-size:15px!important;
+  line-height:20px!important;
+}
+.style-ComponentBox{
+  margin-bottom:3px;
+}
+
+/* Android 4 / Holo-ish primitives */
+.android-text{
+  display:block;
+  white-space:pre-wrap;
+  line-height:1.25;
+}
+.android-button,
+.android-image-button,
+.android-toggle{
+  -webkit-appearance:none;
+  appearance:none;
+  position:relative;
+  min-width:64px;
+  min-height:48px;
+  margin:0;
+  padding:0 16px;
+  border:1px solid 
+    var(--holo-control-bottom);
+  border-radius:2px;
+  outline:none;
+  background:
+    var(--holo-control-bottom);
+  box-shadow:
+    0 1px 1px rgba(0,0,0,.5);
+  color:#202020;
+  font:400 18px/46px Roboto,"Helvetica Neue",Arial,sans-serif;
+  text-align:center;
+  cursor:pointer;
+  user-select:none;
+}
+.android-button:hover,.android-image-button:hover,.android-toggle:hover{
+  border-color:#9f9f9f;
+}
+.android-button:active,.android-image-button:active,.android-toggle:active{
+  background:#bde7f7;
+  border-color:var(--holo-blue-dark);
+}
+.android-button:focus-visible,.android-image-button:focus-visible,.android-toggle:focus-visible{
+  outline:2px solid rgba(51,181,229,.35);
+  outline-offset:1px;
+}
+
+.android-edit{
+  -webkit-appearance:none;
+  appearance:none;
+  display:block;
+  min-width:80px;
+  min-height:38px;
+  margin:0;
+  padding:7px 4px 5px 4px;
+  border:0;
+  border-bottom:2px solid #9e9e9e;
+  border-radius:0;
+  outline:none;
+  background:linear-gradient(to bottom,transparent calc(100% - 1px),rgba(255,255,255,.5) 100%);
+  color:#222;
+  font:400 16px/22px Roboto,"Helvetica Neue",Arial,sans-serif;
+  box-shadow:none;
+}
+.android-edit::placeholder{color:#888;opacity:1}
+.android-edit:focus{
+  border-bottom-color:var(--holo-blue);
+  box-shadow:0 1px 0 var(--holo-blue);
+}
+textarea.android-edit{
+  min-height:58px;
+  resize:vertical;
+  border:1px solid #bdbdbd;
+  border-bottom:2px solid #9e9e9e;
+  padding:7px;
+}
+textarea.android-edit:focus{border-color:#8d8d8d;border-bottom-color:var(--holo-blue)}
+
+
+/*
+ * CheckBox / RadioButton / Switch are deliberately NOT backed by native
+ * HTML input elements. Their state lives on each rendered Android view.
+ * This prevents browser form/focus behaviour from affecting the app tree.
+ */
+.android-checkbox,.android-radio{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  min-height:42px;
+  padding:2px 0;
+  color:#222;
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  outline:none;
+}
+.android-checkbox .mark{
+  width:22px;height:22px;
+  position:relative;
+  flex:0 0 22px;
+  border:2px solid #747474;
+  border-radius:1px;
+  background:linear-gradient(#fafafa,#e2e2e2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
+}
+.android-checkbox[data-checked="true"] .mark{
+  border-color:#148fbd;
+  background:linear-gradient(#5dccf0,#22a9db);
+}
+.android-checkbox[data-checked="true"] .mark:after{
+  content:"";
+  position:absolute;
+  left:5px;top:1px;
+  width:7px;height:13px;
+  border:solid #fff;
+  border-width:0 3px 3px 0;
+  transform:rotate(45deg);
+}
+.android-checkbox:focus-visible .mark,
+.android-radio:focus-visible .mark{
+  box-shadow:0 0 0 3px rgba(51,181,229,.24);
+}
+
+.android-radio .mark{
+  width:22px;height:22px;
+  position:relative;
+  flex:0 0 22px;
+  border:2px solid #707070;
+  border-radius:50%;
+}
+.android-radio[data-checked="true"] .mark{
+  border-color:#148fbd;
+}
+.android-radio[data-checked="true"] .mark:after{
+  content:"";
+  position:absolute;
+  inset:4px;
+  border-radius:50%;
+  background:#33b5e5;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35);
+}
+
+.android-switch{
+  display:inline-flex;
+  align-items:center;
+  gap:11px;
+  min-height:44px;
+  padding:2px 0;
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  outline:none;
+}
+.android-switch .track{
+  width:52px;height:22px;
+  position:relative;
+  flex:0 0 52px;
+  border:1px solid #8b8b8b;
+  background:#bdbdbd;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.22);
+}
+.android-switch .thumb{
+  position:absolute;
+  left:-1px;top:-4px;
+  width:28px;height:28px;
+  border:1px solid #858585;
+  background:linear-gradient(#ffffff,#d0d0d0);
+  box-shadow:0 1px 2px rgba(0,0,0,.35);
+  transition:left .10s linear,border-color .10s linear;
+}
+.android-switch[data-checked="true"] .track{
+  border-color:#148fbd;
+  background:linear-gradient(90deg,#33b5e5 0 54%,#bdbdbd 54% 100%);
+}
+.android-switch[data-checked="true"] .thumb{
+  left:25px;
+  border-color:#148fbd;
+}
+.android-switch:focus-visible .track{
+  box-shadow:0 0 0 3px rgba(51,181,229,.24),inset 0 1px 2px rgba(0,0,0,.22);
+}
+
+.android-spinner{
+  -webkit-appearance:none;
+  appearance:none;
+  min-height:38px;
+  padding:6px 30px 5px 7px;
+  border:0;
+  border-bottom:2px solid #999;
+  border-radius:0;
+  outline:none;
+  color:#222;
+  font:400 15px Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:
+    linear-gradient(45deg,transparent 50%,#555 50%) calc(100% - 12px) 16px/6px 6px no-repeat,
+    linear-gradient(135deg,#555 50%,transparent 50%) calc(100% - 6px) 16px/6px 6px no-repeat,
+    linear-gradient(to bottom,transparent calc(100% - 2px),#aaa calc(100% - 2px));
+}
+.android-spinner:focus{border-bottom-color:var(--holo-blue)}
+
+.android-seek{
+  -webkit-appearance:none;
+  appearance:none;
+  width:100%;
+  height:30px;
+  margin:0;
+  background:transparent;
+  outline:none;
+}
+.android-seek::-webkit-slider-runnable-track{
+  height:3px;background:#a7a7a7;border-radius:0;
+}
+.android-seek::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  appearance:none;
+  width:18px;height:18px;border-radius:50%;
+  border:1px solid #168db8;background:var(--holo-blue);
+  margin-top:-7px;box-shadow:0 1px 2px rgba(0,0,0,.28);
+}
+.android-seek::-moz-range-track{height:3px;background:#a7a7a7}
+.android-seek::-moz-range-progress{height:3px;background:var(--holo-blue)}
+.android-seek::-moz-range-thumb{width:18px;height:18px;border-radius:50%;border:1px solid #168db8;background:var(--holo-blue)}
+
+.android-rating{
+  display:inline-flex;
+  gap:1px;
+  align-items:center;
+  min-height:34px;
+  font-size:25px;
+  line-height:1;
+  user-select:none;
+  cursor:pointer;
+  width:fit-content;
+}
+.android-rating .star{color:#b7b7b7;text-shadow:0 1px 0 white}
+.android-rating .star.on{color:var(--holo-blue);text-shadow:0 1px 0 #e8f8ff}
+
+.android-progress-horizontal{
+  -webkit-appearance:none;
+  appearance:none;
+  width:100%;height:6px;
+  border:0;background:#d0d0d0;
+}
+.android-progress-horizontal::-webkit-progress-bar{background:#d0d0d0}
+.android-progress-horizontal::-webkit-progress-value{background:var(--holo-blue)}
+.android-progress-horizontal::-moz-progress-bar{background:var(--holo-blue)}
+.android-progress-spinner{
+  width:28px;height:28px;
+  border-radius:50%;
+  border:4px solid #cfcfcf;
+  border-top-color:var(--holo-blue);
+  border-right-color:var(--holo-blue);
+  animation:holo-spin .8s linear infinite;
+}
+@keyframes holo-spin{to{transform:rotate(360deg)}}
+
+.android-image-placeholder{
+  display:flex;align-items:center;justify-content:center;
+  min-width:56px;min-height:48px;
+  border:1px solid #b9b9b9;
+  background:linear-gradient(135deg,#eeeeee,#d4d4d4);
+  color:#666;font-size:12px;
+}
+.camera-icon{
+  position:relative;display:inline-block;
+  width:24px;height:17px;border:2px solid #333;border-radius:2px;
+}
+.camera-icon:before{
+  content:"";position:absolute;left:6px;top:-6px;
+  width:8px;height:5px;border:2px solid #333;border-bottom:0;
+}
+.camera-icon:after{
+  content:"";position:absolute;left:7px;top:3px;
+  width:7px;height:7px;border:2px solid #333;border-radius:50%;
+}
+
+.android-list,.android-expandable{
+  overflow:auto;
+  background:#fff;
+  border-top:1px solid #ddd;
+  border-bottom:1px solid #ddd;
+}
+.android-list-row{
+  min-height:44px;
+  display:flex;align-items:center;
+  padding:0 12px;
+  border-bottom:1px solid #e5e5e5;
+  color:#222;
+}
+.android-list-row:last-child{border-bottom:0}
+.android-expand-head{font-weight:500;background:#f4f4f4}
+.android-grid-list{display:grid;gap:1px;background:#ccc;overflow:auto}
+.android-grid-cell{background:#fff;min-height:48px;display:flex;align-items:center;justify-content:center}
+
+.android-search{
+  -webkit-appearance:none;
+  appearance:none;
+  width:100%;min-height:38px;
+  padding:7px 8px 5px 28px;
+  border:0;border-bottom:2px solid #999;
+  outline:none;background:
+    radial-gradient(circle at 11px 15px,transparent 0 5px,#666 5px 7px,transparent 7px),
+    linear-gradient(45deg,transparent 47%,#666 48% 55%,transparent 56%) 18px 23px/9px 9px no-repeat;
+  font:400 15px Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+.android-search:focus{border-bottom-color:var(--holo-blue)}
+
+.android-number-picker{display:inline-flex;align-items:center;gap:0;border:1px solid #aaa;background:#eee;
+  width:fit-content;}
+.android-number-picker button{
+  width:34px;height:34px;border:0;background:linear-gradient(#fafafa,#ddd);font-size:18px;cursor:pointer
+}
+.android-number-picker input{
+  width:60px;height:34px;border:0;border-left:1px solid #aaa;border-right:1px solid #aaa;text-align:center;background:white
+}
+.android-date,.android-time{
+  min-height:38px;padding:5px;border:1px solid #aaa;background:#fff;color:#222;font:14px Roboto,Arial,sans-serif
+}
+.android-web,.android-video{
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid #bbb;background:#f0f0f0;color:#666;
+}
+.android-video:before{content:"▶";font-size:22px;margin-right:8px;color:#444}
+
+.android-viewflipper{position:relative;overflow:hidden}
+.android-viewflipper>.android-view{
+  position:absolute!important;
+  left:0!important;top:0!important;right:0!important;bottom:0!important;
+  opacity:0;pointer-events:none;
+}
+.android-viewflipper>.android-view.active{opacity:1;pointer-events:auto}
+
+/* Small Android-like scrollbar */
+.android-scroll::-webkit-scrollbar{width:6px;height:6px}
+.android-scroll::-webkit-scrollbar-track{background:transparent}
+.android-scroll::-webkit-scrollbar-thumb{background:#999;border-radius:0}
+
+/* Error is only shown for malformed XML; no preview/status chrome. */
+.runtime-error{
+  width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;background:#fff;color:#b00020;
+  font:14px/1.5 monospace;white-space:pre-wrap;
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+const ANDROID_NS="http://schemas.android.com/apk/res/android";
+const SAMPLE_XML="<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<LinearLayout\n    xmlns:android=\"http://schemas.android.com/apk/res/android\"\n    android:id=\"@+id/main\"\n    android:layout_width=\"match_parent\"\n    android:layout_height=\"match_parent\"\n    android:orientation=\"vertical\">\n\n    <LinearLayout\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"wrap_content\"\n        android:orientation=\"vertical\"\n        android:padding=\"12dp\">\n\n        <TextView\n            android:layout_width=\"wrap_content\"\n            android:layout_height=\"wrap_content\"\n            android:text=\"Android Components Preview\"\n            android:textSize=\"22sp\"\n            android:textStyle=\"bold\"/>\n\n        <Spinner\n            android:id=\"@+id/themeSpinner\"\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:layout_marginTop=\"8dp\"/>\n\n    </LinearLayout>\n\n    <View\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"1dp\"\n        android:background=\"#808080\"/>\n\n    \n    \n    \n\n    <ScrollView\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"0dp\"\n        android:layout_weight=\"1\"\n        android:fillViewport=\"true\">\n\n        <LinearLayout\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:orientation=\"vertical\"\n            android:padding=\"12dp\">\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                android:text=\"Layouts\"/>\n\n            <TextView\n                style=\"@style/SectionDescription\"\n                android:text=\"Android Framework の代表的なレイアウト\"/>\n\n            \n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"LinearLayout • API 1\"/>\n\n            <LinearLayout\n                style=\"@style/ComponentBox\"\n                android:orientation=\"horizontal\">\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"A\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"B\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"C\"/>\n\n            </LinearLayout>\n\n            \n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"RelativeLayout • API 1\"/>\n\n            <RelativeLayout\n                style=\"@style/ComponentBox\"\n                android:layout_height=\"70dp\">\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:layout_alignParentLeft=\"true\"\n                    android:text=\"Left\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:layout_alignParentRight=\"true\"\n                    android:text=\"Right\"/>\n\n            </RelativeLayout>\n\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"TableLayout / TableRow • API 1\"/>\n\n            <TableLayout\n                style=\"@style/ComponentBox\"\n                android:stretchColumns=\"*\">\n\n                <TableRow>\n\n                    <Button\n                        android:layout_width=\"0dp\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"1,1\"/>\n\n                    <Button\n                        android:layout_width=\"0dp\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"1,2\"/>\n\n                    <Button\n                        android:layout_width=\"0dp\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"1,3\"/>\n\n                </TableRow>\n\n                <TableRow>\n\n                    <Button\n                        android:layout_width=\"0dp\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"2,1\"/>\n\n                    <Button\n                        android:layout_width=\"0dp\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"2,2\"/>\n\n                    <Button\n                        android:layout_width=\"0dp\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"2,3\"/>\n\n                </TableRow>\n\n            </TableLayout>\n\n            \n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"GridLayout • API 14\"/>\n\n            <GridLayout\n                style=\"@style/ComponentBox\"\n                android:columnCount=\"3\">\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"1\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"2\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"3\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"4\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"5\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"6\"/>\n\n            </GridLayout>\n\n            \n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"AbsoluteLayout • API 1 / deprecated API 3\"/>\n\n            <AbsoluteLayout\n                style=\"@style/ComponentBox\"\n                android:layout_height=\"100dp\">\n\n                <Button\n                    android:layout_width=\"150dp\"\n                    android:layout_height=\"wrap_content\"\n                    android:layout_x=\"70dp\"\n                    android:layout_y=\"15dp\"\n                    android:text=\"x=70 y=15\"/>\n\n            </AbsoluteLayout>\n\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                android:text=\"Text &amp; Input\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"TextView • API 1\"/>\n\n            <TextView\n                style=\"@style/ComponentBox\"\n                android:text=\"Hello Android\"\n                android:textSize=\"18sp\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"EditText • API 1\"/>\n\n            <EditText\n                style=\"@style/ComponentBox\"\n                android:hint=\"Type something...\"\n                android:singleLine=\"true\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"AutoCompleteTextView • API 1\"/>\n\n            <AutoCompleteTextView\n                android:id=\"@+id/autoComplete\"\n                style=\"@style/ComponentBox\"\n                android:hint=\"Type A...\"\n                android:singleLine=\"true\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"MultiAutoCompleteTextView • API 1\"/>\n\n            <MultiAutoCompleteTextView\n                android:id=\"@+id/multiAutoComplete\"\n                style=\"@style/ComponentBox\"\n                android:hint=\"Android, Apple...\"/>\n\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                android:text=\"Buttons\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"Button • API 1\"/>\n\n            <Button\n                style=\"@style/ComponentBox\"\n                android:text=\"Button\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"ImageButton • API 1\"/>\n\n            <ImageButton\n                style=\"@style/ComponentBox\"\n                android:src=\"@android:drawable/ic_menu_camera\"\n                android:contentDescription=\"Camera\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"CheckBox • API 1\"/>\n\n            <CheckBox\n                style=\"@style/ComponentBox\"\n                android:checked=\"true\"\n                android:text=\"CheckBox\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"RadioButton / RadioGroup • API 1\"/>\n\n            <RadioGroup\n                style=\"@style/ComponentBox\"\n                android:orientation=\"vertical\">\n\n                <RadioButton\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:checked=\"true\"\n                    android:text=\"Option A\"/>\n\n                <RadioButton\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"Option B\"/>\n\n                <RadioButton\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"Option C\"/>\n\n            </RadioGroup>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"ToggleButton • API 1\"/>\n\n            <ToggleButton\n                style=\"@style/ComponentBox\"\n                android:checked=\"true\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"Switch • API 14\"/>\n\n            <Switch\n                style=\"@style/ComponentBox\"\n                android:checked=\"true\"\n                android:text=\"Switch\"/>\n\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                android:text=\"Selection\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"Spinner • API 1\"/>\n\n            <Spinner\n                android:id=\"@+id/sampleSpinner\"\n                style=\"@style/ComponentBox\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"SeekBar • API 1\"/>\n\n            <SeekBar\n                style=\"@style/ComponentBox\"\n                android:max=\"100\"\n                android:progress=\"55\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"RatingBar • API 1\"/>\n\n            <RatingBar\n                android:layout_width=\"wrap_content\"\n                android:layout_height=\"wrap_content\"\n                android:numStars=\"5\"\n                android:rating=\"3.5\"\n                android:stepSize=\"0.5\"/>\n\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                android:text=\"Progress\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"ProgressBar • API 1\"/>\n\n            <ProgressBar\n                android:layout_width=\"wrap_content\"\n                android:layout_height=\"wrap_content\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"ProgressBar Horizontal • API 1\"/>\n\n            <ProgressBar\n                style=\"?android:attr/progressBarStyleHorizontal\"\n                android:layout_width=\"match_parent\"\n                android:layout_height=\"wrap_content\"\n                android:max=\"100\"\n                android:progress=\"65\"/>\n\n\n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                android:text=\"Date &amp; Time\"/>\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"Chronometer • API 1\"/>\n\n            <Chronometer\n                android:id=\"@+id/chronometer\"\n                android:layout_width=\"wrap_content\"\n                android:layout_height=\"wrap_content\"\n                android:textSize=\"22sp\"/>\n\n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                android:text=\"Other Widgets\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"HorizontalScrollView • API 1\"/>\n\n            <HorizontalScrollView\n                android:layout_width=\"match_parent\"\n                android:layout_height=\"wrap_content\">\n\n                <LinearLayout\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:orientation=\"horizontal\">\n\n                    <Button\n                        android:layout_width=\"wrap_content\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"Item 1\"/>\n\n                    <Button\n                        android:layout_width=\"wrap_content\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"Item 2\"/>\n\n                    <Button\n                        android:layout_width=\"wrap_content\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"Item 3\"/>\n\n                    <Button\n                        android:layout_width=\"wrap_content\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"Item 4\"/>\n\n                    <Button\n                        android:layout_width=\"wrap_content\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"Item 5\"/>\n\n                </LinearLayout>\n\n            </HorizontalScrollView>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"ViewFlipper • API 1\"/>\n\n            <ViewFlipper\n                android:id=\"@+id/viewFlipper\"\n                android:layout_width=\"match_parent\"\n                android:layout_height=\"100dp\"\n                android:autoStart=\"true\"\n                android:flipInterval=\"2000\">\n\n                <TextView\n                    android:layout_width=\"match_parent\"\n                    android:layout_height=\"match_parent\"\n                    android:gravity=\"center\"\n                    android:text=\"View 1\"\n                    android:textSize=\"24sp\"/>\n\n                <TextView\n                    android:layout_width=\"match_parent\"\n                    android:layout_height=\"match_parent\"\n                    android:gravity=\"center\"\n                    android:text=\"View 2\"\n                    android:textSize=\"24sp\"/>\n\n            </ViewFlipper>\n\n            <Space\n                android:layout_width=\"match_parent\"\n                android:layout_height=\"40dp\"/>\n\n        </LinearLayout>\n\n    </ScrollView>\n\n</LinearLayout>";
+
+const app=document.getElementById("app");
+const a=(n,k)=>n.getAttributeNS?.(ANDROID_NS,k) ?? n.getAttribute?.("android:"+k) ?? n.getAttribute?.(k);
+const truth=(v,d=false)=>v==null?d:String(v).toLowerCase()==="true";
+const nnum=(v,d=0)=>{const x=parseFloat(v);return Number.isFinite(x)?x:d};
+const idName=v=>(v||"").replace(/^@\+?id\//,"").replace(/^@android:id\//,"");
+const refName=v=>idName(v);
+
+const viewState=new WeakMap();
+
+function initViewState(el,initial={}){
+  viewState.set(el,{...initial});
+  return viewState.get(el);
+}
+function getViewState(el){
+  if(!viewState.has(el))viewState.set(el,{});
+  return viewState.get(el);
+}
+function bindActivation(el,fn){
+  el.addEventListener("click",ev=>{
+    ev.preventDefault();
+    ev.stopPropagation();
+    fn(ev);
+  });
+  el.addEventListener("keydown",ev=>{
+    if(ev.key===" "||ev.key==="Enter"){
+      ev.preventDefault();
+      ev.stopPropagation();
+      fn(ev);
+    }
+  });
+}
+function syncCheckVisual(el){
+  const checked=!!getViewState(el).checked;
+  el.dataset.checked=checked?"true":"false";
+  el.setAttribute("aria-checked",checked?"true":"false");
+}
+function setChecked(el,value){
+  getViewState(el).checked=!!value;
+  syncCheckVisual(el);
+}
+function toggleChecked(el){
+  setChecked(el,!getViewState(el).checked);
+}
+function selectRadio(radio){
+  const group=radio.closest('[data-android-tag="RadioGroup"]');
+  if(group){
+    for(const item of group.querySelectorAll(':scope > .android-radio')){
+      setChecked(item,item===radio);
+    }
+  }else{
+    setChecked(radio,true);
+  }
+}
+
+function dim(v){
+  if(v==null||v==="")return null;
+  if(v==="match_parent"||v==="fill_parent")return "100%";
+  if(v==="wrap_content")return null;
+  if(/^[-+]?(?:\d+\.?\d*|\.\d+)(?:dp|dip|sp|px)?$/.test(v))return parseFloat(v)+"px";
+  return v;
+}
+function sideValues(xml,base){
+  const all=a(xml,base),h=a(xml,base+"Horizontal"),v=a(xml,base+"Vertical");
+  return {
+    top:a(xml,base+"Top")??v??all,
+    right:a(xml,base+"Right")??a(xml,base+"End")??h??all,
+    bottom:a(xml,base+"Bottom")??v??all,
+    left:a(xml,base+"Left")??a(xml,base+"Start")??h??all
+  };
+}
+function applySides(el,o,prop){
+  const v=[o.top,o.right,o.bottom,o.left].map(x=>dim(x)||"0px");
+  if(v.some(x=>x!=="0px"))el.style[prop]=v.join(" ");
+}
+function textOf(xml){
+  const v=a(xml,"text");
+  return v==null?"":String(v);
+}
+function isContainer(tag){
+  return ["LinearLayout","RelativeLayout","FrameLayout","TableLayout","TableRow","GridLayout",
+    "AbsoluteLayout","ScrollView","HorizontalScrollView","RadioGroup","ViewFlipper","ViewAnimator",
+    "ViewSwitcher","TextSwitcher"].includes(tag);
+}
+function applyText(xml,el){
+  const size=a(xml,"textSize");if(size)el.style.fontSize=dim(size);
+  const color=a(xml,"textColor");if(color&&(/^#/.test(color)||/^rgb/.test(color)))el.style.color=color;
+  const style=a(xml,"textStyle")||"";
+  if(style.includes("bold"))el.style.fontWeight="700";
+  if(style.includes("italic"))el.style.fontStyle="italic";
+  const maxLines=a(xml,"maxLines");
+  if(maxLines){
+    el.style.overflow="hidden";
+    el.style.display="-webkit-box";
+    el.style.webkitBoxOrient="vertical";
+    el.style.webkitLineClamp=String(nnum(maxLines,1));
+  }
+}
+function applyGravity(el,g){
+  if(!g)return;
+  const t=g.split("|");
+  if(t.includes("center")||t.includes("center_horizontal"))el.style.textAlign="center";
+  if(t.includes("right")||t.includes("end"))el.style.textAlign="right";
+  if(t.includes("center")||t.includes("center_vertical")){
+    el.style.display="flex";el.style.alignItems="center";
+    if(t.includes("center"))el.style.justifyContent="center";
+  }
+  if(t.includes("bottom")){el.style.display="flex";el.style.alignItems="flex-end"}
+}
+function applyCommon(xml,el,parentTag,parentOrientation){
+  el.classList.add("android-view");
+  el.dataset.androidTag=xml.tagName;
+
+  const id=a(xml,"id");
+  if(id){const k=idName(id);el.dataset.androidId=k;el.id="android-id-"+k}
+
+  const styleRef=xml.getAttribute("style");
+  if(styleRef){
+    const k=styleRef.replace(/^@style\//,"").replace(/^\?android:attr\//,"attr-").replace(/[^\w-]/g,"-");
+    el.classList.add("style-"+k);
+  }
+
+  const w=a(xml,"layout_width"),h=a(xml,"layout_height");
+  const weight=nnum(a(xml,"layout_weight"),0);
+
+  if(w==="match_parent"||w==="fill_parent")el.style.width="100%";
+  else if(w==="wrap_content")el.style.width="fit-content";
+  else if(w&&w!=="0dp")el.style.width=dim(w);
+
+  if(h==="match_parent"||h==="fill_parent")el.style.height="100%";
+  else if(h==="wrap_content")el.style.height="fit-content";
+  else if(h&&h!=="0dp")el.style.height=dim(h);
+
+  // Android LinearLayout weight semantics, including 0dp + weight.
+  if(parentTag==="LinearLayout"&&weight>0){
+    if(parentOrientation==="horizontal"){
+      el.style.flexGrow=String(weight);el.style.flexShrink="1";
+      el.style.flexBasis=(w==="0dp")?"0px":"auto";
+      if(w==="0dp"){el.style.width="auto";el.style.minWidth="0"}
+    }else{
+      el.style.flexGrow=String(weight);el.style.flexShrink="1";
+      el.style.flexBasis=(h==="0dp")?"0px":"auto";
+      if(h==="0dp"){el.style.height="auto";el.style.minHeight="0"}
+    }
+  }else{
+    if(w==="0dp")el.style.width="0px";
+    if(h==="0dp")el.style.height="0px";
+  }
+
+  applySides(el,sideValues(xml,"padding"),"padding");
+  applySides(el,sideValues(xml,"layout_margin"),"margin");
+
+  const bg=a(xml,"background");
+  if(bg&&(/^#/.test(bg)||/^rgba?\(/.test(bg)||/^[a-z]+$/i.test(bg)))el.style.background=bg;
+
+  const alpha=a(xml,"alpha");if(alpha!=null)el.style.opacity=String(alpha);
+  const visibility=a(xml,"visibility");
+  if(visibility==="gone")el.style.display="none";
+  else if(visibility==="invisible")el.style.visibility="hidden";
+
+  const enabled=a(xml,"enabled");
+  if(enabled==="false"){
+    el.style.opacity=".45";el.style.pointerEvents="none";
+    if("disabled" in el)el.disabled=true;
+  }
+
+  [["minWidth","minWidth"],["minHeight","minHeight"],["maxWidth","maxWidth"],["maxHeight","maxHeight"]]
+    .forEach(([ak,sk])=>{const v=a(xml,ak);if(v)el.style[sk]=dim(v)});
+
+  applyGravity(el,a(xml,"gravity"));
+
+  const layoutGravity=a(xml,"layout_gravity");
+  if(layoutGravity&&parentTag==="LinearLayout"){
+    const t=layoutGravity.split("|");
+    if(parentOrientation==="vertical"){
+      if(t.includes("center")||t.includes("center_horizontal"))el.style.alignSelf="center";
+      if(t.includes("right")||t.includes("end"))el.style.alignSelf="flex-end";
+      if(t.includes("left")||t.includes("start"))el.style.alignSelf="flex-start";
+    }else{
+      if(t.includes("center")||t.includes("center_vertical"))el.style.alignSelf="center";
+      if(t.includes("bottom"))el.style.alignSelf="flex-end";
+      if(t.includes("top"))el.style.alignSelf="flex-start";
+    }
+  }
+
+  if(parentTag==="AbsoluteLayout"){
+    el.style.position="absolute";
+    el.style.left=dim(a(xml,"layout_x")||"0dp");
+    el.style.top=dim(a(xml,"layout_y")||"0dp");
+  }
+
+  if(parentTag==="GridLayout"){
+    const c=a(xml,"layout_column"),r=a(xml,"layout_row");
+    const cs=a(xml,"layout_columnSpan"),rs=a(xml,"layout_rowSpan");
+    if(c!=null)el.style.gridColumnStart=String(nnum(c)+1);
+    if(r!=null)el.style.gridRowStart=String(nnum(r)+1);
+    if(cs!=null)el.style.gridColumnEnd="span "+Math.max(1,nnum(cs,1));
+    if(rs!=null)el.style.gridRowEnd="span "+Math.max(1,nnum(rs,1));
+  }
+}
+
+let radioGroupCounter=0;
+function createControl(xml,parentTag,parentOrientation){
+  const tag=xml.tagName;
+  let el;
+
+  switch(tag){
+    case "LinearLayout":{
+      el=document.createElement("div");el.classList.add("android-linear");
+      const orientation=a(xml,"orientation")==="horizontal"?"horizontal":"vertical";
+      el.dataset.orientation=orientation;
+      el.style.flexDirection=orientation==="horizontal"?"row":"column";
+      el.style.alignItems="stretch";
+      break;
+    }
+    case "RelativeLayout":
+      el=document.createElement("div");el.classList.add("android-relative");break;
+    case "FrameLayout":
+      el=document.createElement("div");el.classList.add("android-frame");break;
+    case "GridLayout":{
+      el=document.createElement("div");el.classList.add("android-grid");
+      const cols=Math.max(1,nnum(a(xml,"columnCount"),1));
+      el.style.gridTemplateColumns=`repeat(${cols},minmax(0,1fr))`;
+      el.style.gap="8px";
+      break;
+    }
+    case "AbsoluteLayout":
+      el=document.createElement("div");el.classList.add("android-absolute");break;
+    case "ScrollView":
+      el=document.createElement("div");el.classList.add("android-scroll");el.style.overflowY="auto";el.style.overflowX="hidden";break;
+    case "HorizontalScrollView":
+      el=document.createElement("div");el.classList.add("android-scroll");el.style.overflowX="auto";el.style.overflowY="hidden";break;
+    case "TextView":
+      el=document.createElement("div");el.classList.add("android-text");el.textContent=textOf(xml);applyText(xml,el);break;
+    case "EditText":
+    case "AutoCompleteTextView":
+    case "MultiAutoCompleteTextView":{
+      const multi=tag==="MultiAutoCompleteTextView"||a(xml,"singleLine")==="false";
+      el=document.createElement(multi?"textarea":"input");
+      if(el.tagName==="INPUT")el.type="text";
+      el.classList.add("android-edit");
+      el.placeholder=a(xml,"hint")||"";
+      if(textOf(xml))el.value=textOf(xml);
+      applyText(xml,el);
+      break;
+    }
+    case "Button":
+      el=document.createElement("button");el.type="button";el.classList.add("android-button");el.textContent=textOf(xml)||"Button";applyText(xml,el);break;
+    case "ImageButton":
+      el=document.createElement("button");el.type="button";el.classList.add("android-image-button");
+      el.setAttribute("aria-label",a(xml,"contentDescription")||"ImageButton");
+      el.innerHTML='<span class="camera-icon" aria-hidden="true"></span>';break;
+    case "CheckBox":{
+      el=document.createElement("div");
+      el.classList.add("android-checkbox");
+      el.tabIndex=0;
+      el.setAttribute("role","checkbox");
+      const mark=document.createElement("span");mark.className="mark";
+      const text=document.createElement("span");text.className="control-text";text.textContent=textOf(xml)||"CheckBox";
+      el.append(mark,text);
+      initViewState(el,{checked:truth(a(xml,"checked"))});
+      syncCheckVisual(el);
+      bindActivation(el,()=>toggleChecked(el));
+      break;
+    }
+    case "RadioGroup":{
+      el=document.createElement("div");el.classList.add("android-linear");
+      const orientation=a(xml,"orientation")==="horizontal"?"horizontal":"vertical";
+      el.dataset.orientation=orientation;
+      el.dataset.radioName="radio-"+(++radioGroupCounter);
+      el.style.flexDirection=orientation==="horizontal"?"row":"column";
+      break;
+    }
+    case "RadioButton":{
+      el=document.createElement("div");
+      el.classList.add("android-radio");
+      el.tabIndex=0;
+      el.setAttribute("role","radio");
+      const mark=document.createElement("span");mark.className="mark";
+      const text=document.createElement("span");text.className="control-text";text.textContent=textOf(xml)||"RadioButton";
+      el.append(mark,text);
+      initViewState(el,{checked:truth(a(xml,"checked"))});
+      syncCheckVisual(el);
+      bindActivation(el,()=>selectRadio(el));
+      break;
+    }
+    case "ToggleButton":{
+      el=document.createElement("button");el.type="button";el.classList.add("android-toggle");
+      const on=a(xml,"textOn")||"ON",off=a(xml,"textOff")||"OFF";
+      initViewState(el,{checked:truth(a(xml,"checked"))});
+      const sync=()=>{
+        const checked=!!getViewState(el).checked;
+        el.dataset.checked=checked?"true":"false";
+        el.setAttribute("aria-pressed",checked?"true":"false");
+        el.textContent=checked?on:off;
+      };
+      sync();
+      bindActivation(el,()=>{getViewState(el).checked=!getViewState(el).checked;sync()});
+      break;
+    }
+    case "Switch":{
+      el=document.createElement("div");
+      el.classList.add("android-switch");
+      el.tabIndex=0;
+      el.setAttribute("role","switch");
+      const track=document.createElement("span");track.className="track";
+      const thumb=document.createElement("span");thumb.className="thumb";track.append(thumb);
+      const text=document.createElement("span");text.className="control-text";text.textContent=textOf(xml)||"Switch";
+      el.append(track,text);
+      initViewState(el,{checked:truth(a(xml,"checked"))});
+      syncCheckVisual(el);
+      bindActivation(el,()=>toggleChecked(el));
+      break;
+    }
+    case "Spinner":{
+      el=document.createElement("select");el.classList.add("android-spinner");
+      // Adapter contents are app-code data; use neutral demo entries when XML provides none.
+      ["Item 1","Item 2","Item 3"].forEach(v=>{const o=document.createElement("option");o.textContent=v;el.append(o)});
+      break;
+    }
+    case "SeekBar":{
+      el=document.createElement("input");el.type="range";el.classList.add("android-seek");
+      el.min=a(xml,"min")||"0";el.max=a(xml,"max")||"100";el.value=a(xml,"progress")||"0";break;
+    }
+    case "RatingBar":{
+      el=document.createElement("div");el.classList.add("android-rating");
+      const stars=Math.max(1,nnum(a(xml,"numStars"),5));
+      const rating=nnum(a(xml,"rating"),0);
+      renderStars(el,stars,rating);
+      el.addEventListener("click",ev=>{
+        const rect=el.getBoundingClientRect();
+        const next=Math.max(0,Math.min(stars,Math.ceil((ev.clientX-rect.left)/Math.max(1,rect.width)*stars)));
+        renderStars(el,stars,next);
+      });
+      break;
+    }
+    case "ProgressBar":{
+      const horizontal=(xml.getAttribute("style")||"").includes("progressBarStyleHorizontal")||a(xml,"indeterminate")==="false";
+      if(horizontal){
+        el=document.createElement("progress");el.classList.add("android-progress-horizontal");
+        el.max=nnum(a(xml,"max"),100);el.value=nnum(a(xml,"progress"),0);
+      }else{
+        el=document.createElement("div");el.classList.add("android-progress-spinner");
+      }
+      break;
+    }
+    case "Chronometer":
+      el=document.createElement("div");el.classList.add("android-text");applyText(xml,el);startChronometer(el);break;
+    case "ImageView":
+      el=document.createElement("div");el.classList.add("android-image-placeholder");el.textContent=a(xml,"contentDescription")||"Image";break;
+    case "DatePicker":
+    case "CalendarView":
+      el=document.createElement("input");el.type="date";el.classList.add("android-date");break;
+    case "TimePicker":
+      el=document.createElement("input");el.type="time";el.classList.add("android-time");break;
+    case "NumberPicker":{
+      el=document.createElement("div");el.classList.add("android-number-picker");
+      const minus=document.createElement("button"),inp=document.createElement("input"),plus=document.createElement("button");
+      minus.textContent="−";plus.textContent="+";
+      inp.type="number";inp.min=a(xml,"minValue")||"0";inp.max=a(xml,"maxValue")||"100";inp.value=a(xml,"value")||inp.min;
+      minus.onclick=()=>inp.stepDown();plus.onclick=()=>inp.stepUp();el.append(minus,inp,plus);break;
+    }
+    case "ListView":
+      el=document.createElement("div");el.classList.add("android-list");fillList(el,5);break;
+    case "GridView":{
+      el=document.createElement("div");el.classList.add("android-grid-list");
+      const cols=Math.max(1,nnum(a(xml,"numColumns"),2));el.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+      for(let i=1;i<=6;i++){const c=document.createElement("div");c.className="android-grid-cell";c.textContent="Item "+i;el.append(c)}
+      break;
+    }
+    case "ExpandableListView":{
+      el=document.createElement("div");el.classList.add("android-expandable");
+      [["Group 1",1],["Child 1",0],["Child 2",0],["Group 2",1],["Child 1",0]].forEach(([t,h])=>{
+        const r=document.createElement("div");r.className="android-list-row"+(h?" android-expand-head":"");r.textContent=t;el.append(r)
+      });break;
+    }
+    case "SearchView":
+      el=document.createElement("input");el.type="search";el.classList.add("android-search");el.placeholder=a(xml,"queryHint")||"Search";break;
+    case "WebView":
+      el=document.createElement("div");el.classList.add("android-web");el.textContent="WebView";break;
+    case "VideoView":
+      el=document.createElement("div");el.classList.add("android-video");el.textContent="VideoView";break;
+    case "ViewFlipper":
+    case "ViewAnimator":
+    case "ViewSwitcher":
+    case "TextSwitcher":
+      el=document.createElement("div");el.classList.add("android-viewflipper");break;
+    case "Space":
+      el=document.createElement("div");el.classList.add("android-space");break;
+    case "View":
+      el=document.createElement("div");break;
+    default:
+      el=document.createElement("div");
+      el.textContent="";
+      break;
+  }
+
+  applyCommon(xml,el,parentTag,parentOrientation);
+  return el;
+}
+
+function buildTable(xml,parentTag,parentOrientation){
+  const table=document.createElement("table");
+  table.classList.add("android-table","android-view");
+  table.dataset.androidTag="TableLayout";
+  if(a(xml,"stretchColumns")==="*")table.classList.add("stretch-all");
+  applyCommon(xml,table,parentTag,parentOrientation);
+
+  const tbody=document.createElement("tbody");
+  for(const rowXml of Array.from(xml.children)){
+    if(rowXml.tagName!=="TableRow")continue;
+    const tr=document.createElement("tr");tr.className="table-row";
+    const rowH=a(rowXml,"layout_height");if(rowH&&rowH!=="wrap_content")tr.style.height=dim(rowH);
+    for(const childXml of Array.from(rowXml.children)){
+      const td=document.createElement("td");
+      const child=build(childXml,"TableRow","");
+      td.append(child);
+      tr.append(td);
+    }
+    tbody.append(tr);
+  }
+  table.append(tbody);
+  return table;
+}
+
+function build(xml,parentTag="",parentOrientation=""){
+  if(xml.tagName==="TableLayout")return buildTable(xml,parentTag,parentOrientation);
+
+  const el=createControl(xml,parentTag,parentOrientation);
+  const tag=xml.tagName;
+  const orientation=(tag==="LinearLayout"||tag==="RadioGroup")?(el.dataset.orientation||"vertical"):"";
+
+  if(isContainer(tag)&&tag!=="TableLayout"&&tag!=="TableRow"){
+    for(const childXml of Array.from(xml.children)){
+      const child=build(childXml,tag,orientation);
+      el.append(child);
+    }
+  }
+
+  if(tag==="RadioGroup"){
+    const radios=Array.from(el.children).filter(x=>x.classList?.contains("android-radio"));
+    let selected=radios.find(x=>getViewState(x).checked);
+    if(selected){
+      radios.forEach(x=>setChecked(x,x===selected));
+    }else{
+      radios.forEach(x=>syncCheckVisual(x));
+    }
+  }
+
+  if(tag==="RelativeLayout")queueMicrotask(()=>layoutRelative(xml,el));
+  if(tag==="FrameLayout")queueMicrotask(()=>layoutFrame(xml,el));
+  if(["ViewFlipper","ViewAnimator","ViewSwitcher","TextSwitcher"].includes(tag))initFlipper(xml,el);
+  return el;
+}
+
+function renderStars(el,count,rating){
+  el.innerHTML="";
+  for(let i=1;i<=count;i++){
+    const s=document.createElement("span");s.className="star"+(i<=Math.round(rating)?" on":"");s.textContent="★";el.append(s);
+  }
+}
+function fillList(el,n){
+  for(let i=1;i<=n;i++){const r=document.createElement("div");r.className="android-list-row";r.textContent="Item "+i;el.append(r)}
+}
+function startChronometer(el){
+  const base=performance.now();
+  const tick=()=>{
+    if(!el.isConnected)return requestAnimationFrame(tick);
+    const sec=Math.floor((performance.now()-base)/1000);
+    el.textContent=String(Math.floor(sec/60)).padStart(2,"0")+":"+String(sec%60).padStart(2,"0");
+    setTimeout(tick,250);
+  };tick();
+}
+function initFlipper(xml,el){
+  queueMicrotask(()=>{
+    const kids=Array.from(el.children);if(!kids.length)return;
+    let i=0;kids[0].classList.add("active");
+    if(truth(a(xml,"autoStart"),false)){
+      const delay=Math.max(250,nnum(a(xml,"flipInterval"),3000));
+      setInterval(()=>{
+        if(!el.isConnected)return;
+        kids[i].classList.remove("active");i=(i+1)%kids.length;kids[i].classList.add("active");
+      },delay);
+    }
+  });
+}
+function layoutFrame(xml,el){
+  const pr=el.getBoundingClientRect();
+  Array.from(xml.children).forEach((cx,i)=>{
+    const ch=el.children[i];if(!ch)return;
+    const r=ch.getBoundingClientRect();
+    const g=(a(cx,"layout_gravity")||"top|left").split("|");
+    let x=0,y=0;
+    if(g.includes("center")||g.includes("center_horizontal"))x=(pr.width-r.width)/2;
+    else if(g.includes("right")||g.includes("end"))x=pr.width-r.width;
+    if(g.includes("center")||g.includes("center_vertical"))y=(pr.height-r.height)/2;
+    else if(g.includes("bottom"))y=pr.height-r.height;
+    ch.style.left=Math.max(0,x)+"px";ch.style.top=Math.max(0,y)+"px";
+  });
+}
+function layoutRelative(xml,el){
+  const xmlKids=Array.from(xml.children),htmlKids=Array.from(el.children);
+  const ids={};
+  htmlKids.forEach(h=>{if(h.dataset.androidId)ids[h.dataset.androidId]=h});
+  const pr=el.getBoundingClientRect();
+
+  xmlKids.forEach((cx,i)=>{
+    const ch=htmlKids[i];if(!ch)return;
+    ch.style.position="absolute";
+    const r=ch.getBoundingClientRect();
+    const margins=sideValues(cx,"layout_margin");
+    const ml=nnum(margins.left),mr=nnum(margins.right),mt=nnum(margins.top),mb=nnum(margins.bottom);
+    let x=ml,y=mt;
+
+    if(truth(a(cx,"layout_alignParentRight"))||truth(a(cx,"layout_alignParentEnd")))x=pr.width-r.width-mr;
+    if(truth(a(cx,"layout_centerHorizontal"))||truth(a(cx,"layout_centerInParent")))x=(pr.width-r.width)/2;
+    if(truth(a(cx,"layout_alignParentBottom")))y=pr.height-r.height-mb;
+    if(truth(a(cx,"layout_centerVertical"))||truth(a(cx,"layout_centerInParent")))y=(pr.height-r.height)/2;
+
+    const below=ids[refName(a(cx,"layout_below"))];
+    const above=ids[refName(a(cx,"layout_above"))];
+    const right=ids[refName(a(cx,"layout_toRightOf")||a(cx,"layout_toEndOf"))];
+    const left=ids[refName(a(cx,"layout_toLeftOf")||a(cx,"layout_toStartOf"))];
+
+    if(below){const q=below.getBoundingClientRect();y=q.bottom-pr.top+mt}
+    if(above){const q=above.getBoundingClientRect();y=q.top-pr.top-r.height-mb}
+    if(right){const q=right.getBoundingClientRect();x=q.right-pr.left+ml}
+    if(left){const q=left.getBoundingClientRect();x=q.left-pr.left-r.width-mr}
+
+    const al=ids[refName(a(cx,"layout_alignLeft")||a(cx,"layout_alignStart"))];
+    const ar=ids[refName(a(cx,"layout_alignRight")||a(cx,"layout_alignEnd"))];
+    const at=ids[refName(a(cx,"layout_alignTop"))];
+    const ab=ids[refName(a(cx,"layout_alignBottom"))];
+    if(al)x=al.getBoundingClientRect().left-pr.left+ml;
+    if(ar)x=ar.getBoundingClientRect().right-pr.left-r.width-mr;
+    if(at)y=at.getBoundingClientRect().top-pr.top+mt;
+    if(ab)y=ab.getBoundingClientRect().bottom-pr.top-r.height-mb;
+
+    ch.style.left=Math.max(0,x)+"px";ch.style.top=Math.max(0,y)+"px";
+  });
+}
+function render(xmlText){
+  const doc=new DOMParser().parseFromString(xmlText,"application/xml");
+  const err=doc.querySelector("parsererror");
+  app.innerHTML="";
+  if(err){
+    const box=document.createElement("div");box.className="runtime-error";box.textContent=err.textContent;app.append(box);return;
+  }
+  try{
+    const ui=build(doc.documentElement);
+    app.append(ui);
+    // Root Android match_parent must behave like an app window.
+    if(a(doc.documentElement,"layout_width")==="match_parent")ui.style.width="100%";
+    if(a(doc.documentElement,"layout_height")==="match_parent")ui.style.height="100%";
+    requestAnimationFrame(()=>{
+      document.querySelectorAll(".android-relative").forEach(x=>{
+        const id=x.dataset.androidId;
+      });
+    });
+  }catch(e){
+    const box=document.createElement("div");box.className="runtime-error";box.textContent=String(e.stack||e);app.append(box);
+  }
+}
+async function boot(){
+  try{
+    const r=await fetch("./hi.xml",{cache:"no-store"});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    render(await r.text());
+  }catch(_){
+    render(SAMPLE_XML);
+  }
+}
+boot();
+</script>
+</body>
+</html>
