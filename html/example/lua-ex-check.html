@@ -1,0 +1,187 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Mini Lua Interpreter</title>
+<style>
+body{font:14px ui-monospace,monospace;max-width:860px;margin:28px auto;background:#111;color:#eee}
+textarea,pre,button{box-sizing:border-box;width:100%;padding:12px;border:1px solid #444;background:#181818;color:#eee}
+textarea{height:360px;resize:vertical}button{margin:10px 0;cursor:pointer}pre{min-height:120px;white-space:pre-wrap}
+</style>
+
+<textarea id="src">local n = 5
+local sum = 0
+
+for i = 1, n do
+  sum = sum + i
+  print(i, sum)
+end
+
+if sum == 15 then
+  print("OK: " .. sum)
+end
+
+function square(x)
+  return x * x
+end
+
+print(square(8))</textarea>
+<button onclick="runLua()">Run Lua</button>
+<pre id="out"></pre>
+
+<script>
+const $=x=>document.getElementById(x);
+
+function lex(s){
+  let i=0,line=1,t=[],K=new Set("local if then elseif else end while do for function return true false nil and or not".split(" "));
+  const add=(v,k=v)=>t.push({v,k,line});
+  while(i<s.length){
+    let c=s[i];
+    if(/\s/.test(c)){if(c=="\n")line++;i++;continue}
+    if(c=="-"&&s[i+1]=="-"){while(i<s.length&&s[i]!="\n")i++;continue}
+    if(c=='"'||c=="'"){
+      let q=c,v=""; i++;
+      while(i<s.length&&s[i]!=q){
+        if(s[i]=="\\"){let m={n:"\n",t:"\t",r:"\r"};i++;v+=m[s[i]]??s[i];i++}
+        else v+=s[i++];
+      }
+      if(s[i++]!=q)throw Error("line "+line+": unfinished string");
+      add(v,"str"); continue
+    }
+    if(/\d/.test(c)){
+      let j=i; while(/[\d.]/.test(s[i]||""))i++;
+      add(Number(s.slice(j,i)),"num"); continue
+    }
+    if(/[A-Za-z_]/.test(c)){
+      let j=i; while(/\w/.test(s[i]||""))i++;
+      let v=s.slice(j,i); add(v,K.has(v)?v:"id"); continue
+    }
+    let op=s.slice(i,i+2);
+    if(["==","~=","<=",">=",".."].includes(op)){add(op);i+=2;continue}
+    if("+-*/%^#=<>(),;".includes(c)){add(c);i++;continue}
+    throw Error("line "+line+": bad character "+c)
+  }
+  add("eof"); return t
+}
+
+function parse(s){
+  let t=lex(s),p=0,cur=()=>t[p],is=x=>cur().k==x,eat=x=>is(x)?t[p++]:(()=>{throw Error("line "+cur().line+": expected "+x)})();
+  function block(stop=new Set(["eof"])){let a=[];while(!stop.has(cur().k))a.push(stmt());return a}
+  function stmt(){
+    if(is("local")){
+      eat("local");let n=eat("id").v,e=null;if(is("=")){eat("=");e=expr()} if(is(";"))eat(";");return["local",n,e]
+    }
+    if(is("if")){
+      eat("if");let branches=[];
+      let c=expr();eat("then");branches.push([c,block(new Set(["elseif","else","end"]))]);
+      while(is("elseif")){eat("elseif");c=expr();eat("then");branches.push([c,block(new Set(["elseif","else","end"]))])}
+      let els=[];if(is("else")){eat("else");els=block(new Set(["end"]))}
+      eat("end");return["if",branches,els]
+    }
+    if(is("while")){
+      eat("while");let c=expr();eat("do");let b=block(new Set(["end"]));eat("end");return["while",c,b]
+    }
+    if(is("for")){
+      eat("for");let n=eat("id").v;eat("=");let a=expr();eat(",");let b=expr(),st=null;
+      if(is(",")){eat(",");st=expr()}eat("do");let body=block(new Set(["end"]));eat("end");return["for",n,a,b,st,body]
+    }
+    if(is("function")){
+      eat("function");let n=eat("id").v;eat("(");let ps=[];
+      if(!is(")")){ps.push(eat("id").v);while(is(",")){eat(",");ps.push(eat("id").v)}}
+      eat(")");let b=block(new Set(["end"]));eat("end");return["func",n,ps,b]
+    }
+    if(is("return")){
+      eat("return");let e=is("end")||is("eof")?null:expr();return["return",e]
+    }
+    let e=expr();
+    if(e[0]=="var"&&is("=")){eat("=");let v=expr();return["set",e[1],v]}
+    return["expr",e]
+  }
+  function expr(){return or()}
+  function or(){let a=and();while(is("or")){eat("or");a=["bin","or",a,and()]}return a}
+  function and(){let a=cmp();while(is("and")){eat("and");a=["bin","and",a,cmp()]}return a}
+  function cmp(){let a=cat();while(["==","~=","<=",">=","<",">"].includes(cur().k)){let o=t[p++].k;a=["bin",o,a,cat()]}return a}
+  function cat(){let a=add();if(is("..")){eat("..");a=["bin","..",a,cat()]}return a}
+  function add(){let a=mul();while(is("+")||is("-")){let o=t[p++].k;a=["bin",o,a,mul()]}return a}
+  function mul(){let a=un();while(is("*")||is("/")||is("%")){let o=t[p++].k;a=["bin",o,a,un()]}return a}
+  function un(){if(is("-")||is("not")){let o=t[p++].k;return["un",o,un()]}return pow()}
+  function pow(){let a=primary();if(is("^")){eat("^");a=["bin","^",a,un()]}return a}
+  function primary(){
+    if(is("num")||is("str")){let x=t[p++];return["lit",x.v]}
+    if(is("true")){eat("true");return["lit",true]}
+    if(is("false")){eat("false");return["lit",false]}
+    if(is("nil")){eat("nil");return["lit",null]}
+    if(is("(")){eat("(");let e=expr();eat(")");return postfix(e)}
+    if(is("id"))return postfix(["var",eat("id").v]);
+    throw Error("line "+cur().line+": expression expected")
+  }
+  function postfix(e){
+    while(is("(")){
+      eat("(");let a=[];
+      if(!is(")")){a.push(expr());while(is(",")){eat(",");a.push(expr())}}
+      eat(")");e=["call",e,a]
+    }
+    return e
+  }
+  let r=block();eat("eof");return r
+}
+
+class Env{
+  constructor(up=null){this.up=up;this.v=Object.create(null)}
+  get(k){if(k in this.v)return this.v[k];if(this.up)return this.up.get(k);throw Error("undefined: "+k)}
+  set(k,v){if(k in this.v)this.v[k]=v;else if(this.up&&this.up.has(k))this.up.set(k,v);else this.v[k]=v}
+  has(k){return k in this.v||(this.up&&this.up.has(k))}
+}
+const truth=v=>v!==false&&v!=null, str=v=>v==null?"nil":v===true?"true":v===false?"false":String(v);
+
+function execute(ast,output){
+  let fuel=1e6,global=new Env();
+  global.v.print=(...a)=>output.push(a.map(str).join("\t"));
+  global.v.tonumber=x=>Number(x);
+  global.v.tostring=str;
+  global.v.type=x=>x==null?"nil":typeof x=="number"?"number":typeof x=="string"?"string":typeof x=="boolean"?"boolean":typeof x=="function"?"function":"userdata";
+
+  const ev=(e,env)=>{
+    if(--fuel<0)throw Error("execution limit");
+    let [k,a,b,c]=e;
+    if(k=="lit")return a;
+    if(k=="var")return env.get(a);
+    if(k=="un"){let v=ev(b,env);return a=="not"?!truth(v):-v}
+    if(k=="call"){let f=ev(a,env),args=b.map(x=>ev(x,env));if(typeof f!="function")throw Error("attempt to call non-function");return f(...args)}
+    if(k=="bin"){
+      if(a=="and"){let x=ev(b,env);return truth(x)?ev(c,env):x}
+      if(a=="or"){let x=ev(b,env);return truth(x)?x:ev(c,env)}
+      let x=ev(b,env),y=ev(c,env);
+      return a=="+"?x+y:a=="-"?x-y:a=="*"?x*y:a=="/"?x/y:a=="%"?x%y:a=="^"?x**y:
+             a==".."?str(x)+str(y):a=="=="?x===y:a=="~="?x!==y:a=="<="?x<=y:a==">="?x>=y:a=="<"?x<y:x>y
+    }
+  };
+  const run=(b,env)=>{
+    for(let s of b){
+      if(--fuel<0)throw Error("execution limit");
+      let k=s[0];
+      if(k=="local")env.v[s[1]]=s[2]?ev(s[2],env):null;
+      else if(k=="set")env.set(s[1],ev(s[2],env));
+      else if(k=="expr")ev(s[1],env);
+      else if(k=="if"){
+        let done=false;
+        for(let [c,b] of s[1])if(truth(ev(c,env))){let r=run(b,new Env(env));if(r)return r;done=true;break}
+        if(!done){let r=run(s[2],new Env(env));if(r)return r}
+      }else if(k=="while"){
+        while(truth(ev(s[1],env))){let r=run(s[2],new Env(env));if(r)return r}
+      }else if(k=="for"){
+        let a=ev(s[2],env),z=ev(s[3],env),step=s[4]?ev(s[4],env):1;
+        for(let i=a;step>=0?i<=z:i>=z;i+=step){let e=new Env(env);e.v[s[1]]=i;let r=run(s[5],e);if(r)return r}
+      }else if(k=="func"){
+        let name=s[1],ps=s[2],body=s[3],closure=env;
+        env.v[name]=(...args)=>{let e=new Env(closure);ps.forEach((p,i)=>e.v[p]=args[i]??null);let r=run(body,e);return r?r.v:null}
+      }else if(k=="return")return{v:s[1]?ev(s[1],env):null}
+    }
+  };
+  run(ast,global)
+}
+
+function runLua(){
+  let out=[];
+  try{execute(parse($("src").value),out);$("out").textContent=out.join("\n")}
+  catch(e){$("out").textContent="Error: "+e.message}
+}
+</script>

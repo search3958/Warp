@@ -4,60 +4,48 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>App</title>
-<style>
-:root{
-  --holo-blue:#33b5e5;
-  --holo-blue-dark:#0099cc;
-  --holo-bg:#f5f5f5;
-  --holo-surface:#ffffff;
-  --holo-text:#222222;
-  --holo-secondary:#666666;
-  --holo-divider:#cccccc;
-  --holo-control:#e6e6e6;
-  --holo-control-top:#fafafa;
-  --holo-control-bottom:#d7d7d7;
+<style>:root{
 }
 *{box-sizing:border-box}
 html,body,#app{width:100%;height:100%;margin:0;padding:0}
-html,body{overflow:hidden;background:linear-gradient(#f2f2f2 0%,#ffffff 22%,#f7f7f7 100%)}
+html,body{overflow:hidden}
 body{
   font-family:Roboto,"Helvetica Neue",Arial,sans-serif;
-  color:var(--holo-text);
   font-size:14px;
   -webkit-font-smoothing:antialiased;
   text-rendering:optimizeLegibility;
 }
-#app{overflow:hidden;background:linear-gradient(#f1f1f1 0%,#ffffff 18%,#fafafa 100%)}
-.android-view{box-sizing:border-box;min-width:0;min-height:0;gap:8px}
-.android-linear{display:flex;min-width:0;min-height:0}
-.android-scroll{
+#app{overflow:hidden}
+.baram-view{box-sizing:border-box;min-width:0;min-height:0;gap:8px}
+.baram-linear{display:flex;min-width:0;min-height:0}
+.baram-scroll{
   min-width:0;min-height:0;
   overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
 }
-.android-relative{position:relative;min-width:0;min-height:0}
-.android-frame{position:relative;min-width:0;min-height:0}
-.android-frame>.android-view{position:absolute}
-.android-absolute{position:relative;min-width:0;min-height:0}
-.android-grid{display:grid;min-width:0;min-height:0}
-.android-table{
+.baram-relative{position:relative;min-width:0;min-height:0}
+.baram-frame{position:relative;min-width:0;min-height:0}
+.baram-frame>.baram-view{position:absolute}
+.baram-absolute{position:relative;min-width:0;min-height:0}
+.baram-grid{display:grid;min-width:0;min-height:0}
+.baram-table{
   border-collapse:separate;
   border-spacing:6px 6px;
   width:auto;
   max-width:100%;
 }
-.android-table.stretch-all{width:100%;table-layout:fixed}
-.android-table td{
+.baram-table.stretch-all{width:100%;table-layout:fixed}
+.baram-table td{
   vertical-align:middle;
   padding:0;
   min-width:0;
 }
-.android-table.stretch-all td>.android-view{
+.baram-table.stretch-all td>.baram-view{
   width:100%!important;
   max-width:100%;
 }
-.android-table .table-row{height:auto}
-.android-space{display:block}
+.baram-table .table-row{height:auto}
+.baram-space{display:block}
 
 /* Styles referenced by the supplied XML */
 .style-SectionTitle{
@@ -67,13 +55,11 @@ body{
   font-size:24px!important;
   line-height:30px!important;
   font-weight:700!important;
-  color:#222!important;
 }
 .style-SectionDescription{
   width:100%!important;
   margin:0 0 14px 0!important;
   padding:0!important;
-  color:#777!important;
   font-size:13px!important;
   line-height:18px!important;
 }
@@ -81,7 +67,6 @@ body{
   width:100%!important;
   margin:14px 0 6px 0!important;
   padding:0!important;
-  color:#555!important;
   font-size:15px!important;
   line-height:20px!important;
 }
@@ -89,15 +74,15 @@ body{
   margin-bottom:3px;
 }
 
-/* Android 4 / Holo-ish primitives */
-.android-text{
+/* Baram 4 / Holo-ish primitives */
+.baram-text{
   display:block;
   white-space:pre-wrap;
   line-height:1.25;
 }
-.android-button,
-.android-image-button,
-.android-toggle{
+.baram-button,
+.baram-image-button,
+.baram-toggle{
   -webkit-appearance:none;
   appearance:none;
   position:relative;
@@ -105,33 +90,20 @@ body{
   min-height:48px;
   margin:0;
   padding:0 16px;
-  border:1px solid 
-    var(--holo-control-bottom);
+  border:1px solid transparent;
   border-radius:2px;
   outline:none;
-  background:
-    var(--holo-control-bottom);
-  box-shadow:
-    0 1px 1px rgba(0,0,0,.5);
-  color:#202020;
   font:400 18px/46px Roboto,"Helvetica Neue",Arial,sans-serif;
   text-align:center;
   cursor:pointer;
   user-select:none;
 }
-.android-button:hover,.android-image-button:hover,.android-toggle:hover{
-  border-color:#9f9f9f;
-}
-.android-button:active,.android-image-button:active,.android-toggle:active{
-  background:#bde7f7;
-  border-color:var(--holo-blue-dark);
-}
-.android-button:focus-visible,.android-image-button:focus-visible,.android-toggle:focus-visible{
-  outline:2px solid rgba(51,181,229,.35);
+.baram-button:focus-visible,.baram-image-button:focus-visible,.baram-toggle:focus-visible{
+  outline:2px solid transparent;
   outline-offset:1px;
 }
 
-.android-edit{
+.baram-edit{
   -webkit-appearance:none;
   appearance:none;
   display:block;
@@ -140,93 +112,67 @@ body{
   margin:0;
   padding:7px 4px 5px 4px;
   border:0;
-  border-bottom:2px solid #9e9e9e;
+  border-bottom:2px solid transparent;
   border-radius:0;
   outline:none;
-  background:linear-gradient(to bottom,transparent calc(100% - 1px),rgba(255,255,255,.5) 100%);
-  color:#222;
   font:400 16px/22px Roboto,"Helvetica Neue",Arial,sans-serif;
-  box-shadow:none;
 }
-.android-edit::placeholder{color:#888;opacity:1}
-.android-edit:focus{
-  border-bottom-color:var(--holo-blue);
-  box-shadow:0 1px 0 var(--holo-blue);
-}
-textarea.android-edit{
+textarea.baram-edit{
   min-height:58px;
   resize:vertical;
-  border:1px solid #bdbdbd;
-  border-bottom:2px solid #9e9e9e;
+  border:1px solid transparent;
+  border-bottom:2px solid transparent;
   padding:7px;
 }
-textarea.android-edit:focus{border-color:#8d8d8d;border-bottom-color:var(--holo-blue)}
-
 
 /*
  * CheckBox / RadioButton / Switch are deliberately NOT backed by native
- * HTML input elements. Their state lives on each rendered Android view.
+ * HTML input elements. Their state lives on each rendered Baram view.
  * This prevents browser form/focus behaviour from affecting the app tree.
  */
-.android-checkbox,.android-radio{
+.baram-checkbox,.baram-radio{
   display:inline-flex;
   align-items:center;
   gap:10px;
   min-height:42px;
   padding:2px 0;
-  color:#222;
   cursor:pointer;
   user-select:none;
   -webkit-tap-highlight-color:transparent;
   outline:none;
 }
-.android-checkbox .mark{
+.baram-checkbox .mark{
   width:22px;height:22px;
   position:relative;
   flex:0 0 22px;
-  border:2px solid #747474;
+  border:2px solid transparent;
   border-radius:1px;
-  background:linear-gradient(#fafafa,#e2e2e2);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
 }
-.android-checkbox[data-checked="true"] .mark{
-  border-color:#148fbd;
-  background:linear-gradient(#5dccf0,#22a9db);
-}
-.android-checkbox[data-checked="true"] .mark:after{
+.baram-checkbox[data-checked="true"] .mark:after{
   content:"";
   position:absolute;
   left:5px;top:1px;
   width:7px;height:13px;
-  border:solid #fff;
+  border:solid transparent;
   border-width:0 3px 3px 0;
   transform:rotate(45deg);
 }
-.android-checkbox:focus-visible .mark,
-.android-radio:focus-visible .mark{
-  box-shadow:0 0 0 3px rgba(51,181,229,.24);
-}
 
-.android-radio .mark{
+.baram-radio .mark{
   width:22px;height:22px;
   position:relative;
   flex:0 0 22px;
-  border:2px solid #707070;
+  border:2px solid transparent;
   border-radius:50%;
 }
-.android-radio[data-checked="true"] .mark{
-  border-color:#148fbd;
-}
-.android-radio[data-checked="true"] .mark:after{
+.baram-radio[data-checked="true"] .mark:after{
   content:"";
   position:absolute;
   inset:4px;
   border-radius:50%;
-  background:#33b5e5;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.35);
 }
 
-.android-switch{
+.baram-switch{
   display:inline-flex;
   align-items:center;
   gap:11px;
@@ -237,77 +183,58 @@ textarea.android-edit:focus{border-color:#8d8d8d;border-bottom-color:var(--holo-
   -webkit-tap-highlight-color:transparent;
   outline:none;
 }
-.android-switch .track{
+.baram-switch .track{
   width:52px;height:22px;
   position:relative;
   flex:0 0 52px;
-  border:1px solid #8b8b8b;
-  background:#bdbdbd;
-  box-shadow:inset 0 1px 2px rgba(0,0,0,.22);
+  border:1px solid transparent;
 }
-.android-switch .thumb{
+.baram-switch .thumb{
   position:absolute;
   left:-1px;top:-4px;
   width:28px;height:28px;
-  border:1px solid #858585;
-  background:linear-gradient(#ffffff,#d0d0d0);
-  box-shadow:0 1px 2px rgba(0,0,0,.35);
-  transition:left .10s linear,border-color .10s linear;
+  border:1px solid transparent;
+  transition:left .10s linear;
 }
-.android-switch[data-checked="true"] .track{
-  border-color:#148fbd;
-  background:linear-gradient(90deg,#33b5e5 0 54%,#bdbdbd 54% 100%);
-}
-.android-switch[data-checked="true"] .thumb{
+.baram-switch[data-checked="true"] .thumb{
   left:25px;
-  border-color:#148fbd;
-}
-.android-switch:focus-visible .track{
-  box-shadow:0 0 0 3px rgba(51,181,229,.24),inset 0 1px 2px rgba(0,0,0,.22);
 }
 
-.android-spinner{
+.baram-spinner{
   -webkit-appearance:none;
   appearance:none;
   min-height:38px;
   padding:6px 30px 5px 7px;
   border:0;
-  border-bottom:2px solid #999;
+  border-bottom:2px solid transparent;
   border-radius:0;
   outline:none;
-  color:#222;
   font:400 15px Roboto,"Helvetica Neue",Arial,sans-serif;
-  background:
-    linear-gradient(45deg,transparent 50%,#555 50%) calc(100% - 12px) 16px/6px 6px no-repeat,
-    linear-gradient(135deg,#555 50%,transparent 50%) calc(100% - 6px) 16px/6px 6px no-repeat,
-    linear-gradient(to bottom,transparent calc(100% - 2px),#aaa calc(100% - 2px));
 }
-.android-spinner:focus{border-bottom-color:var(--holo-blue)}
 
-.android-seek{
+.baram-seek{
   -webkit-appearance:none;
   appearance:none;
   width:100%;
   height:30px;
   margin:0;
-  background:transparent;
   outline:none;
 }
-.android-seek::-webkit-slider-runnable-track{
-  height:3px;background:#a7a7a7;border-radius:0;
+.baram-seek::-webkit-slider-runnable-track{
+  height:3px;border-radius:0;
 }
-.android-seek::-webkit-slider-thumb{
+.baram-seek::-webkit-slider-thumb{
   -webkit-appearance:none;
   appearance:none;
   width:18px;height:18px;border-radius:50%;
-  border:1px solid #168db8;background:var(--holo-blue);
-  margin-top:-7px;box-shadow:0 1px 2px rgba(0,0,0,.28);
+  border:1px solid transparent;
+  margin-top:-7px;
 }
-.android-seek::-moz-range-track{height:3px;background:#a7a7a7}
-.android-seek::-moz-range-progress{height:3px;background:var(--holo-blue)}
-.android-seek::-moz-range-thumb{width:18px;height:18px;border-radius:50%;border:1px solid #168db8;background:var(--holo-blue)}
+.baram-seek::-moz-range-track{height:3px}
+.baram-seek::-moz-range-progress{height:3px}
+.baram-seek::-moz-range-thumb{width:18px;height:18px;border-radius:50%;border:1px solid transparent}
 
-.android-rating{
+.baram-rating{
   display:inline-flex;
   gap:1px;
   align-items:center;
@@ -318,114 +245,101 @@ textarea.android-edit:focus{border-color:#8d8d8d;border-bottom-color:var(--holo-
   cursor:pointer;
   width:fit-content;
 }
-.android-rating .star{color:#b7b7b7;text-shadow:0 1px 0 white}
-.android-rating .star.on{color:var(--holo-blue);text-shadow:0 1px 0 #e8f8ff}
 
-.android-progress-horizontal{
+.baram-progress-horizontal{
   -webkit-appearance:none;
   appearance:none;
   width:100%;height:6px;
-  border:0;background:#d0d0d0;
+  border:0;
 }
-.android-progress-horizontal::-webkit-progress-bar{background:#d0d0d0}
-.android-progress-horizontal::-webkit-progress-value{background:var(--holo-blue)}
-.android-progress-horizontal::-moz-progress-bar{background:var(--holo-blue)}
-.android-progress-spinner{
+.baram-progress-spinner{
   width:28px;height:28px;
   border-radius:50%;
-  border:4px solid #cfcfcf;
-  border-top-color:var(--holo-blue);
-  border-right-color:var(--holo-blue);
+  border:4px solid transparent;
   animation:holo-spin .8s linear infinite;
 }
 @keyframes holo-spin{to{transform:rotate(360deg)}}
 
-.android-image-placeholder{
+.baram-image-placeholder{
   display:flex;align-items:center;justify-content:center;
   min-width:56px;min-height:48px;
-  border:1px solid #b9b9b9;
-  background:linear-gradient(135deg,#eeeeee,#d4d4d4);
-  color:#666;font-size:12px;
+  border:1px solid transparent;
+  font-size:12px;
 }
 .camera-icon{
   position:relative;display:inline-block;
-  width:24px;height:17px;border:2px solid #333;border-radius:2px;
+  width:24px;height:17px;border:2px solid transparent;border-radius:2px;
 }
 .camera-icon:before{
   content:"";position:absolute;left:6px;top:-6px;
-  width:8px;height:5px;border:2px solid #333;border-bottom:0;
+  width:8px;height:5px;border:2px solid transparent;border-bottom:0;
 }
 .camera-icon:after{
   content:"";position:absolute;left:7px;top:3px;
-  width:7px;height:7px;border:2px solid #333;border-radius:50%;
+  width:7px;height:7px;border:2px solid transparent;border-radius:50%;
 }
 
-.android-list,.android-expandable{
+.baram-list,.baram-expandable{
   overflow:auto;
-  background:#fff;
-  border-top:1px solid #ddd;
-  border-bottom:1px solid #ddd;
+  border-top:1px solid transparent;
+  border-bottom:1px solid transparent;
 }
-.android-list-row{
+.baram-list-row{
   min-height:44px;
   display:flex;align-items:center;
   padding:0 12px;
-  border-bottom:1px solid #e5e5e5;
-  color:#222;
+  border-bottom:1px solid transparent;
 }
-.android-list-row:last-child{border-bottom:0}
-.android-expand-head{font-weight:500;background:#f4f4f4}
-.android-grid-list{display:grid;gap:1px;background:#ccc;overflow:auto}
-.android-grid-cell{background:#fff;min-height:48px;display:flex;align-items:center;justify-content:center}
+.baram-list-row:last-child{border-bottom:0}
+.baram-expand-head{font-weight:500}
+.baram-grid-list{display:grid;gap:1px;overflow:auto}
+.baram-grid-cell{min-height:48px;display:flex;align-items:center;justify-content:center}
 
-.android-search{
+.baram-search{
   -webkit-appearance:none;
   appearance:none;
   width:100%;min-height:38px;
   padding:7px 8px 5px 28px;
-  border:0;border-bottom:2px solid #999;
-  outline:none;background:
-    radial-gradient(circle at 11px 15px,transparent 0 5px,#666 5px 7px,transparent 7px),
-    linear-gradient(45deg,transparent 47%,#666 48% 55%,transparent 56%) 18px 23px/9px 9px no-repeat;
+  border:0;border-bottom:2px solid transparent;
+  outline:none;
   font:400 15px Roboto,"Helvetica Neue",Arial,sans-serif;
 }
-.android-search:focus{border-bottom-color:var(--holo-blue)}
 
-.android-number-picker{display:inline-flex;align-items:center;gap:0;border:1px solid #aaa;background:#eee;
+.baram-number-picker{display:inline-flex;align-items:center;gap:0;border:1px solid transparent;
   width:fit-content;}
-.android-number-picker button{
-  width:34px;height:34px;border:0;background:linear-gradient(#fafafa,#ddd);font-size:18px;cursor:pointer
+.baram-number-picker button{
+  width:34px;height:34px;border:0;font-size:18px;cursor:pointer
 }
-.android-number-picker input{
-  width:60px;height:34px;border:0;border-left:1px solid #aaa;border-right:1px solid #aaa;text-align:center;background:white
+.baram-number-picker input{
+  width:60px;height:34px;border:0;border-left:1px solid transparent;border-right:1px solid transparent;text-align:center
 }
-.android-date,.android-time{
-  min-height:38px;padding:5px;border:1px solid #aaa;background:#fff;color:#222;font:14px Roboto,Arial,sans-serif
+.baram-date,.baram-time{
+  min-height:38px;padding:5px;border:1px solid transparent;font:14px Roboto,Arial,sans-serif
 }
-.android-web,.android-video{
+.baram-web,.baram-video{
   display:flex;align-items:center;justify-content:center;
-  border:1px solid #bbb;background:#f0f0f0;color:#666;
+  border:1px solid transparent;
 }
-.android-video:before{content:"▶";font-size:22px;margin-right:8px;color:#444}
+.baram-video:before{content:"▶";font-size:22px;margin-right:8px}
 
-.android-viewflipper{position:relative;overflow:hidden}
-.android-viewflipper>.android-view{
+.baram-viewflipper{position:relative;overflow:hidden}
+.baram-viewflipper>.baram-view{
   position:absolute!important;
   left:0!important;top:0!important;right:0!important;bottom:0!important;
   opacity:0;pointer-events:none;
 }
-.android-viewflipper>.android-view.active{opacity:1;pointer-events:auto}
+.baram-viewflipper>.baram-view.active{opacity:1;pointer-events:auto}
 
-/* Small Android-like scrollbar */
-.android-scroll::-webkit-scrollbar{width:6px;height:6px}
-.android-scroll::-webkit-scrollbar-track{background:transparent}
-.android-scroll::-webkit-scrollbar-thumb{background:#999;border-radius:0}
+/* Small Baram-like scrollbar */
+.baram-scroll::-webkit-scrollbar{width:6px;height:6px}
+.baram-scroll::-webkit-scrollbar-track{background:transparent}
+.baram-scroll::-webkit-scrollbar-thumb{border-radius:0}
 
 /* Error is only shown for malformed XML; no preview/status chrome. */
 .runtime-error{
   width:100%;height:100%;
   display:flex;align-items:center;justify-content:center;
-  padding:24px;background:#fff;color:#b00020;
+  padding:24px;
   font:14px/1.5 monospace;white-space:pre-wrap;
 }
 </style>
@@ -434,14 +348,14 @@ textarea.android-edit:focus{border-color:#8d8d8d;border-bottom-color:var(--holo-
 <div id="app"></div>
 <script>
 "use strict";
-const ANDROID_NS="http://schemas.android.com/apk/res/android";
-const SAMPLE_XML="<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<LinearLayout\n    xmlns:android=\"http://schemas.android.com/apk/res/android\"\n    android:id=\"@+id/main\"\n    android:layout_width=\"match_parent\"\n    android:layout_height=\"match_parent\"\n    android:orientation=\"vertical\">\n\n    <LinearLayout\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"wrap_content\"\n        android:orientation=\"vertical\"\n        android:padding=\"12dp\">\n\n        <TextView\n            android:layout_width=\"wrap_content\"\n            android:layout_height=\"wrap_content\"\n            android:text=\"Android Components Preview\"\n            android:textSize=\"22sp\"\n            android:textStyle=\"bold\"/>\n\n        <Spinner\n            android:id=\"@+id/themeSpinner\"\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:layout_marginTop=\"8dp\"/>\n\n    </LinearLayout>\n\n    <View\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"1dp\"\n        android:background=\"#808080\"/>\n\n    \n    \n    \n\n    <ScrollView\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"0dp\"\n        android:layout_weight=\"1\"\n        android:fillViewport=\"true\">\n\n        <LinearLayout\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:orientation=\"vertical\"\n            android:padding=\"12dp\">\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                android:text=\"Layouts\"/>\n\n            <TextView\n                style=\"@style/SectionDescription\"\n                android:text=\"Android Framework の代表的なレイアウト\"/>\n\n            \n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"LinearLayout • API 1\"/>\n\n            <LinearLayout\n                style=\"@style/ComponentBox\"\n                android:orientation=\"horizontal\">\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"A\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"B\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"C\"/>\n\n            </LinearLayout>\n\n            \n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"RelativeLayout • API 1\"/>\n\n            <RelativeLayout\n                style=\"@style/ComponentBox\"\n                android:layout_height=\"70dp\">\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:layout_alignParentLeft=\"true\"\n                    android:text=\"Left\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:layout_alignParentRight=\"true\"\n                    android:text=\"Right\"/>\n\n            </RelativeLayout>\n\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"TableLayout / TableRow • API 1\"/>\n\n            <TableLayout\n                style=\"@style/ComponentBox\"\n                android:stretchColumns=\"*\">\n\n                <TableRow>\n\n                    <Button\n                        android:layout_width=\"0dp\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"1,1\"/>\n\n                    <Button\n                        android:layout_width=\"0dp\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"1,2\"/>\n\n                    <Button\n                        android:layout_width=\"0dp\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"1,3\"/>\n\n                </TableRow>\n\n                <TableRow>\n\n                    <Button\n                        android:layout_width=\"0dp\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"2,1\"/>\n\n                    <Button\n                        android:layout_width=\"0dp\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"2,2\"/>\n\n                    <Button\n                        android:layout_width=\"0dp\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"2,3\"/>\n\n                </TableRow>\n\n            </TableLayout>\n\n            \n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"GridLayout • API 14\"/>\n\n            <GridLayout\n                style=\"@style/ComponentBox\"\n                android:columnCount=\"3\">\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"1\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"2\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"3\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"4\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"5\"/>\n\n                <Button\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"6\"/>\n\n            </GridLayout>\n\n            \n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"AbsoluteLayout • API 1 / deprecated API 3\"/>\n\n            <AbsoluteLayout\n                style=\"@style/ComponentBox\"\n                android:layout_height=\"100dp\">\n\n                <Button\n                    android:layout_width=\"150dp\"\n                    android:layout_height=\"wrap_content\"\n                    android:layout_x=\"70dp\"\n                    android:layout_y=\"15dp\"\n                    android:text=\"x=70 y=15\"/>\n\n            </AbsoluteLayout>\n\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                android:text=\"Text &amp; Input\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"TextView • API 1\"/>\n\n            <TextView\n                style=\"@style/ComponentBox\"\n                android:text=\"Hello Android\"\n                android:textSize=\"18sp\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"EditText • API 1\"/>\n\n            <EditText\n                style=\"@style/ComponentBox\"\n                android:hint=\"Type something...\"\n                android:singleLine=\"true\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"AutoCompleteTextView • API 1\"/>\n\n            <AutoCompleteTextView\n                android:id=\"@+id/autoComplete\"\n                style=\"@style/ComponentBox\"\n                android:hint=\"Type A...\"\n                android:singleLine=\"true\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"MultiAutoCompleteTextView • API 1\"/>\n\n            <MultiAutoCompleteTextView\n                android:id=\"@+id/multiAutoComplete\"\n                style=\"@style/ComponentBox\"\n                android:hint=\"Android, Apple...\"/>\n\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                android:text=\"Buttons\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"Button • API 1\"/>\n\n            <Button\n                style=\"@style/ComponentBox\"\n                android:text=\"Button\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"ImageButton • API 1\"/>\n\n            <ImageButton\n                style=\"@style/ComponentBox\"\n                android:src=\"@android:drawable/ic_menu_camera\"\n                android:contentDescription=\"Camera\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"CheckBox • API 1\"/>\n\n            <CheckBox\n                style=\"@style/ComponentBox\"\n                android:checked=\"true\"\n                android:text=\"CheckBox\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"RadioButton / RadioGroup • API 1\"/>\n\n            <RadioGroup\n                style=\"@style/ComponentBox\"\n                android:orientation=\"vertical\">\n\n                <RadioButton\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:checked=\"true\"\n                    android:text=\"Option A\"/>\n\n                <RadioButton\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"Option B\"/>\n\n                <RadioButton\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:text=\"Option C\"/>\n\n            </RadioGroup>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"ToggleButton • API 1\"/>\n\n            <ToggleButton\n                style=\"@style/ComponentBox\"\n                android:checked=\"true\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"Switch • API 14\"/>\n\n            <Switch\n                style=\"@style/ComponentBox\"\n                android:checked=\"true\"\n                android:text=\"Switch\"/>\n\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                android:text=\"Selection\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"Spinner • API 1\"/>\n\n            <Spinner\n                android:id=\"@+id/sampleSpinner\"\n                style=\"@style/ComponentBox\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"SeekBar • API 1\"/>\n\n            <SeekBar\n                style=\"@style/ComponentBox\"\n                android:max=\"100\"\n                android:progress=\"55\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"RatingBar • API 1\"/>\n\n            <RatingBar\n                android:layout_width=\"wrap_content\"\n                android:layout_height=\"wrap_content\"\n                android:numStars=\"5\"\n                android:rating=\"3.5\"\n                android:stepSize=\"0.5\"/>\n\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                android:text=\"Progress\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"ProgressBar • API 1\"/>\n\n            <ProgressBar\n                android:layout_width=\"wrap_content\"\n                android:layout_height=\"wrap_content\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"ProgressBar Horizontal • API 1\"/>\n\n            <ProgressBar\n                style=\"?android:attr/progressBarStyleHorizontal\"\n                android:layout_width=\"match_parent\"\n                android:layout_height=\"wrap_content\"\n                android:max=\"100\"\n                android:progress=\"65\"/>\n\n\n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                android:text=\"Date &amp; Time\"/>\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"Chronometer • API 1\"/>\n\n            <Chronometer\n                android:id=\"@+id/chronometer\"\n                android:layout_width=\"wrap_content\"\n                android:layout_height=\"wrap_content\"\n                android:textSize=\"22sp\"/>\n\n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                android:text=\"Other Widgets\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"HorizontalScrollView • API 1\"/>\n\n            <HorizontalScrollView\n                android:layout_width=\"match_parent\"\n                android:layout_height=\"wrap_content\">\n\n                <LinearLayout\n                    android:layout_width=\"wrap_content\"\n                    android:layout_height=\"wrap_content\"\n                    android:orientation=\"horizontal\">\n\n                    <Button\n                        android:layout_width=\"wrap_content\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"Item 1\"/>\n\n                    <Button\n                        android:layout_width=\"wrap_content\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"Item 2\"/>\n\n                    <Button\n                        android:layout_width=\"wrap_content\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"Item 3\"/>\n\n                    <Button\n                        android:layout_width=\"wrap_content\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"Item 4\"/>\n\n                    <Button\n                        android:layout_width=\"wrap_content\"\n                        android:layout_height=\"wrap_content\"\n                        android:text=\"Item 5\"/>\n\n                </LinearLayout>\n\n            </HorizontalScrollView>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                android:text=\"ViewFlipper • API 1\"/>\n\n            <ViewFlipper\n                android:id=\"@+id/viewFlipper\"\n                android:layout_width=\"match_parent\"\n                android:layout_height=\"100dp\"\n                android:autoStart=\"true\"\n                android:flipInterval=\"2000\">\n\n                <TextView\n                    android:layout_width=\"match_parent\"\n                    android:layout_height=\"match_parent\"\n                    android:gravity=\"center\"\n                    android:text=\"View 1\"\n                    android:textSize=\"24sp\"/>\n\n                <TextView\n                    android:layout_width=\"match_parent\"\n                    android:layout_height=\"match_parent\"\n                    android:gravity=\"center\"\n                    android:text=\"View 2\"\n                    android:textSize=\"24sp\"/>\n\n            </ViewFlipper>\n\n            <Space\n                android:layout_width=\"match_parent\"\n                android:layout_height=\"40dp\"/>\n\n        </LinearLayout>\n\n    </ScrollView>\n\n</LinearLayout>";
+const ANDROID_NS="http://schemas.baram.com/apk/res/baram";
+const SAMPLE_XML="<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<LinearLayout\n    xmlns:baram=\"http://schemas.baram.com/apk/res/baram\"\n    baram:id=\"@+id/main\"\n    baram:layout_width=\"match_parent\"\n    baram:layout_height=\"match_parent\"\n    baram:orientation=\"vertical\">\n\n    <LinearLayout\n        baram:layout_width=\"match_parent\"\n        baram:layout_height=\"wrap_content\"\n        baram:orientation=\"vertical\"\n        baram:padding=\"12dp\">\n\n        <TextView\n            baram:layout_width=\"wrap_content\"\n            baram:layout_height=\"wrap_content\"\n            baram:text=\"Baram Components Preview\"\n            baram:textSize=\"22sp\"\n            baram:textStyle=\"bold\"/>\n\n        <Spinner\n            baram:id=\"@+id/themeSpinner\"\n            baram:layout_width=\"match_parent\"\n            baram:layout_height=\"wrap_content\"\n            baram:layout_marginTop=\"8dp\"/>\n\n    </LinearLayout>\n\n    <View\n        baram:layout_width=\"match_parent\"\n        baram:layout_height=\"1dp\"\n        baram:background=\"#808080\"/>\n\n    \n    \n    \n\n    <ScrollView\n        baram:layout_width=\"match_parent\"\n        baram:layout_height=\"0dp\"\n        baram:layout_weight=\"1\"\n        baram:fillViewport=\"true\">\n\n        <LinearLayout\n            baram:layout_width=\"match_parent\"\n            baram:layout_height=\"wrap_content\"\n            baram:orientation=\"vertical\"\n            baram:padding=\"12dp\">\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                baram:text=\"Layouts\"/>\n\n            <TextView\n                style=\"@style/SectionDescription\"\n                baram:text=\"Baram Framework の代表的なレイアウト\"/>\n\n            \n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"LinearLayout • API 1\"/>\n\n            <LinearLayout\n                style=\"@style/ComponentBox\"\n                baram:orientation=\"horizontal\">\n\n                <Button\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:text=\"A\"/>\n\n                <Button\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:text=\"B\"/>\n\n                <Button\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:text=\"C\"/>\n\n            </LinearLayout>\n\n            \n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"RelativeLayout • API 1\"/>\n\n            <RelativeLayout\n                style=\"@style/ComponentBox\"\n                baram:layout_height=\"70dp\">\n\n                <Button\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:layout_alignParentLeft=\"true\"\n                    baram:text=\"Left\"/>\n\n                <Button\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:layout_alignParentRight=\"true\"\n                    baram:text=\"Right\"/>\n\n            </RelativeLayout>\n\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"TableLayout / TableRow • API 1\"/>\n\n            <TableLayout\n                style=\"@style/ComponentBox\"\n                baram:stretchColumns=\"*\">\n\n                <TableRow>\n\n                    <Button\n                        baram:layout_width=\"0dp\"\n                        baram:layout_height=\"wrap_content\"\n                        baram:text=\"1,1\"/>\n\n                    <Button\n                        baram:layout_width=\"0dp\"\n                        baram:layout_height=\"wrap_content\"\n                        baram:text=\"1,2\"/>\n\n                    <Button\n                        baram:layout_width=\"0dp\"\n                        baram:layout_height=\"wrap_content\"\n                        baram:text=\"1,3\"/>\n\n                </TableRow>\n\n                <TableRow>\n\n                    <Button\n                        baram:layout_width=\"0dp\"\n                        baram:layout_height=\"wrap_content\"\n                        baram:text=\"2,1\"/>\n\n                    <Button\n                        baram:layout_width=\"0dp\"\n                        baram:layout_height=\"wrap_content\"\n                        baram:text=\"2,2\"/>\n\n                    <Button\n                        baram:layout_width=\"0dp\"\n                        baram:layout_height=\"wrap_content\"\n                        baram:text=\"2,3\"/>\n\n                </TableRow>\n\n            </TableLayout>\n\n            \n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"GridLayout • API 14\"/>\n\n            <GridLayout\n                style=\"@style/ComponentBox\"\n                baram:columnCount=\"3\">\n\n                <Button\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:text=\"1\"/>\n\n                <Button\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:text=\"2\"/>\n\n                <Button\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:text=\"3\"/>\n\n                <Button\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:text=\"4\"/>\n\n                <Button\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:text=\"5\"/>\n\n                <Button\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:text=\"6\"/>\n\n            </GridLayout>\n\n            \n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"AbsoluteLayout • API 1 / deprecated API 3\"/>\n\n            <AbsoluteLayout\n                style=\"@style/ComponentBox\"\n                baram:layout_height=\"100dp\">\n\n                <Button\n                    baram:layout_width=\"150dp\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:layout_x=\"70dp\"\n                    baram:layout_y=\"15dp\"\n                    baram:text=\"x=70 y=15\"/>\n\n            </AbsoluteLayout>\n\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                baram:text=\"Text &amp; Input\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"TextView • API 1\"/>\n\n            <TextView\n                style=\"@style/ComponentBox\"\n                baram:text=\"Hello Baram\"\n                baram:textSize=\"18sp\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"EditText • API 1\"/>\n\n            <EditText\n                style=\"@style/ComponentBox\"\n                baram:hint=\"Type something...\"\n                baram:singleLine=\"true\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"AutoCompleteTextView • API 1\"/>\n\n            <AutoCompleteTextView\n                baram:id=\"@+id/autoComplete\"\n                style=\"@style/ComponentBox\"\n                baram:hint=\"Type A...\"\n                baram:singleLine=\"true\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"MultiAutoCompleteTextView • API 1\"/>\n\n            <MultiAutoCompleteTextView\n                baram:id=\"@+id/multiAutoComplete\"\n                style=\"@style/ComponentBox\"\n                baram:hint=\"Baram, Apple...\"/>\n\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                baram:text=\"Buttons\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"Button • API 1\"/>\n\n            <Button\n                style=\"@style/ComponentBox\"\n                baram:text=\"Button\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"ImageButton • API 1\"/>\n\n            <ImageButton\n                style=\"@style/ComponentBox\"\n                baram:src=\"@baram:drawable/ic_menu_camera\"\n                baram:contentDescription=\"Camera\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"CheckBox • API 1\"/>\n\n            <CheckBox\n                style=\"@style/ComponentBox\"\n                baram:checked=\"true\"\n                baram:text=\"CheckBox\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"RadioButton / RadioGroup • API 1\"/>\n\n            <RadioGroup\n                style=\"@style/ComponentBox\"\n                baram:orientation=\"vertical\">\n\n                <RadioButton\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:checked=\"true\"\n                    baram:text=\"Option A\"/>\n\n                <RadioButton\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:text=\"Option B\"/>\n\n                <RadioButton\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:text=\"Option C\"/>\n\n            </RadioGroup>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"ToggleButton • API 1\"/>\n\n            <ToggleButton\n                style=\"@style/ComponentBox\"\n                baram:checked=\"true\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"Switch • API 14\"/>\n\n            <Switch\n                style=\"@style/ComponentBox\"\n                baram:checked=\"true\"\n                baram:text=\"Switch\"/>\n\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                baram:text=\"Selection\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"Spinner • API 1\"/>\n\n            <Spinner\n                baram:id=\"@+id/sampleSpinner\"\n                style=\"@style/ComponentBox\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"SeekBar • API 1\"/>\n\n            <SeekBar\n                style=\"@style/ComponentBox\"\n                baram:max=\"100\"\n                baram:progress=\"55\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"RatingBar • API 1\"/>\n\n            <RatingBar\n                baram:layout_width=\"wrap_content\"\n                baram:layout_height=\"wrap_content\"\n                baram:numStars=\"5\"\n                baram:rating=\"3.5\"\n                baram:stepSize=\"0.5\"/>\n\n\n            \n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                baram:text=\"Progress\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"ProgressBar • API 1\"/>\n\n            <ProgressBar\n                baram:layout_width=\"wrap_content\"\n                baram:layout_height=\"wrap_content\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"ProgressBar Horizontal • API 1\"/>\n\n            <ProgressBar\n                style=\"?baram:attr/progressBarStyleHorizontal\"\n                baram:layout_width=\"match_parent\"\n                baram:layout_height=\"wrap_content\"\n                baram:max=\"100\"\n                baram:progress=\"65\"/>\n\n\n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                baram:text=\"Date &amp; Time\"/>\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"Chronometer • API 1\"/>\n\n            <Chronometer\n                baram:id=\"@+id/chronometer\"\n                baram:layout_width=\"wrap_content\"\n                baram:layout_height=\"wrap_content\"\n                baram:textSize=\"22sp\"/>\n\n            \n            \n\n            <TextView\n                style=\"@style/SectionTitle\"\n                baram:text=\"Other Widgets\"/>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"HorizontalScrollView • API 1\"/>\n\n            <HorizontalScrollView\n                baram:layout_width=\"match_parent\"\n                baram:layout_height=\"wrap_content\">\n\n                <LinearLayout\n                    baram:layout_width=\"wrap_content\"\n                    baram:layout_height=\"wrap_content\"\n                    baram:orientation=\"horizontal\">\n\n                    <Button\n                        baram:layout_width=\"wrap_content\"\n                        baram:layout_height=\"wrap_content\"\n                        baram:text=\"Item 1\"/>\n\n                    <Button\n                        baram:layout_width=\"wrap_content\"\n                        baram:layout_height=\"wrap_content\"\n                        baram:text=\"Item 2\"/>\n\n                    <Button\n                        baram:layout_width=\"wrap_content\"\n                        baram:layout_height=\"wrap_content\"\n                        baram:text=\"Item 3\"/>\n\n                    <Button\n                        baram:layout_width=\"wrap_content\"\n                        baram:layout_height=\"wrap_content\"\n                        baram:text=\"Item 4\"/>\n\n                    <Button\n                        baram:layout_width=\"wrap_content\"\n                        baram:layout_height=\"wrap_content\"\n                        baram:text=\"Item 5\"/>\n\n                </LinearLayout>\n\n            </HorizontalScrollView>\n\n            <TextView\n                style=\"@style/ComponentLabel\"\n                baram:text=\"ViewFlipper • API 1\"/>\n\n            <ViewFlipper\n                baram:id=\"@+id/viewFlipper\"\n                baram:layout_width=\"match_parent\"\n                baram:layout_height=\"100dp\"\n                baram:autoStart=\"true\"\n                baram:flipInterval=\"2000\">\n\n                <TextView\n                    baram:layout_width=\"match_parent\"\n                    baram:layout_height=\"match_parent\"\n                    baram:gravity=\"center\"\n                    baram:text=\"View 1\"\n                    baram:textSize=\"24sp\"/>\n\n                <TextView\n                    baram:layout_width=\"match_parent\"\n                    baram:layout_height=\"match_parent\"\n                    baram:gravity=\"center\"\n                    baram:text=\"View 2\"\n                    baram:textSize=\"24sp\"/>\n\n            </ViewFlipper>\n\n            <Space\n                baram:layout_width=\"match_parent\"\n                baram:layout_height=\"40dp\"/>\n\n        </LinearLayout>\n\n    </ScrollView>\n\n</LinearLayout>";
 
 const app=document.getElementById("app");
-const a=(n,k)=>n.getAttributeNS?.(ANDROID_NS,k) ?? n.getAttribute?.("android:"+k) ?? n.getAttribute?.(k);
+const a=(n,k)=>n.getAttributeNS?.(ANDROID_NS,k) ?? n.getAttribute?.("baram:"+k) ?? n.getAttribute?.(k);
 const truth=(v,d=false)=>v==null?d:String(v).toLowerCase()==="true";
 const nnum=(v,d=0)=>{const x=parseFloat(v);return Number.isFinite(x)?x:d};
-const idName=v=>(v||"").replace(/^@\+?id\//,"").replace(/^@android:id\//,"");
+const idName=v=>(v||"").replace(/^@\+?id\//,"").replace(/^@baram:id\//,"");
 const refName=v=>idName(v);
 
 const viewState=new WeakMap();
@@ -481,9 +395,9 @@ function toggleChecked(el){
   setChecked(el,!getViewState(el).checked);
 }
 function selectRadio(radio){
-  const group=radio.closest('[data-android-tag="RadioGroup"]');
+  const group=radio.closest('[data-baram-tag="RadioGroup"]');
   if(group){
-    for(const item of group.querySelectorAll(':scope > .android-radio')){
+    for(const item of group.querySelectorAll(':scope > .baram-radio')){
       setChecked(item,item===radio);
     }
   }else{
@@ -546,15 +460,15 @@ function applyGravity(el,g){
   if(t.includes("bottom")){el.style.display="flex";el.style.alignItems="flex-end"}
 }
 function applyCommon(xml,el,parentTag,parentOrientation){
-  el.classList.add("android-view");
-  el.dataset.androidTag=xml.tagName;
+  el.classList.add("baram-view");
+  el.dataset.baramTag=xml.tagName;
 
   const id=a(xml,"id");
-  if(id){const k=idName(id);el.dataset.androidId=k;el.id="android-id-"+k}
+  if(id){const k=idName(id);el.dataset.baramId=k;el.id="baram-id-"+k}
 
   const styleRef=xml.getAttribute("style");
   if(styleRef){
-    const k=styleRef.replace(/^@style\//,"").replace(/^\?android:attr\//,"attr-").replace(/[^\w-]/g,"-");
+    const k=styleRef.replace(/^@style\//,"").replace(/^\?baram:attr\//,"attr-").replace(/[^\w-]/g,"-");
     el.classList.add("style-"+k);
   }
 
@@ -569,7 +483,7 @@ function applyCommon(xml,el,parentTag,parentOrientation){
   else if(h==="wrap_content")el.style.height="fit-content";
   else if(h&&h!=="0dp")el.style.height=dim(h);
 
-  // Android LinearLayout weight semantics, including 0dp + weight.
+  // Baram LinearLayout weight semantics, including 0dp + weight.
   if(parentTag==="LinearLayout"&&weight>0){
     if(parentOrientation==="horizontal"){
       el.style.flexGrow=String(weight);el.style.flexShrink="1";
@@ -644,7 +558,7 @@ function createControl(xml,parentTag,parentOrientation){
 
   switch(tag){
     case "LinearLayout":{
-      el=document.createElement("div");el.classList.add("android-linear");
+      el=document.createElement("div");el.classList.add("baram-linear");
       const orientation=a(xml,"orientation")==="horizontal"?"horizontal":"vertical";
       el.dataset.orientation=orientation;
       el.style.flexDirection=orientation==="horizontal"?"row":"column";
@@ -652,45 +566,45 @@ function createControl(xml,parentTag,parentOrientation){
       break;
     }
     case "RelativeLayout":
-      el=document.createElement("div");el.classList.add("android-relative");break;
+      el=document.createElement("div");el.classList.add("baram-relative");break;
     case "FrameLayout":
-      el=document.createElement("div");el.classList.add("android-frame");break;
+      el=document.createElement("div");el.classList.add("baram-frame");break;
     case "GridLayout":{
-      el=document.createElement("div");el.classList.add("android-grid");
+      el=document.createElement("div");el.classList.add("baram-grid");
       const cols=Math.max(1,nnum(a(xml,"columnCount"),1));
       el.style.gridTemplateColumns=`repeat(${cols},minmax(0,1fr))`;
       el.style.gap="8px";
       break;
     }
     case "AbsoluteLayout":
-      el=document.createElement("div");el.classList.add("android-absolute");break;
+      el=document.createElement("div");el.classList.add("baram-absolute");break;
     case "ScrollView":
-      el=document.createElement("div");el.classList.add("android-scroll");el.style.overflowY="auto";el.style.overflowX="hidden";break;
+      el=document.createElement("div");el.classList.add("baram-scroll");el.style.overflowY="auto";el.style.overflowX="hidden";break;
     case "HorizontalScrollView":
-      el=document.createElement("div");el.classList.add("android-scroll");el.style.overflowX="auto";el.style.overflowY="hidden";break;
+      el=document.createElement("div");el.classList.add("baram-scroll");el.style.overflowX="auto";el.style.overflowY="hidden";break;
     case "TextView":
-      el=document.createElement("div");el.classList.add("android-text");el.textContent=textOf(xml);applyText(xml,el);break;
+      el=document.createElement("div");el.classList.add("baram-text");el.textContent=textOf(xml);applyText(xml,el);break;
     case "EditText":
     case "AutoCompleteTextView":
     case "MultiAutoCompleteTextView":{
       const multi=tag==="MultiAutoCompleteTextView"||a(xml,"singleLine")==="false";
       el=document.createElement(multi?"textarea":"input");
       if(el.tagName==="INPUT")el.type="text";
-      el.classList.add("android-edit");
+      el.classList.add("baram-edit");
       el.placeholder=a(xml,"hint")||"";
       if(textOf(xml))el.value=textOf(xml);
       applyText(xml,el);
       break;
     }
     case "Button":
-      el=document.createElement("button");el.type="button";el.classList.add("android-button");el.textContent=textOf(xml)||"Button";applyText(xml,el);break;
+      el=document.createElement("button");el.type="button";el.classList.add("baram-button");el.textContent=textOf(xml)||"Button";applyText(xml,el);break;
     case "ImageButton":
-      el=document.createElement("button");el.type="button";el.classList.add("android-image-button");
+      el=document.createElement("button");el.type="button";el.classList.add("baram-image-button");
       el.setAttribute("aria-label",a(xml,"contentDescription")||"ImageButton");
       el.innerHTML='<span class="camera-icon" aria-hidden="true"></span>';break;
     case "CheckBox":{
       el=document.createElement("div");
-      el.classList.add("android-checkbox");
+      el.classList.add("baram-checkbox");
       el.tabIndex=0;
       el.setAttribute("role","checkbox");
       const mark=document.createElement("span");mark.className="mark";
@@ -702,7 +616,7 @@ function createControl(xml,parentTag,parentOrientation){
       break;
     }
     case "RadioGroup":{
-      el=document.createElement("div");el.classList.add("android-linear");
+      el=document.createElement("div");el.classList.add("baram-linear");
       const orientation=a(xml,"orientation")==="horizontal"?"horizontal":"vertical";
       el.dataset.orientation=orientation;
       el.dataset.radioName="radio-"+(++radioGroupCounter);
@@ -711,7 +625,7 @@ function createControl(xml,parentTag,parentOrientation){
     }
     case "RadioButton":{
       el=document.createElement("div");
-      el.classList.add("android-radio");
+      el.classList.add("baram-radio");
       el.tabIndex=0;
       el.setAttribute("role","radio");
       const mark=document.createElement("span");mark.className="mark";
@@ -723,7 +637,7 @@ function createControl(xml,parentTag,parentOrientation){
       break;
     }
     case "ToggleButton":{
-      el=document.createElement("button");el.type="button";el.classList.add("android-toggle");
+      el=document.createElement("button");el.type="button";el.classList.add("baram-toggle");
       const on=a(xml,"textOn")||"ON",off=a(xml,"textOff")||"OFF";
       initViewState(el,{checked:truth(a(xml,"checked"))});
       const sync=()=>{
@@ -738,7 +652,7 @@ function createControl(xml,parentTag,parentOrientation){
     }
     case "Switch":{
       el=document.createElement("div");
-      el.classList.add("android-switch");
+      el.classList.add("baram-switch");
       el.tabIndex=0;
       el.setAttribute("role","switch");
       const track=document.createElement("span");track.className="track";
@@ -751,17 +665,17 @@ function createControl(xml,parentTag,parentOrientation){
       break;
     }
     case "Spinner":{
-      el=document.createElement("select");el.classList.add("android-spinner");
+      el=document.createElement("select");el.classList.add("baram-spinner");
       // Adapter contents are app-code data; use neutral demo entries when XML provides none.
       ["Item 1","Item 2","Item 3"].forEach(v=>{const o=document.createElement("option");o.textContent=v;el.append(o)});
       break;
     }
     case "SeekBar":{
-      el=document.createElement("input");el.type="range";el.classList.add("android-seek");
+      el=document.createElement("input");el.type="range";el.classList.add("baram-seek");
       el.min=a(xml,"min")||"0";el.max=a(xml,"max")||"100";el.value=a(xml,"progress")||"0";break;
     }
     case "RatingBar":{
-      el=document.createElement("div");el.classList.add("android-rating");
+      el=document.createElement("div");el.classList.add("baram-rating");
       const stars=Math.max(1,nnum(a(xml,"numStars"),5));
       const rating=nnum(a(xml,"rating"),0);
       renderStars(el,stars,rating);
@@ -775,56 +689,56 @@ function createControl(xml,parentTag,parentOrientation){
     case "ProgressBar":{
       const horizontal=(xml.getAttribute("style")||"").includes("progressBarStyleHorizontal")||a(xml,"indeterminate")==="false";
       if(horizontal){
-        el=document.createElement("progress");el.classList.add("android-progress-horizontal");
+        el=document.createElement("progress");el.classList.add("baram-progress-horizontal");
         el.max=nnum(a(xml,"max"),100);el.value=nnum(a(xml,"progress"),0);
       }else{
-        el=document.createElement("div");el.classList.add("android-progress-spinner");
+        el=document.createElement("div");el.classList.add("baram-progress-spinner");
       }
       break;
     }
     case "Chronometer":
-      el=document.createElement("div");el.classList.add("android-text");applyText(xml,el);startChronometer(el);break;
+      el=document.createElement("div");el.classList.add("baram-text");applyText(xml,el);startChronometer(el);break;
     case "ImageView":
-      el=document.createElement("div");el.classList.add("android-image-placeholder");el.textContent=a(xml,"contentDescription")||"Image";break;
+      el=document.createElement("div");el.classList.add("baram-image-placeholder");el.textContent=a(xml,"contentDescription")||"Image";break;
     case "DatePicker":
     case "CalendarView":
-      el=document.createElement("input");el.type="date";el.classList.add("android-date");break;
+      el=document.createElement("input");el.type="date";el.classList.add("baram-date");break;
     case "TimePicker":
-      el=document.createElement("input");el.type="time";el.classList.add("android-time");break;
+      el=document.createElement("input");el.type="time";el.classList.add("baram-time");break;
     case "NumberPicker":{
-      el=document.createElement("div");el.classList.add("android-number-picker");
+      el=document.createElement("div");el.classList.add("baram-number-picker");
       const minus=document.createElement("button"),inp=document.createElement("input"),plus=document.createElement("button");
       minus.textContent="−";plus.textContent="+";
       inp.type="number";inp.min=a(xml,"minValue")||"0";inp.max=a(xml,"maxValue")||"100";inp.value=a(xml,"value")||inp.min;
       minus.onclick=()=>inp.stepDown();plus.onclick=()=>inp.stepUp();el.append(minus,inp,plus);break;
     }
     case "ListView":
-      el=document.createElement("div");el.classList.add("android-list");fillList(el,5);break;
+      el=document.createElement("div");el.classList.add("baram-list");fillList(el,5);break;
     case "GridView":{
-      el=document.createElement("div");el.classList.add("android-grid-list");
+      el=document.createElement("div");el.classList.add("baram-grid-list");
       const cols=Math.max(1,nnum(a(xml,"numColumns"),2));el.style.gridTemplateColumns=`repeat(${cols},1fr)`;
-      for(let i=1;i<=6;i++){const c=document.createElement("div");c.className="android-grid-cell";c.textContent="Item "+i;el.append(c)}
+      for(let i=1;i<=6;i++){const c=document.createElement("div");c.className="baram-grid-cell";c.textContent="Item "+i;el.append(c)}
       break;
     }
     case "ExpandableListView":{
-      el=document.createElement("div");el.classList.add("android-expandable");
+      el=document.createElement("div");el.classList.add("baram-expandable");
       [["Group 1",1],["Child 1",0],["Child 2",0],["Group 2",1],["Child 1",0]].forEach(([t,h])=>{
-        const r=document.createElement("div");r.className="android-list-row"+(h?" android-expand-head":"");r.textContent=t;el.append(r)
+        const r=document.createElement("div");r.className="baram-list-row"+(h?" baram-expand-head":"");r.textContent=t;el.append(r)
       });break;
     }
     case "SearchView":
-      el=document.createElement("input");el.type="search";el.classList.add("android-search");el.placeholder=a(xml,"queryHint")||"Search";break;
+      el=document.createElement("input");el.type="search";el.classList.add("baram-search");el.placeholder=a(xml,"queryHint")||"Search";break;
     case "WebView":
-      el=document.createElement("div");el.classList.add("android-web");el.textContent="WebView";break;
+      el=document.createElement("div");el.classList.add("baram-web");el.textContent="WebView";break;
     case "VideoView":
-      el=document.createElement("div");el.classList.add("android-video");el.textContent="VideoView";break;
+      el=document.createElement("div");el.classList.add("baram-video");el.textContent="VideoView";break;
     case "ViewFlipper":
     case "ViewAnimator":
     case "ViewSwitcher":
     case "TextSwitcher":
-      el=document.createElement("div");el.classList.add("android-viewflipper");break;
+      el=document.createElement("div");el.classList.add("baram-viewflipper");break;
     case "Space":
-      el=document.createElement("div");el.classList.add("android-space");break;
+      el=document.createElement("div");el.classList.add("baram-space");break;
     case "View":
       el=document.createElement("div");break;
     default:
@@ -839,8 +753,8 @@ function createControl(xml,parentTag,parentOrientation){
 
 function buildTable(xml,parentTag,parentOrientation){
   const table=document.createElement("table");
-  table.classList.add("android-table","android-view");
-  table.dataset.androidTag="TableLayout";
+  table.classList.add("baram-table","baram-view");
+  table.dataset.baramTag="TableLayout";
   if(a(xml,"stretchColumns")==="*")table.classList.add("stretch-all");
   applyCommon(xml,table,parentTag,parentOrientation);
 
@@ -876,7 +790,7 @@ function build(xml,parentTag="",parentOrientation=""){
   }
 
   if(tag==="RadioGroup"){
-    const radios=Array.from(el.children).filter(x=>x.classList?.contains("android-radio"));
+    const radios=Array.from(el.children).filter(x=>x.classList?.contains("baram-radio"));
     let selected=radios.find(x=>getViewState(x).checked);
     if(selected){
       radios.forEach(x=>setChecked(x,x===selected));
@@ -898,7 +812,7 @@ function renderStars(el,count,rating){
   }
 }
 function fillList(el,n){
-  for(let i=1;i<=n;i++){const r=document.createElement("div");r.className="android-list-row";r.textContent="Item "+i;el.append(r)}
+  for(let i=1;i<=n;i++){const r=document.createElement("div");r.className="baram-list-row";r.textContent="Item "+i;el.append(r)}
 }
 function startChronometer(el){
   const base=performance.now();
@@ -939,7 +853,7 @@ function layoutFrame(xml,el){
 function layoutRelative(xml,el){
   const xmlKids=Array.from(xml.children),htmlKids=Array.from(el.children);
   const ids={};
-  htmlKids.forEach(h=>{if(h.dataset.androidId)ids[h.dataset.androidId]=h});
+  htmlKids.forEach(h=>{if(h.dataset.baramId)ids[h.dataset.baramId]=h});
   const pr=el.getBoundingClientRect();
 
   xmlKids.forEach((cx,i)=>{
@@ -987,12 +901,12 @@ function render(xmlText){
   try{
     const ui=build(doc.documentElement);
     app.append(ui);
-    // Root Android match_parent must behave like an app window.
+    // Root Baram match_parent must behave like an app window.
     if(a(doc.documentElement,"layout_width")==="match_parent")ui.style.width="100%";
     if(a(doc.documentElement,"layout_height")==="match_parent")ui.style.height="100%";
     requestAnimationFrame(()=>{
-      document.querySelectorAll(".android-relative").forEach(x=>{
-        const id=x.dataset.androidId;
+      document.querySelectorAll(".baram-relative").forEach(x=>{
+        const id=x.dataset.baramId;
       });
     });
   }catch(e){

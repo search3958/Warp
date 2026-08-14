@@ -5,19 +5,19 @@
     baram:layout_width="fill_parent"
     baram:layout_height="fill_parent"
     baram:orientation="vertical"
-    baram:background="#F5F5F5">
+    baram:background="#E8E8E8">
 
 
     <!-- =========================================================
-         API 16 / HOLO STYLE ACTION BAR
+         TITLE BAR
          ========================================================= -->
 
     <RelativeLayout
         baram:layout_width="fill_parent"
         baram:layout_height="48dip"
-        baram:background="#212121"
-        baram:paddingLeft="16dip"
-        baram:paddingRight="8dip">
+        baram:background="#242424"
+        baram:paddingLeft="10dip"
+        baram:paddingRight="6dip">
 
         <TextView
             baram:id="@+id/title"
@@ -27,48 +27,42 @@
             baram:gravity="center_vertical"
             baram:text="System Control Lab"
             baram:textColor="#FFFFFF"
-            baram:textSize="18sp" />
+            baram:textSize="18sp"
+            baram:textStyle="bold" />
 
         <Button
-            baram:layout_width="72dip"
-            baram:layout_height="40dip"
+            baram:layout_width="70dip"
+            baram:layout_height="38dip"
             baram:layout_alignParentRight="true"
             baram:layout_centerVertical="true"
-            baram:text="Menu"
-            baram:textSize="11sp" />
+            baram:text="MENU"
+            baram:textSize="10sp" />
 
     </RelativeLayout>
 
 
-    <!-- HOLO BLUE ACCENT -->
-
-    <View
-        baram:layout_width="fill_parent"
-        baram:layout_height="2dip"
-        baram:background="#33B5E5" />
-
-
     <!-- =========================================================
-         DEVICE OVERVIEW
+         STATUS HEADER
          ========================================================= -->
 
     <LinearLayout
         baram:layout_width="fill_parent"
-        baram:layout_height="72dip"
+        baram:layout_height="58dip"
         baram:orientation="horizontal"
         baram:gravity="center_vertical"
-        baram:paddingLeft="16dip"
-        baram:paddingRight="16dip"
-        baram:background="#FFFFFF">
+        baram:paddingLeft="10dip"
+        baram:paddingRight="10dip"
+        baram:background="#89A82C">
 
         <TextView
-            baram:layout_width="48dip"
-            baram:layout_height="48dip"
+            baram:layout_width="45dip"
+            baram:layout_height="45dip"
             baram:gravity="center"
             baram:text="A"
-            baram:textSize="22sp"
+            baram:textSize="24sp"
+            baram:textStyle="bold"
             baram:textColor="#FFFFFF"
-            baram:background="#33B5E5" />
+            baram:background="#607A16" />
 
         <LinearLayout
             baram:layout_width="0dip"
@@ -76,22 +70,22 @@
             baram:layout_weight="1"
             baram:orientation="vertical"
             baram:gravity="center_vertical"
-            baram:paddingLeft="14dip">
+            baram:paddingLeft="10dip">
 
             <TextView
                 baram:layout_width="fill_parent"
                 baram:layout_height="wrap_content"
-                baram:text="baram Device"
-                baram:textColor="#222222"
-                baram:textSize="17sp" />
+                baram:text="baram DEVICE"
+                baram:textColor="#FFFFFF"
+                baram:textStyle="bold"
+                baram:textSize="15sp" />
 
             <TextView
                 baram:layout_width="fill_parent"
                 baram:layout_height="wrap_content"
-                baram:layout_marginTop="2dip"
                 baram:text="System ready"
-                baram:textColor="#777777"
-                baram:textSize="13sp" />
+                baram:textColor="#E8F6C4"
+                baram:textSize="11sp" />
 
         </LinearLayout>
 
@@ -103,14 +97,8 @@
     </LinearLayout>
 
 
-    <View
-        baram:layout_width="fill_parent"
-        baram:layout_height="1dip"
-        baram:background="#DADADA" />
-
-
     <!-- =========================================================
-         MAIN SCROLL
+         SCROLL AREA
          ========================================================= -->
 
     <ScrollView
@@ -131,14 +119,14 @@
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="40dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="7dip"
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
                 baram:text="DEVICE INFORMATION"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
 
             <TableLayout
@@ -146,66 +134,62 @@
                 baram:layout_height="wrap_content"
                 baram:stretchColumns="1"
                 baram:background="#FFFFFF"
-                baram:paddingLeft="12dip"
-                baram:paddingRight="12dip">
+                baram:padding="6dip">
 
                 <TableRow
                     baram:layout_width="fill_parent"
-                    baram:layout_height="48dip">
+                    baram:layout_height="wrap_content">
 
                     <TextView
-                        baram:paddingLeft="4dip"
-                        baram:paddingRight="12dip"
-                        baram:gravity="center_vertical"
+                        baram:padding="5dip"
                         baram:text="Model"
-                        baram:textColor="#777777"
-                        baram:textSize="13sp" />
+                        baram:textColor="#555555"
+                        baram:textSize="12sp" />
 
                     <TextView
-                        baram:gravity="center_vertical"
+                        baram:padding="5dip"
                         baram:text="baram Dev Phone"
-                        baram:textColor="#222222"
-                        baram:textSize="14sp" />
+                        baram:textColor="#111111"
+                        baram:textSize="12sp"
+                        baram:textStyle="bold" />
 
                 </TableRow>
 
                 <TableRow
                     baram:layout_width="fill_parent"
-                    baram:layout_height="48dip">
+                    baram:layout_height="wrap_content">
 
                     <TextView
-                        baram:paddingLeft="4dip"
-                        baram:paddingRight="12dip"
-                        baram:gravity="center_vertical"
+                        baram:padding="5dip"
                         baram:text="baram"
-                        baram:textColor="#777777"
-                        baram:textSize="13sp" />
+                        baram:textColor="#555555"
+                        baram:textSize="12sp" />
 
                     <TextView
-                        baram:gravity="center_vertical"
+                        baram:padding="5dip"
                         baram:text="1.0"
-                        baram:textColor="#222222"
-                        baram:textSize="14sp" />
+                        baram:textColor="#111111"
+                        baram:textSize="12sp"
+                        baram:textStyle="bold" />
 
                 </TableRow>
 
                 <TableRow
                     baram:layout_width="fill_parent"
-                    baram:layout_height="48dip">
+                    baram:layout_height="wrap_content">
 
                     <TextView
-                        baram:paddingLeft="4dip"
-                        baram:paddingRight="12dip"
-                        baram:gravity="center_vertical"
+                        baram:padding="5dip"
                         baram:text="API"
-                        baram:textColor="#777777"
-                        baram:textSize="13sp" />
+                        baram:textColor="#555555"
+                        baram:textSize="12sp" />
 
                     <TextView
-                        baram:gravity="center_vertical"
+                        baram:padding="5dip"
                         baram:text="1"
-                        baram:textColor="#222222"
-                        baram:textSize="14sp" />
+                        baram:textColor="#111111"
+                        baram:textSize="12sp"
+                        baram:textStyle="bold" />
 
                 </TableRow>
 
@@ -213,86 +197,79 @@
 
 
             <!-- =================================================
-                 CONNECTIVITY
+                 POWER
                  ================================================= -->
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="48dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="8dip"
-                baram:text="WIRELESS &amp; NETWORKS"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
+                baram:text="POWER &amp; CONNECTIVITY"
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
 
             <LinearLayout
                 baram:layout_width="fill_parent"
                 baram:layout_height="wrap_content"
                 baram:orientation="vertical"
-                baram:paddingLeft="16dip"
-                baram:paddingRight="16dip"
-                baram:paddingTop="6dip"
-                baram:paddingBottom="10dip"
+                baram:padding="8dip"
                 baram:background="#FFFFFF">
 
                 <CheckBox
                     baram:layout_width="fill_parent"
-                    baram:layout_height="48dip"
-                    baram:gravity="center_vertical"
-                    baram:text="Wi-Fi"
+                    baram:layout_height="wrap_content"
+                    baram:text="Enable Wi-Fi"
                     baram:textColor="#222222"
-                    baram:textSize="15sp"
+                    baram:textSize="14sp"
                     baram:checked="true" />
 
                 <CheckBox
                     baram:layout_width="fill_parent"
-                    baram:layout_height="48dip"
-                    baram:gravity="center_vertical"
-                    baram:text="Bluetooth"
+                    baram:layout_height="wrap_content"
+                    baram:text="Enable Bluetooth"
                     baram:textColor="#222222"
-                    baram:textSize="15sp" />
+                    baram:textSize="14sp" />
 
                 <CheckBox
                     baram:layout_width="fill_parent"
-                    baram:layout_height="48dip"
-                    baram:gravity="center_vertical"
-                    baram:text="Background data"
+                    baram:layout_height="wrap_content"
+                    baram:text="Allow background data"
                     baram:textColor="#222222"
-                    baram:textSize="15sp"
+                    baram:textSize="14sp"
                     baram:checked="true" />
 
 
                 <TextView
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
-                    baram:layout_marginTop="12dip"
-                    baram:text="Preferred network"
-                    baram:textColor="#777777"
-                    baram:textSize="12sp" />
+                    baram:paddingTop="9dip"
+                    baram:text="Mobile network"
+                    baram:textColor="#666666"
+                    baram:textSize="11sp" />
 
                 <Spinner
                     baram:layout_width="fill_parent"
-                    baram:layout_height="48dip"
+                    baram:layout_height="wrap_content"
                     baram:entries="@array/network_modes" />
 
 
                 <TextView
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
-                    baram:layout_marginTop="14dip"
-                    baram:text="Mobile radio"
-                    baram:textColor="#777777"
-                    baram:textSize="12sp" />
+                    baram:paddingTop="10dip"
+                    baram:text="Radio power"
+                    baram:textColor="#666666"
+                    baram:textSize="11sp" />
 
                 <ToggleButton
-                    baram:layout_width="140dip"
-                    baram:layout_height="48dip"
-                    baram:layout_marginTop="4dip"
-                    baram:textOn="ON"
-                    baram:textOff="OFF"
+                    baram:layout_width="130dip"
+                    baram:layout_height="wrap_content"
+                    baram:textOn="RADIO ON"
+                    baram:textOff="RADIO OFF"
                     baram:checked="true" />
 
             </LinearLayout>
@@ -304,34 +281,34 @@
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="48dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="8dip"
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
                 baram:text="DISPLAY"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
 
             <LinearLayout
                 baram:layout_width="fill_parent"
                 baram:layout_height="wrap_content"
                 baram:orientation="vertical"
-                baram:padding="16dip"
+                baram:padding="9dip"
                 baram:background="#FFFFFF">
 
                 <TextView
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
                     baram:text="Brightness"
-                    baram:textColor="#222222"
-                    baram:textSize="15sp" />
+                    baram:textColor="#333333"
+                    baram:textSize="13sp"
+                    baram:textStyle="bold" />
 
                 <SeekBar
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
-                    baram:layout_marginTop="6dip"
                     baram:max="100"
                     baram:progress="65" />
 
@@ -339,15 +316,15 @@
                 <TextView
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
-                    baram:layout_marginTop="18dip"
+                    baram:paddingTop="8dip"
                     baram:text="Interface scale"
-                    baram:textColor="#222222"
-                    baram:textSize="15sp" />
+                    baram:textColor="#333333"
+                    baram:textSize="13sp"
+                    baram:textStyle="bold" />
 
                 <Spinner
                     baram:layout_width="fill_parent"
-                    baram:layout_height="48dip"
-                    baram:layout_marginTop="4dip"
+                    baram:layout_height="wrap_content"
                     baram:entries="@array/screen_modes" />
 
             </LinearLayout>
@@ -359,226 +336,203 @@
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="48dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="8dip"
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
                 baram:text="SOUND"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
 
             <LinearLayout
                 baram:layout_width="fill_parent"
                 baram:layout_height="wrap_content"
                 baram:orientation="vertical"
-                baram:padding="16dip"
+                baram:padding="9dip"
                 baram:background="#FFFFFF">
 
                 <TextView
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
                     baram:text="Media volume"
-                    baram:textSize="15sp"
+                    baram:textSize="13sp"
                     baram:textColor="#222222" />
 
                 <SeekBar
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
-                    baram:layout_marginTop="5dip"
                     baram:max="100"
                     baram:progress="80" />
-
 
                 <TextView
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
-                    baram:layout_marginTop="15dip"
                     baram:text="Ringer volume"
-                    baram:textSize="15sp"
+                    baram:textSize="13sp"
                     baram:textColor="#222222" />
 
                 <SeekBar
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
-                    baram:layout_marginTop="5dip"
                     baram:max="100"
                     baram:progress="55" />
 
                 <CheckBox
                     baram:layout_width="fill_parent"
-                    baram:layout_height="48dip"
-                    baram:layout_marginTop="8dip"
-                    baram:gravity="center_vertical"
-                    baram:text="Vibrate when ringing"
-                    baram:textColor="#222222"
+                    baram:layout_height="wrap_content"
+                    baram:text="Vibrate on incoming call"
                     baram:checked="true" />
 
             </LinearLayout>
 
 
             <!-- =================================================
-                 INPUT
+                 INPUT TEST
                  ================================================= -->
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="48dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="8dip"
-                baram:text="INPUT"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
+                baram:text="INPUT TEST"
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
 
             <LinearLayout
                 baram:layout_width="fill_parent"
                 baram:layout_height="wrap_content"
                 baram:orientation="vertical"
-                baram:padding="16dip"
+                baram:padding="9dip"
                 baram:background="#FFFFFF">
 
                 <TextView
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
                     baram:text="Device name"
-                    baram:textColor="#777777"
-                    baram:textSize="12sp" />
+                    baram:textColor="#555555"
+                    baram:textSize="11sp" />
 
                 <EditText
                     baram:layout_width="fill_parent"
-                    baram:layout_height="48dip"
+                    baram:layout_height="wrap_content"
                     baram:text="My baram"
-                    baram:textColor="#222222"
                     baram:singleLine="true" />
 
 
                 <TextView
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
-                    baram:layout_marginTop="16dip"
+                    baram:paddingTop="7dip"
                     baram:text="Test message"
-                    baram:textColor="#777777"
-                    baram:textSize="12sp" />
+                    baram:textColor="#555555"
+                    baram:textSize="11sp" />
 
                 <EditText
                     baram:layout_width="fill_parent"
-                    baram:layout_height="90dip"
+                    baram:layout_height="80dip"
                     baram:gravity="top|left"
-                    baram:paddingTop="10dip"
                     baram:text="Type something here..."
-                    baram:textColor="#222222"
                     baram:singleLine="false" />
 
 
                 <TextView
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
-                    baram:layout_marginTop="16dip"
+                    baram:paddingTop="8dip"
                     baram:text="Auto complete test"
-                    baram:textColor="#777777"
-                    baram:textSize="12sp" />
+                    baram:textColor="#555555"
+                    baram:textSize="11sp" />
 
                 <AutoCompleteTextView
                     baram:layout_width="fill_parent"
-                    baram:layout_height="48dip"
+                    baram:layout_height="wrap_content"
                     baram:hint="Enter text" />
 
             </LinearLayout>
 
 
             <!-- =================================================
-                 PERFORMANCE
+                 RADIO BUTTONS
                  ================================================= -->
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="48dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="8dip"
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
                 baram:text="PERFORMANCE MODE"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
 
             <RadioGroup
                 baram:layout_width="fill_parent"
                 baram:layout_height="wrap_content"
                 baram:orientation="vertical"
-                baram:paddingLeft="16dip"
-                baram:paddingRight="16dip"
-                baram:paddingTop="6dip"
-                baram:paddingBottom="6dip"
+                baram:padding="8dip"
                 baram:background="#FFFFFF">
 
                 <RadioButton
                     baram:layout_width="fill_parent"
-                    baram:layout_height="48dip"
-                    baram:gravity="center_vertical"
-                    baram:text="Power saver"
-                    baram:textColor="#222222"
-                    baram:textSize="15sp" />
+                    baram:layout_height="wrap_content"
+                    baram:text="Power saver" />
 
                 <RadioButton
                     baram:layout_width="fill_parent"
-                    baram:layout_height="48dip"
-                    baram:gravity="center_vertical"
+                    baram:layout_height="wrap_content"
                     baram:text="Balanced"
-                    baram:textColor="#222222"
-                    baram:textSize="15sp"
                     baram:checked="true" />
 
                 <RadioButton
                     baram:layout_width="fill_parent"
-                    baram:layout_height="48dip"
-                    baram:gravity="center_vertical"
-                    baram:text="Maximum performance"
-                    baram:textColor="#222222"
-                    baram:textSize="15sp" />
+                    baram:layout_height="wrap_content"
+                    baram:text="Maximum performance" />
 
             </RadioGroup>
 
 
             <!-- =================================================
-                 HEALTH
+                 SYSTEM HEALTH
                  ================================================= -->
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="48dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="8dip"
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
                 baram:text="SYSTEM HEALTH"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
 
             <LinearLayout
                 baram:layout_width="fill_parent"
                 baram:layout_height="wrap_content"
                 baram:orientation="vertical"
-                baram:padding="16dip"
+                baram:padding="9dip"
                 baram:background="#FFFFFF">
 
                 <TextView
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
                     baram:text="Battery"
-                    baram:textSize="14sp"
-                    baram:textColor="#222222" />
+                    baram:textSize="12sp"
+                    baram:textColor="#444444" />
 
                 <ProgressBar
                     style="?baram:attr/progressBarStyleHorizontal"
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
-                    baram:layout_marginTop="8dip"
                     baram:max="100"
                     baram:progress="74" />
 
@@ -586,16 +540,15 @@
                 <TextView
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
-                    baram:layout_marginTop="18dip"
+                    baram:paddingTop="9dip"
                     baram:text="Storage"
-                    baram:textSize="14sp"
-                    baram:textColor="#222222" />
+                    baram:textSize="12sp"
+                    baram:textColor="#444444" />
 
                 <ProgressBar
                     style="?baram:attr/progressBarStyleHorizontal"
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
-                    baram:layout_marginTop="8dip"
                     baram:max="100"
                     baram:progress="41" />
 
@@ -603,15 +556,14 @@
                 <TextView
                     baram:layout_width="fill_parent"
                     baram:layout_height="wrap_content"
-                    baram:layout_marginTop="18dip"
-                    baram:text="Device rating"
-                    baram:textColor="#222222"
-                    baram:textSize="14sp" />
+                    baram:paddingTop="10dip"
+                    baram:text="User rating of this device"
+                    baram:textColor="#444444"
+                    baram:textSize="12sp" />
 
                 <RatingBar
                     baram:layout_width="wrap_content"
                     baram:layout_height="wrap_content"
-                    baram:layout_marginTop="5dip"
                     baram:numStars="5"
                     baram:rating="4"
                     baram:stepSize="1" />
@@ -625,42 +577,39 @@
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="48dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="8dip"
-                baram:text="FRAME LAYOUT"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
+                baram:text="FRAME LAYOUT TEST"
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
 
             <FrameLayout
                 baram:layout_width="fill_parent"
-                baram:layout_height="120dip"
-                baram:layout_marginLeft="16dip"
-                baram:layout_marginRight="16dip"
-                baram:background="#E5E5E5">
+                baram:layout_height="100dip"
+                baram:background="#DDDDDD">
 
                 <TextView
                     baram:layout_width="fill_parent"
                     baram:layout_height="fill_parent"
                     baram:gravity="center"
                     baram:text="FRAME"
-                    baram:textSize="36sp"
+                    baram:textSize="34sp"
+                    baram:textStyle="bold"
                     baram:textColor="#CCCCCC" />
 
                 <TextView
                     baram:layout_width="wrap_content"
                     baram:layout_height="wrap_content"
                     baram:layout_gravity="center"
-                    baram:paddingLeft="16dip"
-                    baram:paddingRight="16dip"
-                    baram:paddingTop="10dip"
-                    baram:paddingBottom="10dip"
+                    baram:padding="8dip"
                     baram:text="Overlay content"
                     baram:textColor="#FFFFFF"
-                    baram:background="#33B5E5" />
+                    baram:textStyle="bold"
+                    baram:background="#555555" />
 
             </FrameLayout>
 
@@ -671,48 +620,47 @@
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="48dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="8dip"
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
                 baram:text="CLOCK &amp; TIMER"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
 
             <LinearLayout
                 baram:layout_width="fill_parent"
-                baram:layout_height="130dip"
+                baram:layout_height="wrap_content"
                 baram:orientation="horizontal"
                 baram:gravity="center"
-                baram:padding="12dip"
+                baram:padding="10dip"
                 baram:background="#FFFFFF">
 
                 <AnalogClock
-                    baram:layout_width="105dip"
-                    baram:layout_height="105dip" />
+                    baram:layout_width="100dip"
+                    baram:layout_height="100dip" />
 
                 <LinearLayout
                     baram:layout_width="0dip"
-                    baram:layout_height="fill_parent"
+                    baram:layout_height="100dip"
                     baram:layout_weight="1"
                     baram:orientation="vertical"
-                    baram:gravity="center"
-                    baram:paddingLeft="16dip">
+                    baram:gravity="center">
 
                     <TextView
                         baram:layout_width="wrap_content"
                         baram:layout_height="wrap_content"
                         baram:text="UPTIME"
-                        baram:textColor="#33B5E5"
-                        baram:textSize="11sp" />
+                        baram:textColor="#777777"
+                        baram:textSize="10sp" />
 
                     <Chronometer
                         baram:layout_width="wrap_content"
                         baram:layout_height="wrap_content"
-                        baram:layout_marginTop="5dip"
-                        baram:textSize="24sp"
+                        baram:textSize="22sp"
+                        baram:textStyle="bold"
                         baram:textColor="#222222" />
 
                 </LinearLayout>
@@ -721,19 +669,19 @@
 
 
             <!-- =================================================
-                 DATE PICKER
+                 DATE
                  ================================================= -->
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="48dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="8dip"
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
                 baram:text="DATE"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
             <DatePicker
                 baram:layout_width="fill_parent"
@@ -742,19 +690,19 @@
 
 
             <!-- =================================================
-                 TIME PICKER
+                 TIME
                  ================================================= -->
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="48dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="8dip"
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
                 baram:text="TIME"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
             <TimePicker
                 baram:layout_width="fill_parent"
@@ -768,21 +716,19 @@
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="48dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="8dip"
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
                 baram:text="VIEW FLIPPER"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
 
             <ViewFlipper
                 baram:layout_width="fill_parent"
-                baram:layout_height="100dip"
-                baram:layout_marginLeft="16dip"
-                baram:layout_marginRight="16dip"
+                baram:layout_height="80dip"
                 baram:background="#FFFFFF">
 
                 <TextView
@@ -791,7 +737,8 @@
                     baram:gravity="center"
                     baram:text="PAGE 1"
                     baram:textSize="22sp"
-                    baram:textColor="#222222" />
+                    baram:textStyle="bold"
+                    baram:textColor="#555555" />
 
                 <TextView
                     baram:layout_width="fill_parent"
@@ -799,7 +746,8 @@
                     baram:gravity="center"
                     baram:text="PAGE 2"
                     baram:textSize="22sp"
-                    baram:textColor="#222222" />
+                    baram:textStyle="bold"
+                    baram:textColor="#555555" />
 
             </ViewFlipper>
 
@@ -810,19 +758,19 @@
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="48dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="8dip"
-                baram:text="HORIZONTAL TOOLS"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
+                baram:text="HORIZONTAL SCROLL"
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
 
             <HorizontalScrollView
                 baram:layout_width="fill_parent"
-                baram:layout_height="72dip"
+                baram:layout_height="70dip"
                 baram:background="#FFFFFF">
 
                 <LinearLayout
@@ -830,38 +778,38 @@
                     baram:layout_height="fill_parent"
                     baram:orientation="horizontal"
                     baram:gravity="center_vertical"
-                    baram:paddingLeft="12dip"
-                    baram:paddingRight="12dip">
+                    baram:paddingLeft="5dip"
+                    baram:paddingRight="5dip">
 
                     <Button
                         baram:layout_width="100dip"
-                        baram:layout_height="48dip"
+                        baram:layout_height="50dip"
                         baram:text="CPU" />
 
                     <Button
-                        baram:layout_width="110dip"
-                        baram:layout_height="48dip"
-                        baram:text="Memory" />
+                        baram:layout_width="100dip"
+                        baram:layout_height="50dip"
+                        baram:text="MEMORY" />
 
                     <Button
                         baram:layout_width="100dip"
-                        baram:layout_height="48dip"
-                        baram:text="Radio" />
-
-                    <Button
-                        baram:layout_width="110dip"
-                        baram:layout_height="48dip"
-                        baram:text="Display" />
+                        baram:layout_height="50dip"
+                        baram:text="RADIO" />
 
                     <Button
                         baram:layout_width="100dip"
-                        baram:layout_height="48dip"
-                        baram:text="Input" />
+                        baram:layout_height="50dip"
+                        baram:text="DISPLAY" />
 
                     <Button
                         baram:layout_width="100dip"
-                        baram:layout_height="48dip"
-                        baram:text="Sensor" />
+                        baram:layout_height="50dip"
+                        baram:text="INPUT" />
+
+                    <Button
+                        baram:layout_width="100dip"
+                        baram:layout_height="50dip"
+                        baram:text="SENSOR" />
 
                 </LinearLayout>
 
@@ -870,111 +818,107 @@
 
             <!-- =================================================
                  ABSOLUTE LAYOUT
-                 Still API 1 component
+
+                 API 1 に存在。
+                 後にdeprecatedになった古参Layout。
                  ================================================= -->
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="48dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="8dip"
-                baram:text="ABSOLUTE LAYOUT"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
+                baram:text="ABSOLUTE LAYOUT TEST"
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
 
             <AbsoluteLayout
                 baram:layout_width="fill_parent"
-                baram:layout_height="140dip"
-                baram:layout_marginLeft="16dip"
-                baram:layout_marginRight="16dip"
-                baram:background="#EEEEEE">
+                baram:layout_height="125dip"
+                baram:background="#DDDDDD">
 
                 <Button
                     baram:layout_width="90dip"
-                    baram:layout_height="48dip"
+                    baram:layout_height="45dip"
                     baram:layout_x="10dip"
                     baram:layout_y="10dip"
                     baram:text="10,10" />
 
                 <Button
-                    baram:layout_width="95dip"
-                    baram:layout_height="48dip"
+                    baram:layout_width="90dip"
+                    baram:layout_height="45dip"
                     baram:layout_x="115dip"
-                    baram:layout_y="68dip"
-                    baram:text="115,68" />
+                    baram:layout_y="55dip"
+                    baram:text="115,55" />
 
                 <TextView
-                    baram:layout_width="90dip"
-                    baram:layout_height="36dip"
-                    baram:layout_x="220dip"
+                    baram:layout_width="100dip"
+                    baram:layout_height="30dip"
+                    baram:layout_x="215dip"
                     baram:layout_y="15dip"
                     baram:gravity="center"
                     baram:text="X / Y"
                     baram:textColor="#FFFFFF"
-                    baram:background="#33B5E5" />
+                    baram:background="#666666" />
 
             </AbsoluteLayout>
 
 
             <!-- =================================================
-                 BUTTON TEST
+                 BUTTON LAB
                  ================================================= -->
 
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="48dip"
-                baram:gravity="bottom"
-                baram:paddingLeft="16dip"
-                baram:paddingBottom="8dip"
-                baram:text="ACTIONS"
-                baram:textColor="#33B5E5"
-                baram:textSize="12sp"
-                baram:background="#F5F5F5" />
+                baram:layout_height="30dip"
+                baram:gravity="center_vertical"
+                baram:paddingLeft="9dip"
+                baram:text="BUTTON TEST"
+                baram:textColor="#FFFFFF"
+                baram:textSize="11sp"
+                baram:textStyle="bold"
+                baram:background="#666666" />
 
 
             <LinearLayout
                 baram:layout_width="fill_parent"
-                baram:layout_height="64dip"
+                baram:layout_height="wrap_content"
                 baram:orientation="horizontal"
-                baram:gravity="center_vertical"
-                baram:paddingLeft="12dip"
-                baram:paddingRight="12dip"
+                baram:padding="8dip"
                 baram:background="#FFFFFF">
 
                 <Button
                     baram:layout_width="0dip"
-                    baram:layout_height="48dip"
+                    baram:layout_height="wrap_content"
                     baram:layout_weight="1"
-                    baram:text="Test" />
+                    baram:text="TEST" />
 
                 <Button
                     baram:layout_width="0dip"
-                    baram:layout_height="48dip"
+                    baram:layout_height="wrap_content"
                     baram:layout_weight="1"
-                    baram:text="Reset" />
+                    baram:text="RESET" />
 
                 <Button
                     baram:layout_width="0dip"
-                    baram:layout_height="48dip"
+                    baram:layout_height="wrap_content"
                     baram:layout_weight="1"
-                    baram:text="About" />
+                    baram:text="ABOUT" />
 
             </LinearLayout>
 
 
-            <!-- footer -->
-
             <TextView
                 baram:layout_width="fill_parent"
-                baram:layout_height="64dip"
+                baram:layout_height="40dip"
                 baram:gravity="center"
-                baram:text="System Control Lab"
-                baram:textColor="#999999"
-                baram:textSize="11sp"
-                baram:background="#F5F5F5" />
+                baram:text="baram System Control Lab 1.0"
+                baram:textColor="#888888"
+                baram:textSize="10sp"
+                baram:background="#E8E8E8" />
 
         </LinearLayout>
 
@@ -982,41 +926,35 @@
 
 
     <!-- =========================================================
-         BOTTOM ACTION BAR
+         BOTTOM BAR
          ========================================================= -->
-
-    <View
-        baram:layout_width="fill_parent"
-        baram:layout_height="1dip"
-        baram:background="#CCCCCC" />
-
 
     <LinearLayout
         baram:layout_width="fill_parent"
-        baram:layout_height="56dip"
+        baram:layout_height="50dip"
         baram:orientation="horizontal"
-        baram:gravity="center"
-        baram:paddingLeft="8dip"
-        baram:paddingRight="8dip"
-        baram:background="#FAFAFA">
+        baram:background="#303030">
 
         <Button
             baram:layout_width="0dip"
-            baram:layout_height="48dip"
+            baram:layout_height="fill_parent"
             baram:layout_weight="1"
-            baram:text="Apply" />
+            baram:text="Apply"
+            baram:textSize="11sp" />
 
         <Button
             baram:layout_width="0dip"
-            baram:layout_height="48dip"
+            baram:layout_height="fill_parent"
             baram:layout_weight="1"
-            baram:text="Defaults" />
+            baram:text="Defaults"
+            baram:textSize="11sp" />
 
         <Button
             baram:layout_width="0dip"
-            baram:layout_height="48dip"
+            baram:layout_height="fill_parent"
             baram:layout_weight="1"
-            baram:text="Close" />
+            baram:text="Close"
+            baram:textSize="11sp" />
 
     </LinearLayout>
 
