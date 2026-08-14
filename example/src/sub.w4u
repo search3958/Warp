@@ -83,6 +83,6 @@
         style="@style/ComponentBox"
         baram:layout_width="match_parent"
         baram:layout_height="wrap_content"
-        baram:text="<- Back to Main Screen"/>
+        baram:text="&lt;- Back to Main Screen"/>
 
 </LinearLayout>

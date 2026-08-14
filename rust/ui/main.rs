@@ -56,7 +56,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn render_node(node: Node<'_, '_>, parent_tag: &str, parent_orientation: &str) -> Result<String, Box<dyn Error>> {
+pub fn render_node(node: Node<'_, '_>, parent_tag: &str, parent_orientation: &str) -> Result<String, Box<dyn Error>> {
     let tag = node.tag_name().name();
 
     if tag == "TableLayout" {
@@ -829,7 +829,7 @@ fn build_document(body: &str) -> String {
     )
 }
 
-const CSS: &str = r#"
+pub const CSS: &str = r#"
 *{box-sizing:border-box}
 html,body,#app{width:100%;height:100%;margin:0;padding:0}
 html,body{overflow:hidden}
@@ -887,7 +887,7 @@ textarea.baram-edit{min-height:58px;resize:vertical;border:1px solid #aaa;border
 .baram-scroll::-webkit-scrollbar{width:6px;height:6px}.baram-scroll::-webkit-scrollbar-track{background:transparent}.baram-scroll::-webkit-scrollbar-thumb{background:#999}
 "#;
 
-const RUNTIME_JS: &str = r#"
+pub const RUNTIME_JS: &str = r#"
 "use strict";
 const q=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const truth=v=>String(v).toLowerCase()==="true";
