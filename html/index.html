@@ -4,18 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>App</title>
-<style>:root{
+<style>
+:root{
+  --holo-blue:#33b5e5;
+  --holo-blue-dark:#0099cc;
+  --holo-bg:#f5f5f5;
+  --holo-surface:#ffffff;
+  --holo-text:#222222;
+  --holo-secondary:#666666;
+  --holo-divider:#cccccc;
+  --holo-control:#e6e6e6;
+  --holo-control-top:#fafafa;
+  --holo-control-bottom:#d7d7d7;
 }
 *{box-sizing:border-box}
 html,body,#app{width:100%;height:100%;margin:0;padding:0}
-html,body{overflow:hidden}
+html,body{overflow:hidden;background:linear-gradient(#f2f2f2 0%,#ffffff 22%,#f7f7f7 100%)}
 body{
   font-family:Roboto,"Helvetica Neue",Arial,sans-serif;
+  color:var(--holo-text);
   font-size:14px;
   -webkit-font-smoothing:antialiased;
   text-rendering:optimizeLegibility;
 }
-#app{overflow:hidden}
+#app{overflow:hidden;background:linear-gradient(#f1f1f1 0%,#ffffff 18%,#fafafa 100%)}
 .baram-view{box-sizing:border-box;min-width:0;min-height:0;gap:8px}
 .baram-linear{display:flex;min-width:0;min-height:0}
 .baram-scroll{
@@ -55,11 +67,13 @@ body{
   font-size:24px!important;
   line-height:30px!important;
   font-weight:700!important;
+  color:#222!important;
 }
 .style-SectionDescription{
   width:100%!important;
   margin:0 0 14px 0!important;
   padding:0!important;
+  color:#777!important;
   font-size:13px!important;
   line-height:18px!important;
 }
@@ -67,6 +81,7 @@ body{
   width:100%!important;
   margin:14px 0 6px 0!important;
   padding:0!important;
+  color:#555!important;
   font-size:15px!important;
   line-height:20px!important;
 }
@@ -90,16 +105,29 @@ body{
   min-height:48px;
   margin:0;
   padding:0 16px;
-  border:1px solid transparent;
+  border:1px solid 
+    var(--holo-control-bottom);
   border-radius:2px;
   outline:none;
+  background:
+    var(--holo-control-bottom);
+  box-shadow:
+    0 1px 1px rgba(0,0,0,.5);
+  color:#202020;
   font:400 18px/46px Roboto,"Helvetica Neue",Arial,sans-serif;
   text-align:center;
   cursor:pointer;
   user-select:none;
 }
+.baram-button:hover,.baram-image-button:hover,.baram-toggle:hover{
+  border-color:#9f9f9f;
+}
+.baram-button:active,.baram-image-button:active,.baram-toggle:active{
+  background:#bde7f7;
+  border-color:var(--holo-blue-dark);
+}
 .baram-button:focus-visible,.baram-image-button:focus-visible,.baram-toggle:focus-visible{
-  outline:2px solid transparent;
+  outline:2px solid rgba(51,181,229,.35);
   outline-offset:1px;
 }
 
@@ -112,18 +140,28 @@ body{
   margin:0;
   padding:7px 4px 5px 4px;
   border:0;
-  border-bottom:2px solid transparent;
+  border-bottom:2px solid #9e9e9e;
   border-radius:0;
   outline:none;
+  background:linear-gradient(to bottom,transparent calc(100% - 1px),rgba(255,255,255,.5) 100%);
+  color:#222;
   font:400 16px/22px Roboto,"Helvetica Neue",Arial,sans-serif;
+  box-shadow:none;
+}
+.baram-edit::placeholder{color:#888;opacity:1}
+.baram-edit:focus{
+  border-bottom-color:var(--holo-blue);
+  box-shadow:0 1px 0 var(--holo-blue);
 }
 textarea.baram-edit{
   min-height:58px;
   resize:vertical;
-  border:1px solid transparent;
-  border-bottom:2px solid transparent;
+  border:1px solid #bdbdbd;
+  border-bottom:2px solid #9e9e9e;
   padding:7px;
 }
+textarea.baram-edit:focus{border-color:#8d8d8d;border-bottom-color:var(--holo-blue)}
+
 
 /*
  * CheckBox / RadioButton / Switch are deliberately NOT backed by native
@@ -136,6 +174,7 @@ textarea.baram-edit{
   gap:10px;
   min-height:42px;
   padding:2px 0;
+  color:#222;
   cursor:pointer;
   user-select:none;
   -webkit-tap-highlight-color:transparent;
@@ -145,31 +184,46 @@ textarea.baram-edit{
   width:22px;height:22px;
   position:relative;
   flex:0 0 22px;
-  border:2px solid transparent;
+  border:2px solid #747474;
   border-radius:1px;
+  background:linear-gradient(#fafafa,#e2e2e2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
+}
+.baram-checkbox[data-checked="true"] .mark{
+  border-color:#148fbd;
+  background:linear-gradient(#5dccf0,#22a9db);
 }
 .baram-checkbox[data-checked="true"] .mark:after{
   content:"";
   position:absolute;
   left:5px;top:1px;
   width:7px;height:13px;
-  border:solid transparent;
+  border:solid #fff;
   border-width:0 3px 3px 0;
   transform:rotate(45deg);
+}
+.baram-checkbox:focus-visible .mark,
+.baram-radio:focus-visible .mark{
+  box-shadow:0 0 0 3px rgba(51,181,229,.24);
 }
 
 .baram-radio .mark{
   width:22px;height:22px;
   position:relative;
   flex:0 0 22px;
-  border:2px solid transparent;
+  border:2px solid #707070;
   border-radius:50%;
+}
+.baram-radio[data-checked="true"] .mark{
+  border-color:#148fbd;
 }
 .baram-radio[data-checked="true"] .mark:after{
   content:"";
   position:absolute;
   inset:4px;
   border-radius:50%;
+  background:#33b5e5;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35);
 }
 
 .baram-switch{
@@ -187,17 +241,29 @@ textarea.baram-edit{
   width:52px;height:22px;
   position:relative;
   flex:0 0 52px;
-  border:1px solid transparent;
+  border:1px solid #8b8b8b;
+  background:#bdbdbd;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.22);
 }
 .baram-switch .thumb{
   position:absolute;
   left:-1px;top:-4px;
   width:28px;height:28px;
-  border:1px solid transparent;
-  transition:left .10s linear;
+  border:1px solid #858585;
+  background:linear-gradient(#ffffff,#d0d0d0);
+  box-shadow:0 1px 2px rgba(0,0,0,.35);
+  transition:left .10s linear,border-color .10s linear;
+}
+.baram-switch[data-checked="true"] .track{
+  border-color:#148fbd;
+  background:linear-gradient(90deg,#33b5e5 0 54%,#bdbdbd 54% 100%);
 }
 .baram-switch[data-checked="true"] .thumb{
   left:25px;
+  border-color:#148fbd;
+}
+.baram-switch:focus-visible .track{
+  box-shadow:0 0 0 3px rgba(51,181,229,.24),inset 0 1px 2px rgba(0,0,0,.22);
 }
 
 .baram-spinner{
@@ -206,11 +272,17 @@ textarea.baram-edit{
   min-height:38px;
   padding:6px 30px 5px 7px;
   border:0;
-  border-bottom:2px solid transparent;
+  border-bottom:2px solid #999;
   border-radius:0;
   outline:none;
+  color:#222;
   font:400 15px Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:
+    linear-gradient(45deg,transparent 50%,#555 50%) calc(100% - 12px) 16px/6px 6px no-repeat,
+    linear-gradient(135deg,#555 50%,transparent 50%) calc(100% - 6px) 16px/6px 6px no-repeat,
+    linear-gradient(to bottom,transparent calc(100% - 2px),#aaa calc(100% - 2px));
 }
+.baram-spinner:focus{border-bottom-color:var(--holo-blue)}
 
 .baram-seek{
   -webkit-appearance:none;
@@ -218,21 +290,22 @@ textarea.baram-edit{
   width:100%;
   height:30px;
   margin:0;
+  background:transparent;
   outline:none;
 }
 .baram-seek::-webkit-slider-runnable-track{
-  height:3px;border-radius:0;
+  height:3px;background:#a7a7a7;border-radius:0;
 }
 .baram-seek::-webkit-slider-thumb{
   -webkit-appearance:none;
   appearance:none;
   width:18px;height:18px;border-radius:50%;
-  border:1px solid transparent;
-  margin-top:-7px;
+  border:1px solid #168db8;background:var(--holo-blue);
+  margin-top:-7px;box-shadow:0 1px 2px rgba(0,0,0,.28);
 }
-.baram-seek::-moz-range-track{height:3px}
-.baram-seek::-moz-range-progress{height:3px}
-.baram-seek::-moz-range-thumb{width:18px;height:18px;border-radius:50%;border:1px solid transparent}
+.baram-seek::-moz-range-track{height:3px;background:#a7a7a7}
+.baram-seek::-moz-range-progress{height:3px;background:var(--holo-blue)}
+.baram-seek::-moz-range-thumb{width:18px;height:18px;border-radius:50%;border:1px solid #168db8;background:var(--holo-blue)}
 
 .baram-rating{
   display:inline-flex;
@@ -245,17 +318,24 @@ textarea.baram-edit{
   cursor:pointer;
   width:fit-content;
 }
+.baram-rating .star{color:#b7b7b7;text-shadow:0 1px 0 white}
+.baram-rating .star.on{color:var(--holo-blue);text-shadow:0 1px 0 #e8f8ff}
 
 .baram-progress-horizontal{
   -webkit-appearance:none;
   appearance:none;
   width:100%;height:6px;
-  border:0;
+  border:0;background:#d0d0d0;
 }
+.baram-progress-horizontal::-webkit-progress-bar{background:#d0d0d0}
+.baram-progress-horizontal::-webkit-progress-value{background:var(--holo-blue)}
+.baram-progress-horizontal::-moz-progress-bar{background:var(--holo-blue)}
 .baram-progress-spinner{
   width:28px;height:28px;
   border-radius:50%;
-  border:4px solid transparent;
+  border:4px solid #cfcfcf;
+  border-top-color:var(--holo-blue);
+  border-right-color:var(--holo-blue);
   animation:holo-spin .8s linear infinite;
 }
 @keyframes holo-spin{to{transform:rotate(360deg)}}
@@ -263,64 +343,70 @@ textarea.baram-edit{
 .baram-image-placeholder{
   display:flex;align-items:center;justify-content:center;
   min-width:56px;min-height:48px;
-  border:1px solid transparent;
-  font-size:12px;
+  border:1px solid #b9b9b9;
+  background:linear-gradient(135deg,#eeeeee,#d4d4d4);
+  color:#666;font-size:12px;
 }
 .camera-icon{
   position:relative;display:inline-block;
-  width:24px;height:17px;border:2px solid transparent;border-radius:2px;
+  width:24px;height:17px;border:2px solid #333;border-radius:2px;
 }
 .camera-icon:before{
   content:"";position:absolute;left:6px;top:-6px;
-  width:8px;height:5px;border:2px solid transparent;border-bottom:0;
+  width:8px;height:5px;border:2px solid #333;border-bottom:0;
 }
 .camera-icon:after{
   content:"";position:absolute;left:7px;top:3px;
-  width:7px;height:7px;border:2px solid transparent;border-radius:50%;
+  width:7px;height:7px;border:2px solid #333;border-radius:50%;
 }
 
 .baram-list,.baram-expandable{
   overflow:auto;
-  border-top:1px solid transparent;
-  border-bottom:1px solid transparent;
+  background:#fff;
+  border-top:1px solid #ddd;
+  border-bottom:1px solid #ddd;
 }
 .baram-list-row{
   min-height:44px;
   display:flex;align-items:center;
   padding:0 12px;
-  border-bottom:1px solid transparent;
+  border-bottom:1px solid #e5e5e5;
+  color:#222;
 }
 .baram-list-row:last-child{border-bottom:0}
-.baram-expand-head{font-weight:500}
-.baram-grid-list{display:grid;gap:1px;overflow:auto}
-.baram-grid-cell{min-height:48px;display:flex;align-items:center;justify-content:center}
+.baram-expand-head{font-weight:500;background:#f4f4f4}
+.baram-grid-list{display:grid;gap:1px;background:#ccc;overflow:auto}
+.baram-grid-cell{background:#fff;min-height:48px;display:flex;align-items:center;justify-content:center}
 
 .baram-search{
   -webkit-appearance:none;
   appearance:none;
   width:100%;min-height:38px;
   padding:7px 8px 5px 28px;
-  border:0;border-bottom:2px solid transparent;
-  outline:none;
+  border:0;border-bottom:2px solid #999;
+  outline:none;background:
+    radial-gradient(circle at 11px 15px,transparent 0 5px,#666 5px 7px,transparent 7px),
+    linear-gradient(45deg,transparent 47%,#666 48% 55%,transparent 56%) 18px 23px/9px 9px no-repeat;
   font:400 15px Roboto,"Helvetica Neue",Arial,sans-serif;
 }
+.baram-search:focus{border-bottom-color:var(--holo-blue)}
 
-.baram-number-picker{display:inline-flex;align-items:center;gap:0;border:1px solid transparent;
+.baram-number-picker{display:inline-flex;align-items:center;gap:0;border:1px solid #aaa;background:#eee;
   width:fit-content;}
 .baram-number-picker button{
-  width:34px;height:34px;border:0;font-size:18px;cursor:pointer
+  width:34px;height:34px;border:0;background:linear-gradient(#fafafa,#ddd);font-size:18px;cursor:pointer
 }
 .baram-number-picker input{
-  width:60px;height:34px;border:0;border-left:1px solid transparent;border-right:1px solid transparent;text-align:center
+  width:60px;height:34px;border:0;border-left:1px solid #aaa;border-right:1px solid #aaa;text-align:center;background:white
 }
 .baram-date,.baram-time{
-  min-height:38px;padding:5px;border:1px solid transparent;font:14px Roboto,Arial,sans-serif
+  min-height:38px;padding:5px;border:1px solid #aaa;background:#fff;color:#222;font:14px Roboto,Arial,sans-serif
 }
 .baram-web,.baram-video{
   display:flex;align-items:center;justify-content:center;
-  border:1px solid transparent;
+  border:1px solid #bbb;background:#f0f0f0;color:#666;
 }
-.baram-video:before{content:"▶";font-size:22px;margin-right:8px}
+.baram-video:before{content:"▶";font-size:22px;margin-right:8px;color:#444}
 
 .baram-viewflipper{position:relative;overflow:hidden}
 .baram-viewflipper>.baram-view{
@@ -333,13 +419,13 @@ textarea.baram-edit{
 /* Small Baram-like scrollbar */
 .baram-scroll::-webkit-scrollbar{width:6px;height:6px}
 .baram-scroll::-webkit-scrollbar-track{background:transparent}
-.baram-scroll::-webkit-scrollbar-thumb{border-radius:0}
+.baram-scroll::-webkit-scrollbar-thumb{background:#999;border-radius:0}
 
 /* Error is only shown for malformed XML; no preview/status chrome. */
 .runtime-error{
   width:100%;height:100%;
   display:flex;align-items:center;justify-content:center;
-  padding:24px;
+  padding:24px;background:#fff;color:#b00020;
   font:14px/1.5 monospace;white-space:pre-wrap;
 }
 </style>

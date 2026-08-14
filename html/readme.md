@@ -118,6 +118,9 @@ WarpUI.visibility ID (visible)
 WarpUI.visibility ID (invisible)
 WarpUI.visibility ID (gone)
 ・Androidと変わりません
+
+WarpUI.screen (ファイル名)
+・指定したスクリーンに移動します
 ### 動作
 WarpUI.OnClick ID {
     プログラム
