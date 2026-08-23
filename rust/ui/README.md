@@ -1231,6 +1231,37 @@ WarpUI.OnClick button {
 
 ---
 
+# PrimaryButton
+
+`PrimaryButton`は、画面内の主要なアクションを示すためのボタンです。
+通常の`Button`とは異なり、Warp 4のprimaryカラー（標準では`#007DFF`）による塗りつぶしと白文字で表示されます。
+
+```xml
+<PrimaryButton
+    baram:id="@+id/save"
+    baram:layout_width="wrap_content"
+    baram:layout_height="wrap_content"
+    baram:text="Save"/>
+```
+
+仕様：
+
+・`Button`と同じクリックイベント、enabled、ID、レイアウト属性を使用できます
+・通常状態はprimaryカラー、文字色は白です
+・hover時とactive時はprimaryカラーを暗くした状態になります
+・`baram:textColor`を指定した場合は明示指定を優先します
+・`PrimaryButton`は`ToggleButton`ではなく、押下によってchecked状態を保持しません
+
+クリック処理は通常の`Button`と同じです。
+
+```text
+WarpUI.OnClick save {
+    print(Saved)
+}
+```
+
+---
+
 # ImageButton
 
 ```xml

@@ -154,8 +154,12 @@ pub fn render_node(node: Node<'_, '_>, parent_tag: &str, parent_orientation: &st
                 void_tag("input", &attrs)
             }
         }
-        "Button" => {
-            common.classes.push("baram-button".into());
+        "Button" | "PrimaryButton" => {
+            common.classes.push(if tag == "PrimaryButton" {
+                "baram-primary-button".into()
+            } else {
+                "baram-button".into()
+            });
             common.attrs.push("type=\"button\"".into());
             apply_text(node, &mut common);
             wrap("button", &common, if text.is_empty() { "Button" } else { &text })
@@ -852,6 +856,8 @@ body{font-family:Roboto,"Helvetica Neue",Arial,sans-serif;font-size:14px;backgro
 .style-ComponentBox{margin-bottom:3px}
 .baram-text{display:block;white-space:pre-wrap;line-height:1.25}
 .baram-button,.baram-image-button,.baram-toggle{-webkit-appearance:none;appearance:none;position:relative;min-width:64px;min-height:48px;margin:0;padding:0 16px;border:1px solid #aaa;border-radius:2px;outline:none;background:linear-gradient(#fafafa,#e5e5e5);color:#222;font:400 18px/46px Roboto,"Helvetica Neue",Arial,sans-serif;text-align:center;cursor:pointer;user-select:none}
+.baram-primary-button{-webkit-appearance:none;appearance:none;position:relative;min-width:64px;min-height:48px;margin:0;padding:0 16px;border:1px solid #007dff;border-radius:2px;outline:none;background:#007dff;color:#fff;font:400 18px/46px Roboto,"Helvetica Neue",Arial,sans-serif;text-align:center;cursor:pointer;user-select:none}
+.baram-primary-button:hover{background:#0070e8;border-color:#0070e8}.baram-primary-button:active{background:#0060c4;border-color:#0060c4}
 .baram-button:active,.baram-image-button:active,.baram-toggle:active{background:#d6d6d6}
 .baram-edit{-webkit-appearance:none;appearance:none;display:block;min-width:80px;min-height:38px;margin:0;padding:7px 4px 5px;border:0;border-bottom:2px solid #33b5e5;border-radius:0;outline:none;background:transparent;color:#222;font:400 16px/22px Roboto,"Helvetica Neue",Arial,sans-serif}
 textarea.baram-edit{min-height:58px;resize:vertical;border:1px solid #aaa;border-bottom:2px solid #33b5e5;padding:7px}
