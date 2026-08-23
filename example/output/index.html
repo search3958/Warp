@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Warp 4 機能ラボ</title>
+<style>
+:root{
+  --holo-blue:#33b5e5;
+  --holo-blue-dark:#0099cc;
+  --holo-bg:#f5f5f5;
+  --holo-surface:#ffffff;
+  --holo-text:#222222;
+  --holo-secondary:#666666;
+  --holo-divider:#cccccc;
+  --holo-control:#e6e6e6;
+  --holo-control-top:#fafafa;
+  --holo-control-bottom:#d7d7d7;
+}
+*{box-sizing:border-box}
+html,body,#app{width:100%;height:100%;margin:0;padding:0}
+html,body{overflow:hidden;background:linear-gradient(#f2f2f2 0%,#ffffff 22%,#f7f7f7 100%)}
+body{
+  font-family:Roboto,"Helvetica Neue",Arial,sans-serif;
+  color:var(--holo-text);
+  font-size:14px;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+#app{overflow:hidden;background:linear-gradient(#f1f1f1 0%,#ffffff 18%,#fafafa 100%)}
+.baram-view{box-sizing:border-box;min-width:0;min-height:0;gap:8px}
+.baram-linear{display:flex;min-width:0;min-height:0}
+.baram-scroll{
+  min-width:0;min-height:0;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.baram-relative{position:relative;min-width:0;min-height:0}
+.baram-frame{position:relative;min-width:0;min-height:0}
+.baram-frame>.baram-view{position:absolute}
+.baram-absolute{position:relative;min-width:0;min-height:0}
+.baram-grid{display:grid;min-width:0;min-height:0}
+.baram-table{
+  border-collapse:separate;
+  border-spacing:6px 6px;
+  width:auto;
+  max-width:100%;
+}
+.baram-table.stretch-all{width:100%;table-layout:fixed}
+.baram-table td{
+  vertical-align:middle;
+  padding:0;
+  min-width:0;
+}
+.baram-table.stretch-all td>.baram-view{
+  width:100%!important;
+  max-width:100%;
+}
+.baram-table .table-row{height:auto}
+.baram-space{display:block}
+
+/* Styles referenced by the supplied XML */
+.style-SectionTitle{
+  width:100%!important;
+  margin:22px 0 8px 0!important;
+  padding:0!important;
+  font-size:24px!important;
+  line-height:30px!important;
+  font-weight:700!important;
+  color:#222!important;
+}
+.style-SectionDescription{
+  width:100%!important;
+  margin:0 0 14px 0!important;
+  padding:0!important;
+  color:#777!important;
+  font-size:13px!important;
+  line-height:18px!important;
+}
+.style-ComponentLabel{
+  width:100%!important;
+  margin:14px 0 6px 0!important;
+  padding:0!important;
+  color:#555!important;
+  font-size:15px!important;
+  line-height:20px!important;
+}
+.style-ComponentBox{
+  margin-bottom:3px;
+}
+
+/* Baram 4 / Holo-ish primitives */
+.baram-text{
+  display:block;
+  white-space:pre-wrap;
+  line-height:1.25;
+}
+.baram-button,
+.baram-image-button,
+.baram-toggle{
+  -webkit-appearance:none;
+  appearance:none;
+  position:relative;
+  min-width:64px;
+  min-height:48px;
+  margin:0;
+  padding:0 16px;
+  border:1px solid 
+    var(--holo-control-bottom);
+  border-radius:2px;
+  outline:none;
+  background:
+    var(--holo-control-bottom);
+  box-shadow:
+    0 1px 1px rgba(0,0,0,.5);
+  color:#202020;
+  font:400 18px/46px Roboto,"Helvetica Neue",Arial,sans-serif;
+  text-align:center;
+  cursor:pointer;
+  user-select:none;
+}
+.baram-button:hover,.baram-image-button:hover,.baram-toggle:hover{
+  border-color:#9f9f9f;
+}
+.baram-button:active,.baram-image-button:active,.baram-toggle:active{
+  background:#bde7f7;
+  border-color:var(--holo-blue-dark);
+}
+.baram-button:focus-visible,.baram-image-button:focus-visible,.baram-toggle:focus-visible{
+  outline:2px solid rgba(51,181,229,.35);
+  outline-offset:1px;
+}
+
+.baram-edit{
+  -webkit-appearance:none;
+  appearance:none;
+  display:block;
+  min-width:80px;
+  min-height:38px;
+  margin:0;
+  padding:7px 4px 5px 4px;
+  border:0;
+  border-bottom:2px solid #9e9e9e;
+  border-radius:0;
+  outline:none;
+  background:linear-gradient(to bottom,transparent calc(100% - 1px),rgba(255,255,255,.5) 100%);
+  color:#222;
+  font:400 16px/22px Roboto,"Helvetica Neue",Arial,sans-serif;
+  box-shadow:none;
+}
+.baram-edit::placeholder{color:#888;opacity:1}
+.baram-edit:focus{
+  border-bottom-color:var(--holo-blue);
+  box-shadow:0 1px 0 var(--holo-blue);
+}
+textarea.baram-edit{
+  min-height:58px;
+  resize:vertical;
+  border:1px solid #bdbdbd;
+  border-bottom:2px solid #9e9e9e;
+  padding:7px;
+}
+textarea.baram-edit:focus{border-color:#8d8d8d;border-bottom-color:var(--holo-blue)}
+
+
+/*
+ * CheckBox / RadioButton / Switch are deliberately NOT backed by native
+ * HTML input elements. Their state lives on each rendered Baram view.
+ * This prevents browser form/focus behaviour from affecting the app tree.
+ */
+.baram-checkbox,.baram-radio{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  min-height:42px;
+  padding:2px 0;
+  color:#222;
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  outline:none;
+}
+.baram-checkbox .mark{
+  width:22px;height:22px;
+  position:relative;
+  flex:0 0 22px;
+  border:2px solid #747474;
+  border-radius:1px;
+  background:linear-gradient(#fafafa,#e2e2e2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
+}
+.baram-checkbox[data-checked="true"] .mark{
+  border-color:#148fbd;
+  background:linear-gradient(#5dccf0,#22a9db);
+}
+.baram-checkbox[data-checked="true"] .mark:after{
+  content:"";
+  position:absolute;
+  left:5px;top:1px;
+  width:7px;height:13px;
+  border:solid #fff;
+  border-width:0 3px 3px 0;
+  transform:rotate(45deg);
+}
+.baram-checkbox:focus-visible .mark,
+.baram-radio:focus-visible .mark{
+  box-shadow:0 0 0 3px rgba(51,181,229,.24);
+}
+
+.baram-radio .mark{
+  width:22px;height:22px;
+  position:relative;
+  flex:0 0 22px;
+  border:2px solid #707070;
+  border-radius:50%;
+}
+.baram-radio[data-checked="true"] .mark{
+  border-color:#148fbd;
+}
+.baram-radio[data-checked="true"] .mark:after{
+  content:"";
+  position:absolute;
+  inset:4px;
+  border-radius:50%;
+  background:#33b5e5;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35);
+}
+
+.baram-switch{
+  display:inline-flex;
+  align-items:center;
+  gap:11px;
+  min-height:44px;
+  padding:2px 0;
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  outline:none;
+}
+.baram-switch .track{
+  width:52px;height:22px;
+  position:relative;
+  flex:0 0 52px;
+  border:1px solid #8b8b8b;
+  background:#bdbdbd;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.22);
+}
+.baram-switch .thumb{
+  position:absolute;
+  left:-1px;top:-4px;
+  width:28px;height:28px;
+  border:1px solid #858585;
+  background:linear-gradient(#ffffff,#d0d0d0);
+  box-shadow:0 1px 2px rgba(0,0,0,.35);
+  transition:left .10s linear,border-color .10s linear;
+}
+.baram-switch[data-checked="true"] .track{
+  border-color:#148fbd;
+  background:linear-gradient(90deg,#33b5e5 0 54%,#bdbdbd 54% 100%);
+}
+.baram-switch[data-checked="true"] .thumb{
+  left:25px;
+  border-color:#148fbd;
+}
+.baram-switch:focus-visible .track{
+  box-shadow:0 0 0 3px rgba(51,181,229,.24),inset 0 1px 2px rgba(0,0,0,.22);
+}
+
+.baram-spinner{
+  -webkit-appearance:none;
+  appearance:none;
+  min-height:38px;
+  padding:6px 30px 5px 7px;
+  border:0;
+  border-bottom:2px solid #999;
+  border-radius:0;
+  outline:none;
+  color:#222;
+  font:400 15px Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:
+    linear-gradient(45deg,transparent 50%,#555 50%) calc(100% - 12px) 16px/6px 6px no-repeat,
+    linear-gradient(135deg,#555 50%,transparent 50%) calc(100% - 6px) 16px/6px 6px no-repeat,
+    linear-gradient(to bottom,transparent calc(100% - 2px),#aaa calc(100% - 2px));
+}
+.baram-spinner:focus{border-bottom-color:var(--holo-blue)}
+
+.baram-seek{
+  -webkit-appearance:none;
+  appearance:none;
+  width:100%;
+  height:30px;
+  margin:0;
+  background:transparent;
+  outline:none;
+}
+.baram-seek::-webkit-slider-runnable-track{
+  height:3px;background:#a7a7a7;border-radius:0;
+}
+.baram-seek::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  appearance:none;
+  width:18px;height:18px;border-radius:50%;
+  border:1px solid #168db8;background:var(--holo-blue);
+  margin-top:-7px;box-shadow:0 1px 2px rgba(0,0,0,.28);
+}
+.baram-seek::-moz-range-track{height:3px;background:#a7a7a7}
+.baram-seek::-moz-range-progress{height:3px;background:var(--holo-blue)}
+.baram-seek::-moz-range-thumb{width:18px;height:18px;border-radius:50%;border:1px solid #168db8;background:var(--holo-blue)}
+
+.baram-rating{
+  display:inline-flex;
+  gap:1px;
+  align-items:center;
+  min-height:34px;
+  font-size:25px;
+  line-height:1;
+  user-select:none;
+  cursor:pointer;
+  width:fit-content;
+}
+.baram-rating .star{color:#b7b7b7;text-shadow:0 1px 0 white}
+.baram-rating .star.on{color:var(--holo-blue);text-shadow:0 1px 0 #e8f8ff}
+
+.baram-progress-horizontal{
+  -webkit-appearance:none;
+  appearance:none;
+  width:100%;height:6px;
+  border:0;background:#d0d0d0;
+}
+.baram-progress-horizontal::-webkit-progress-bar{background:#d0d0d0}
+.baram-progress-horizontal::-webkit-progress-value{background:var(--holo-blue)}
+.baram-progress-horizontal::-moz-progress-bar{background:var(--holo-blue)}
+.baram-progress-spinner{
+  width:28px;height:28px;
+  border-radius:50%;
+  border:4px solid #cfcfcf;
+  border-top-color:var(--holo-blue);
+  border-right-color:var(--holo-blue);
+  animation:holo-spin .8s linear infinite;
+}
+@keyframes holo-spin{to{transform:rotate(360deg)}}
+
+.baram-image-placeholder{
+  display:flex;align-items:center;justify-content:center;
+  min-width:56px;min-height:48px;
+  border:1px solid #b9b9b9;
+  background:linear-gradient(135deg,#eeeeee,#d4d4d4);
+  color:#666;font-size:12px;
+}
+.camera-icon{
+  position:relative;display:inline-block;
+  width:24px;height:17px;border:2px solid #333;border-radius:2px;
+}
+.camera-icon:before{
+  content:"";position:absolute;left:6px;top:-6px;
+  width:8px;height:5px;border:2px solid #333;border-bottom:0;
+}
+.camera-icon:after{
+  content:"";position:absolute;left:7px;top:3px;
+  width:7px;height:7px;border:2px solid #333;border-radius:50%;
+}
+
+.baram-list,.baram-expandable{
+  overflow:auto;
+  background:#fff;
+  border-top:1px solid #ddd;
+  border-bottom:1px solid #ddd;
+}
+.baram-list-row{
+  min-height:44px;
+  display:flex;align-items:center;
+  padding:0 12px;
+  border-bottom:1px solid #e5e5e5;
+  color:#222;
+}
+.baram-list-row:last-child{border-bottom:0}
+.baram-expand-head{font-weight:500;background:#f4f4f4}
+.baram-grid-list{display:grid;gap:1px;background:#ccc;overflow:auto}
+.baram-grid-cell{background:#fff;min-height:48px;display:flex;align-items:center;justify-content:center}
+
+.baram-search{
+  -webkit-appearance:none;
+  appearance:none;
+  width:100%;min-height:38px;
+  padding:7px 8px 5px 28px;
+  border:0;border-bottom:2px solid #999;
+  outline:none;background:
+    radial-gradient(circle at 11px 15px,transparent 0 5px,#666 5px 7px,transparent 7px),
+    linear-gradient(45deg,transparent 47%,#666 48% 55%,transparent 56%) 18px 23px/9px 9px no-repeat;
+  font:400 15px Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+.baram-search:focus{border-bottom-color:var(--holo-blue)}
+
+.baram-number-picker{display:inline-flex;align-items:center;gap:0;border:1px solid #aaa;background:#eee;
+  width:fit-content;}
+.baram-number-picker button{
+  width:34px;height:34px;border:0;background:linear-gradient(#fafafa,#ddd);font-size:18px;cursor:pointer
+}
+.baram-number-picker input{
+  width:60px;height:34px;border:0;border-left:1px solid #aaa;border-right:1px solid #aaa;text-align:center;background:white
+}
+.baram-date,.baram-time{
+  min-height:38px;padding:5px;border:1px solid #aaa;background:#fff;color:#222;font:14px Roboto,Arial,sans-serif
+}
+.baram-web,.baram-video{
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid #bbb;background:#f0f0f0;color:#666;
+}
+.baram-video:before{content:"▶";font-size:22px;margin-right:8px;color:#444}
+
+.baram-viewflipper{position:relative;overflow:hidden}
+.baram-viewflipper>.baram-view{
+  position:absolute!important;
+  left:0!important;top:0!important;right:0!important;bottom:0!important;
+  opacity:0;pointer-events:none;
+}
+.baram-viewflipper>.baram-view.active{opacity:1;pointer-events:auto}
+
+/* Small Baram-like scrollbar */
+.baram-scroll::-webkit-scrollbar{width:6px;height:6px}
+.baram-scroll::-webkit-scrollbar-track{background:transparent}
+.baram-scroll::-webkit-scrollbar-thumb{background:#999;border-radius:0}
+
+/* Error is only shown for malformed XML; no preview/status chrome. */
+.runtime-error{
+  width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;background:#fff;color:#b00020;
+  font:14px/1.5 monospace;white-space:pre-wrap;
+}
+
+.warp-screen{display:none;width:100%;height:100%;overflow:hidden}
+.warp-screen.active{display:block}
+</style>
+</head>
+<body><div id="app"><section class="warp-screen" id="screen-main" data-screen="main"><div data-baram-tag="LinearLayout" data-baram-id="root" id="baram-id-root" data-orientation="vertical" class="baram-view baram-linear" style="width:100%;height:100%;padding:16px 16px 16px 16px;flex-direction:column"><div data-baram-tag="TextView" data-baram-id="title" id="baram-id-title" class="baram-view style-SectionTitle baram-text" style="width:fit-content;height:fit-content;color:#1A73E8">Main Dashboard</div><div data-baram-tag="TextView" data-baram-id="desc" id="baram-id-desc" data-w3u-layout_marginbottom="16dp" class="baram-view style-SectionDescription baram-text" style="width:fit-content;height:fit-content;margin:0px 0px 16px 0px">Counter &amp; Quick Memo Tool</div><div data-baram-tag="LinearLayout" data-w3u-layout_marginbottom="16dp" data-orientation="vertical" class="baram-view baram-linear" style="width:100%;height:fit-content;padding:12px 12px 12px 12px;margin:0px 0px 16px 0px;background:#F0F4F8;flex-direction:column"><div data-baram-tag="TextView" class="baram-view style-ComponentLabel baram-text" style="width:fit-content;height:fit-content">Counter Value:</div><div data-baram-tag="TextView" data-baram-id="counter_text" id="baram-id-counter_text" data-w3u-layout_gravity="center_horizontal" data-w3u-layout_marginvertical="8dp" class="baram-view baram-text" style="width:fit-content;height:fit-content;margin:8px 0px 8px 0px;align-self:center;font-size:32px;color:#000000;font-weight:700">0</div><div data-baram-tag="LinearLayout" data-orientation="horizontal" class="baram-view baram-linear" style="width:100%;height:fit-content;text-align:center;display:flex;align-items:center;justify-content:center;flex-direction:row"><button data-baram-tag="Button" data-baram-id="btn_minus" id="baram-id-btn_minus" data-w3u-layout_marginright="4dp" type="button" class="baram-view baram-button" style="height:fit-content;flex-grow:1;flex-shrink:1;flex-basis:0px;width:auto;min-width:0;margin:0px 4px 0px 0px">-1</button><button data-baram-tag="Button" data-baram-id="btn_reset" id="baram-id-btn_reset" data-w3u-layout_marginhorizontal="4dp" type="button" class="baram-view baram-button" style="height:fit-content;flex-grow:1;flex-shrink:1;flex-basis:0px;width:auto;min-width:0;margin:0px 4px 0px 4px">Reset</button><button data-baram-tag="Button" data-baram-id="btn_plus" id="baram-id-btn_plus" data-w3u-layout_marginleft="4dp" type="button" class="baram-view baram-button" style="height:fit-content;flex-grow:1;flex-shrink:1;flex-basis:0px;width:auto;min-width:0;margin:0px 0px 0px 4px">+1</button></div></div><div data-baram-tag="LinearLayout" data-w3u-layout_marginbottom="16dp" data-orientation="vertical" class="baram-view baram-linear" style="width:100%;height:fit-content;margin:0px 0px 16px 0px;flex-direction:column"><div data-baram-tag="TextView" class="baram-view style-ComponentLabel baram-text" style="width:fit-content;height:fit-content">Memo Input:</div><input data-baram-tag="EditText" data-baram-id="input_memo" id="baram-id-input_memo" data-w3u-layout_marginvertical="8dp" type="text" placeholder="Enter status or message..." class="baram-view baram-edit" style="width:100%;height:fit-content;margin:8px 0px 8px 0px"><div data-baram-tag="LinearLayout" data-orientation="horizontal" class="baram-view baram-linear" style="width:100%;height:fit-content;flex-direction:row"><button data-baram-tag="Button" data-baram-id="btn_save" id="baram-id-btn_save" data-w3u-layout_marginright="4dp" type="button" class="baram-view baram-button" style="height:fit-content;flex-grow:1;flex-shrink:1;flex-basis:0px;width:auto;min-width:0;margin:0px 4px 0px 0px">Save Memo</button><button data-baram-tag="Button" data-baram-id="btn_clear" id="baram-id-btn_clear" data-w3u-layout_marginleft="4dp" type="button" class="baram-view baram-button" style="height:fit-content;flex-grow:1;flex-shrink:1;flex-basis:0px;width:auto;min-width:0;margin:0px 0px 0px 4px">Clear</button></div></div><div data-baram-tag="TextView" data-baram-id="saved_status" id="baram-id-saved_status" class="baram-view baram-text" style="width:100%;height:fit-content;padding:8px 8px 8px 8px;background:#EFEFEF;font-size:14px;color:#666666">No memo saved.</div><div data-baram-tag="Space" class="baram-view baram-space" style="width:100%;flex-grow:1;flex-shrink:1;flex-basis:0px;height:auto;min-height:0"></div><button data-baram-tag="Button" data-baram-id="btn_go_sub" id="baram-id-btn_go_sub" type="button" class="baram-view style-ComponentBox baram-button" style="width:100%;height:fit-content">Go to Sub Screen -&gt;</button></div></section><section class="warp-screen" id="screen-sub" data-screen="sub"><div data-baram-tag="LinearLayout" data-baram-id="sub_root" id="baram-id-sub_root" data-orientation="vertical" class="baram-view baram-linear" style="width:100%;height:100%;padding:16px 16px 16px 16px;flex-direction:column"><div data-baram-tag="TextView" data-baram-id="sub_title" id="baram-id-sub_title" class="baram-view style-SectionTitle baram-text" style="width:fit-content;height:fit-content;color:#2E7D32">Sub Screen / Settings</div><div data-baram-tag="TextView" data-baram-id="sub_desc" id="baram-id-sub_desc" data-w3u-layout_marginbottom="16dp" class="baram-view style-SectionDescription baram-text" style="width:fit-content;height:fit-content;margin:0px 0px 16px 0px">Control visibility &amp; Status</div><div data-baram-tag="LinearLayout" data-w3u-layout_marginbottom="16dp" data-orientation="vertical" class="baram-view baram-linear" style="width:100%;height:fit-content;padding:12px 12px 12px 12px;margin:0px 0px 16px 0px;background:#E8F5E9;flex-direction:column"><div data-baram-tag="Switch" data-baram-id="switch_toggle" id="baram-id-switch_toggle" tabindex="0" role="switch" data-checked="true" class="baram-view baram-switch" style="width:fit-content;height:fit-content"><span class="track"><span class="thumb"></span></span><span class="control-text">Enable Feature Panel</span></div><div data-baram-tag="LinearLayout" data-baram-id="panel_content" id="baram-id-panel_content" data-w3u-layout_margintop="8dp" data-orientation="vertical" class="baram-view baram-linear" style="width:100%;height:fit-content;margin:8px 0px 0px 0px;flex-direction:column"><div data-baram-tag="TextView" class="baram-view baram-text" style="width:fit-content;height:fit-content;color:#1B5E20;font-weight:700">Panel Content Active!</div><progress data-baram-tag="ProgressBar" data-w3u-layout_margintop="8dp" max="100" value="75" class="baram-view style-progressBarStyleHorizontal baram-progress-horizontal" style="width:100%;height:fit-content;margin:8px 0px 0px 0px"></progress></div></div><button data-baram-tag="Button" data-baram-id="btn_toggle_panel" id="baram-id-btn_toggle_panel" data-w3u-layout_marginbottom="16dp" type="button" class="baram-view baram-button" style="width:100%;height:fit-content;margin:0px 0px 16px 0px">Hide Panel</button><div data-baram-tag="Space" class="baram-view baram-space" style="width:100%;flex-grow:1;flex-shrink:1;flex-basis:0px;height:auto;min-height:0"></div><button data-baram-tag="Button" data-baram-id="btn_back_main" id="baram-id-btn_back_main" type="button" class="baram-view style-ComponentBox baram-button" style="width:100%;height:fit-content">&lt;- Back to Main Screen</button></div></section></div>
+<script>
+const SCREENS={"main":{init:[{kind:"command",name:"var.set",target:"count",value:"0"},{kind:"command",name:"var.set",target:"memo_text",value:""}],events:{"btn_clear":[{kind:"command",name:"var.edit",target:"memo_text",value:""},{kind:"command",name:"WarpUI.text",target:"saved_status",value:"No memo saved."},{kind:"command",name:"WarpUI.editText",target:"input_memo",value:""}],"btn_go_sub":[{kind:"command",name:"WarpUI.screen",target:null,value:"sub.w4u"}],"btn_minus":[{kind:"command",name:"var.edit",target:"count",value:"calc[var[count] - 1]"},{kind:"command",name:"WarpUI.text",target:"counter_text",value:"var[count]"}],"btn_plus":[{kind:"command",name:"var.edit",target:"count",value:"calc[var[count] + 1]"},{kind:"command",name:"WarpUI.text",target:"counter_text",value:"var[count]"}],"btn_reset":[{kind:"command",name:"var.edit",target:"count",value:"0"},{kind:"command",name:"WarpUI.text",target:"counter_text",value:"0"}],"btn_save":[{kind:"command",name:"WarpUI.getText",target:"input_memo",value:"memo_text"},{kind:"if",left:"var[memo_text]",operator:"!=",right:"()",body:[{kind:"command",name:"WarpUI.text",target:"saved_status",value:"Saved: var[memo_text]"},{kind:"command",name:"WarpUI.editText",target:"input_memo",value:""}]}]},functions:[]},"sub":{init:[{kind:"command",name:"var.set",target:"panel_visible",value:"true"},{kind:"command",name:"var.set",target:"panel_was_visible",value:"true"}],events:{"btn_back_main":[{kind:"command",name:"WarpUI.screen",target:null,value:"main.w4u"}],"btn_toggle_panel":[{kind:"command",name:"var.edit",target:"panel_was_visible",value:"var[panel_visible]"},{kind:"if",left:"var[panel_was_visible]",operator:"=",right:"true",body:[{kind:"command",name:"WarpUI.visibility",target:"panel_content",value:"gone"},{kind:"command",name:"var.edit",target:"panel_visible",value:"false"},{kind:"command",name:"WarpUI.text",target:"btn_toggle_panel",value:"Show Panel"}]},{kind:"if",left:"var[panel_was_visible]",operator:"=",right:"false",body:[{kind:"command",name:"WarpUI.visibility",target:"panel_content",value:"visible"},{kind:"command",name:"var.edit",target:"panel_visible",value:"true"},{kind:"command",name:"WarpUI.text",target:"btn_toggle_panel",value:"Hide Panel"}]}],"switch_toggle":[{kind:"command",name:"var.edit",target:"panel_was_visible",value:"var[panel_visible]"},{kind:"if",left:"var[panel_was_visible]",operator:"=",right:"true",body:[{kind:"command",name:"WarpUI.visibility",target:"panel_content",value:"gone"},{kind:"command",name:"var.edit",target:"panel_visible",value:"false"},{kind:"command",name:"WarpUI.text",target:"btn_toggle_panel",value:"Show Panel"}]},{kind:"if",left:"var[panel_was_visible]",operator:"=",right:"false",body:[{kind:"command",name:"WarpUI.visibility",target:"panel_content",value:"visible"},{kind:"command",name:"var.edit",target:"panel_visible",value:"true"},{kind:"command",name:"WarpUI.text",target:"btn_toggle_panel",value:"Hide Panel"}]}]},functions:[]}};
+const ENTRY="main";
+
+"use strict";
+const q=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const truth=v=>String(v).toLowerCase()==="true";
+const num=(v,d=0)=>{const n=parseFloat(v);return Number.isFinite(n)?n:d};
+const refName=v=>(v||"").replace(/^@\+?id\//,"").replace(/^@id\//,"").replace(/^@baram:id\//,"");
+const meta=(el,k)=>el.getAttribute("data-w3u-"+k.toLowerCase());
+function setChecked(el,v){el.dataset.checked=v?"true":"false";el.setAttribute("aria-checked",v?"true":"false")}
+function activate(el,fn){el.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();fn(e)});el.addEventListener("keydown",e=>{if(e.key===" "||e.key==="Enter"){e.preventDefault();e.stopPropagation();fn(e)}})}
+q(".baram-checkbox").forEach(el=>{setChecked(el,truth(el.dataset.checked));activate(el,()=>setChecked(el,!truth(el.dataset.checked)))});
+q(".baram-radio").forEach(el=>{setChecked(el,truth(el.dataset.checked));activate(el,()=>{const group=el.closest(".baram-radio-group");if(group)q(":scope > .baram-radio",group).forEach(x=>setChecked(x,x===el));else setChecked(el,true)})});
+q(".baram-radio-group").forEach(group=>{const radios=q(":scope > .baram-radio",group);const selected=radios.find(x=>truth(x.dataset.checked));if(selected)radios.forEach(x=>setChecked(x,x===selected))});
+q(".baram-switch").forEach(el=>{setChecked(el,truth(el.dataset.checked));activate(el,()=>setChecked(el,!truth(el.dataset.checked)))});
+q(".baram-toggle").forEach(el=>{const sync=()=>{const checked=truth(el.dataset.checked);el.setAttribute("aria-pressed",checked?"true":"false");el.textContent=checked?el.dataset.textOn:el.dataset.textOff};sync();el.addEventListener("click",()=>{el.dataset.checked=truth(el.dataset.checked)?"false":"true";sync()})});
+q(".baram-rating").forEach(el=>el.addEventListener("click",e=>{const count=Math.max(1,num(el.dataset.stars,5));const r=el.getBoundingClientRect();const next=Math.max(0,Math.min(count,Math.ceil((e.clientX-r.left)/Math.max(1,r.width)*count)));q(".star",el).forEach((s,i)=>s.classList.toggle("on",i<next));el.dataset.rating=String(next)}));
+q(".baram-number-picker").forEach(el=>{const input=el.querySelector("input");el.addEventListener("click",e=>{const action=e.target?.getAttribute?.("data-number-action");if(action==="minus")input.stepDown();if(action==="plus")input.stepUp()})});
+q(".baram-chronometer").forEach(el=>{const start=performance.now();const tick=()=>{if(!el.isConnected)return;const sec=Math.floor((performance.now()-start)/1000);el.textContent=String(Math.floor(sec/60)).padStart(2,"0")+":"+String(sec%60).padStart(2,"0");setTimeout(tick,250)};tick()});
+q(".baram-viewflipper").forEach(el=>{const kids=Array.from(el.children);if(!kids.length)return;let i=0;kids[0].classList.add("active");if(truth(el.dataset.autoStart)){const delay=Math.max(250,num(el.dataset.flipInterval,3000));setInterval(()=>{if(!el.isConnected)return;kids[i].classList.remove("active");i=(i+1)%kids.length;kids[i].classList.add("active")},delay)}});
+function margins(el){const all=meta(el,"layout_margin"),h=meta(el,"layout_marginhorizontal"),v=meta(el,"layout_marginvertical");return{top:num(meta(el,"layout_margintop")||v||all),right:num(meta(el,"layout_marginright")||meta(el,"layout_marginend")||h||all),bottom:num(meta(el,"layout_marginbottom")||v||all),left:num(meta(el,"layout_marginleft")||meta(el,"layout_marginstart")||h||all)}}
+function layoutRelative(el){const kids=Array.from(el.children);const ids={};kids.forEach(h=>{if(h.dataset.baramId)ids[h.dataset.baramId]=h});const pr=el.getBoundingClientRect();kids.forEach(ch=>{ch.style.position="absolute";const r=ch.getBoundingClientRect();const m=margins(ch);let x=m.left,y=m.top;if(truth(meta(ch,"layout_alignparentright"))||truth(meta(ch,"layout_alignparentend")))x=pr.width-r.width-m.right;if(truth(meta(ch,"layout_centerhorizontal"))||truth(meta(ch,"layout_centerinparent")))x=(pr.width-r.width)/2;if(truth(meta(ch,"layout_alignparentbottom")))y=pr.height-r.height-m.bottom;if(truth(meta(ch,"layout_centervertical"))||truth(meta(ch,"layout_centerinparent")))y=(pr.height-r.height)/2;const below=ids[refName(meta(ch,"layout_below"))],above=ids[refName(meta(ch,"layout_above"))],right=ids[refName(meta(ch,"layout_torightof")||meta(ch,"layout_toendof"))],left=ids[refName(meta(ch,"layout_toleftof")||meta(ch,"layout_tostartof"))];if(below){const q=below.getBoundingClientRect();y=q.bottom-pr.top+m.top}if(above){const q=above.getBoundingClientRect();y=q.top-pr.top-r.height-m.bottom}if(right){const q=right.getBoundingClientRect();x=q.right-pr.left+m.left}if(left){const q=left.getBoundingClientRect();x=q.left-pr.left-r.width-m.right}const al=ids[refName(meta(ch,"layout_alignleft")||meta(ch,"layout_alignstart"))],ar=ids[refName(meta(ch,"layout_alignright")||meta(ch,"layout_alignend"))],at=ids[refName(meta(ch,"layout_aligntop"))],ab=ids[refName(meta(ch,"layout_alignbottom"))];if(al)x=al.getBoundingClientRect().left-pr.left+m.left;if(ar)x=ar.getBoundingClientRect().right-pr.left-r.width-m.right;if(at)y=at.getBoundingClientRect().top-pr.top+m.top;if(ab)y=ab.getBoundingClientRect().bottom-pr.top-r.height-m.bottom;ch.style.left=Math.max(0,x)+"px";ch.style.top=Math.max(0,y)+"px"})}
+function layoutFrame(el){const pr=el.getBoundingClientRect();Array.from(el.children).forEach(ch=>{const r=ch.getBoundingClientRect();const g=(meta(ch,"layout_gravity")||"top|left").split("|");let x=0,y=0;if(g.includes("center")||g.includes("center_horizontal"))x=(pr.width-r.width)/2;else if(g.includes("right")||g.includes("end"))x=pr.width-r.width;if(g.includes("center")||g.includes("center_vertical"))y=(pr.height-r.height)/2;else if(g.includes("bottom"))y=pr.height-r.height;ch.style.left=Math.max(0,x)+"px";ch.style.top=Math.max(0,y)+"px"})}
+function relayout(){q(".baram-relative").forEach(layoutRelative);q(".baram-frame").forEach(layoutFrame)}
+requestAnimationFrame(relayout);window.addEventListener("resize",()=>requestAnimationFrame(relayout));
+
+
+"use strict";
+const scriptState={vars:Object.create(null),consts:Object.create(null)};
+const scriptFunctions=Object.create(null);
+const SCRIPT_BREAK=Symbol("break");
+const SCRIPT_NONE=Symbol("none");
+let scriptCurrentScreen="";
+
+function scriptFindSquare(value,open){let depth=0;for(let i=open;i<value.length;i++){if(value[i]==="[")depth++;else if(value[i]==="]"){depth--;if(depth===0)return i}}return -1}
+function scriptCalc(value){const expr=String(value);if(!/^[0-9+*/%().\s-]+$/.test(expr))throw new Error("calc の式を解析できません: "+expr);const result=Function("return ("+expr+")")();if(!Number.isFinite(result))throw new Error("calc の結果が有限の数値ではありません");return Number.isInteger(result)?String(result):String(result)}
+function scriptExpandPass(input){let out="",changed=false;for(let i=0;i<input.length;){let kind=input.startsWith("var[",i)?"var":input.startsWith("const[",i)?"const":input.startsWith("calc[",i)?"calc":null;if(!kind){out+=input[i++];continue}const open=i+kind.length,close=scriptFindSquare(input,open);if(close<0)throw new Error(kind+"[ ... ] の ']' が不足しています");const inner=scriptExpandAll(input.slice(open+1,close));if(kind==="calc"){out+=scriptCalc(inner);changed=true}else{const table=kind==="var"?scriptState.vars:scriptState.consts;const key=inner.trim();if(Object.prototype.hasOwnProperty.call(table,key)){out+=table[key];changed=true}else out+=input.slice(i,close+1)}i=close+1}return [out,changed]}
+function scriptExpandAll(input){let current=String(input??"");for(let i=0;i<256;i++){const [next,changed]=scriptExpandPass(current);if(!changed||next===current)return next;current=next}throw new Error("展開回数が上限を超えました。循環参照の可能性があります")}
+function scriptCompare(left,operator,right){let a=scriptExpandAll(left).trim(),b=scriptExpandAll(right).trim();if(a==="()")a="";if(b==="()")b="";if(operator==="=")return a===b;if(operator==="!=")return a!==b;const x=Number(a),y=Number(b);if(!Number.isFinite(x)||!Number.isFinite(y))return false;return operator==="<"?x<y:x>y}
+function scriptFind(id){const root=document.querySelector(".warp-screen.active");if(!root)return null;const wanted=scriptExpandAll(id).trim();return q("[data-baram-id]",root).find(el=>el.dataset.baramId===wanted)||null}
+function scriptDim(value){const v=String(value??"");if(v==="match_parent"||v==="fill_parent")return "100%";if(v==="wrap_content")return "auto";if(v==="0dp")return "0px";if(/^[-+]?(?:\d+\.?\d*|\.\d+)(?:dp|dip|sp|px)?$/.test(v))return parseFloat(v)+"px";return v}
+function scriptSetProperty(command,id,value){const el=scriptFind(id);if(!el)return;const v=scriptExpandAll(value).trim();const css={textColor:"color",background:"background",textSize:"fontSize",alpha:"opacity",layout_width:"width",layout_height:"height"}[command];if(css)el.style[css]=css==="fontSize"||command.startsWith("layout_")?scriptDim(v):v;else if(command==="layout_weight"){el.style.flexGrow=Number(v)||0}else if(command.startsWith("padding")||command.startsWith("layout_margin")){const prop=command.replace(/[A-Z]/g,m=>"-"+m.toLowerCase()).replace("layout-","");el.style[prop]=scriptDim(v)}else if(command.startsWith("layout_")||command==="gravity"){el.setAttribute("data-w3u-"+command.toLowerCase(),v)}if(typeof relayout==="function")requestAnimationFrame(relayout)}
+const scriptUi={
+ text:(id,value)=>{const el=scriptFind(id);if(!el)return;const text=scriptExpandAll(value);if(el.matches("input,textarea,select"))el.value=text;else if(el.classList.contains("baram-switch")){const label=el.querySelector(".control-text");if(label)label.textContent=text}else el.textContent=text},
+ getText:id=>{const el=scriptFind(id);return el?.value??el?.textContent??""},
+ editText:(id,value)=>{const el=scriptFind(id);if(el&&el.matches("input,textarea"))el.value=scriptExpandAll(value)},
+ visibility:(id,value)=>{const el=scriptFind(id);if(!el)return;const v=scriptExpandAll(value).trim();el.style.display=v==="gone"?"none":"";el.style.visibility=v==="invisible"?"hidden":""},
+ screen:name=>scriptActivateScreen(scriptExpandAll(name).replace(/\.(?:w3u|w4u)$/,""))
+};
+function scriptDuration(value){const match=String(value).trim().match(/^([0-9]+(?:\.[0-9]+)?)(ns|us|ms|s|m|h)$/);if(!match)throw new Error("wait の時間に単位がありません: "+value);const n=Number(match[1]),unit=match[2];return n*(unit==="ns"?1e-6:unit==="us"?1e-3:unit==="ms"?1:unit==="s"?1000:unit==="m"?60000:3600000)}
+function scriptDelay(value){return new Promise(resolve=>setTimeout(resolve,scriptDuration(value)))}
+async function scriptCallFunction(name,loopDepth){const key=scriptExpandAll(name).trim(),body=scriptFunctions[key];if(!body)throw new Error("関数 '"+key+"' は定義されていません");return scriptRunOps(body,loopDepth)}
+async function scriptExecuteCommand(op,loopDepth){
+ const command=scriptExpandAll(op.name).trim(),target=op.target==null?null:scriptExpandAll(op.target).trim(),value=op.value==null?"":scriptExpandAll(op.value);
+ if(command==="var.set"){if(!(target in scriptState.vars))scriptState.vars[target]=value;return SCRIPT_NONE}
+ if(command==="var.edit"){if(target in scriptState.vars)scriptState.vars[target]=value;return SCRIPT_NONE}
+ if(command==="const.set"){if(!(target in scriptState.consts))scriptState.consts[target]=value;return SCRIPT_NONE}
+ if(command==="break")return loopDepth>0?SCRIPT_BREAK:SCRIPT_NONE;
+ if(command==="print"){console.log(value);return SCRIPT_NONE}
+ if(command==="wait"){await scriptDelay(value);return SCRIPT_NONE}
+ if(command==="fun")return scriptCallFunction(value,loopDepth);
+ if(command==="for"){for(;;){const signal=await scriptCallFunction(value,loopDepth+1);if(signal===SCRIPT_BREAK)break;if(signal!==SCRIPT_NONE)return signal}return SCRIPT_NONE}
+ if(command==="WarpUI.screen"){await scriptUi.screen(value);return SCRIPT_NONE}
+ if(command.startsWith("WarpUI.")){
+  const action=command.slice("WarpUI.".length);
+  if(action==="text")scriptUi.text(target,value);
+  else if(action==="textColor"||action==="background"||action==="textSize")scriptSetProperty(action,target,value);
+  else if(action==="visibility")scriptUi.visibility(target,value);
+  else if(action==="editText")scriptUi.editText(target,value);
+  else if(action==="getText"){if(value in scriptState.vars)scriptState.vars[value]=scriptUi.getText(target)}
+  else if(action!=="OnClick")scriptSetProperty(action,target,value);
+  return SCRIPT_NONE;
+ }
+ throw new Error("不明な命令です: "+command);
+}
+async function scriptRunOps(ops,loopDepth=0){for(const op of ops||[]){let signal=SCRIPT_NONE;if(op.kind==="command")signal=await scriptExecuteCommand(op,loopDepth);else if(op.kind==="if"&&scriptCompare(op.left,op.operator,op.right))signal=await scriptRunOps(op.body,loopDepth);if(signal!==SCRIPT_NONE)return signal}return SCRIPT_NONE}
+function scriptRegisterFunctions(program){for(const definition of program?.functions||[]){const name=scriptExpandAll(definition.name).trim();if(name)scriptFunctions[name]=definition.body}}
+function scriptWire(screen){const program=SCREENS[screen];if(!program)return;for(const [id,ops] of Object.entries(program.events||{})){const el=scriptFind(id);if(!el||el.dataset.scriptWired)return;el.dataset.scriptWired="true";el.addEventListener("click",async event=>{event.stopPropagation();try{await scriptRunOps(ops)}catch(error){console.error(error)}})}}
+async function scriptActivateScreen(name){const next=String(name);const screen=document.getElementById("screen-"+CSS.escape(next));if(!screen)return;q(".warp-screen").forEach(el=>el.classList.toggle("active",el===screen));scriptCurrentScreen=next;const program=SCREENS[next];scriptRegisterFunctions(program);try{await scriptRunOps(program.init)}catch(error){console.error(error)}scriptWire(next);if(typeof relayout==="function")requestAnimationFrame(relayout)}
+scriptRegisterFunctions(SCREENS[ENTRY]);
+scriptActivateScreen(ENTRY);
+
+</script>
+</body>
+</html>

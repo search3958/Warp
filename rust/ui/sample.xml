@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:baram="http://schemas.baram.com/apk/res/baram"
+    baram:layout_width="match_parent"
+    baram:layout_height="match_parent"
+    baram:orientation="vertical"
+    baram:padding="16dp">
+
+    <TextView
+        baram:layout_width="wrap_content"
+        baram:layout_height="wrap_content"
+        baram:text="W3U Rust Parser"
+        baram:textSize="24sp"
+        baram:textStyle="bold" />
+
+    <EditText
+        baram:layout_width="match_parent"
+        baram:layout_height="wrap_content"
+        baram:layout_marginTop="12dp"
+        baram:hint="Type something..." />
+
+    <CheckBox
+        baram:layout_width="wrap_content"
+        baram:layout_height="wrap_content"
+        baram:checked="true"
+        baram:text="Enabled" />
+
+    <Button
+        baram:layout_width="wrap_content"
+        baram:layout_height="wrap_content"
+        baram:text="Button" />
+</LinearLayout>

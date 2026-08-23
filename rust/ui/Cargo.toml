@@ -1,0 +1,13 @@
+[package]
+name = "w3u-parser"
+version = "0.1.0"
+edition = "2021"
+description = "Baram/W3U XML to standalone HTML converter"
+license = "MIT"
+
+[[bin]]
+name = "w3u-parser"
+path = "main.rs"
+
+[dependencies]
+roxmltree = "0.20"

@@ -1,0 +1,13 @@
+[package]
+name = "warp4-example-compiler"
+version = "0.1.0"
+edition = "2021"
+description = "Compile an example Warp 4 project into one standalone HTML file"
+license = "MIT"
+
+[[bin]]
+name = "warp4-example"
+path = "main.rs"
+
+[dependencies]
+roxmltree = "0.20"

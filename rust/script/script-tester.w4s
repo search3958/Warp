@@ -1,0 +1,31 @@
+# Warp 4 Script demo
+
+var.set name (world)
+var.set key (print)
+var.set age (10)
+var.set raw (1 + 2)
+
+var.set result (calc[var[age] + 1])
+var.set calcRaw (calc[var[raw]])
+
+var[key] (Hello, var[name])
+print(age + 1 is still text: var[age] + 1)
+print(result: var[result])
+print(calc raw: var[calcRaw])
+
+fun (countup) {
+  var.edit age (calc[var[age] + 1])
+  print(age = var[age])
+
+  if var[age] > 100 {
+    break
+  }
+
+  wait(1ms)
+}
+
+for (countup)
+
+print(ようこそ。)
+const.set version (4)
+print(Warpバージョンはconst[version]です。)

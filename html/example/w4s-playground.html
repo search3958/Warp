@@ -1,0 +1,896 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Warp 4 Script Playground - Script Only</title>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  html,
+  body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    font-family: sans-serif;
+    background: #fff;
+    color: #000;
+  }
+  body {
+    overflow: hidden;
+  }
+  button,
+  textarea {
+    font: inherit;
+  }
+  .app {
+    width: 100%;
+    height: 100vh;
+    display: grid;
+    grid-template-rows: 44px 1fr;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-bottom: 1px solid #ccc;
+  }
+  .brand {
+    font-weight: bold;
+  }
+  .spacer {
+    flex: 1;
+  }
+  .toolbar {
+    display: flex;
+    gap: 6px;
+  }
+  .btn {
+    border: 1px solid #999;
+    background: #fff;
+    color: #000;
+    padding: 5px 9px;
+    cursor: pointer;
+  }
+  .main {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .left,
+  .right {
+    min-width: 0;
+    min-height: 0;
+  }
+  .left {
+    display: grid;
+    grid-template-rows: 34px 1fr;
+    border-right: 1px solid #ccc;
+  }
+  .tabs {
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    border-bottom: 1px solid #ccc;
+  }
+  .tab {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font-weight: bold;
+  }
+  .editor-wrap {
+    position: relative;
+    min-height: 0;
+  }
+  .editor {
+    width: 100%;
+    height: 100%;
+    resize: none;
+    border: 0;
+    outline: none;
+    padding: 12px;
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre;
+    overflow: auto;
+  }
+  .hint {
+    position: absolute;
+    right: 8px;
+    bottom: 6px;
+    font-size: 11px;
+    color: #777;
+    background: #fff;
+  }
+  .right {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+  }
+  .panel {
+    min-height: 0;
+    display: grid;
+    grid-template-rows: 34px 1fr;
+  }
+  .panel + .panel {
+    border-top: 1px solid #ccc;
+  }
+  .panel-head {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border-bottom: 1px solid #ccc;
+    font-size: 12px;
+    font-weight: bold;
+  }
+  .panel-head .meta {
+    margin-left: auto;
+    font-weight: normal;
+    color: #666;
+  }
+  .dot {
+    display: none;
+  }
+  .state-view {
+    min-height: 0;
+    overflow: auto;
+    padding: 10px;
+  }
+  .state-section {
+    border: 1px solid #ccc;
+    margin-bottom: 10px;
+  }
+  .state-title {
+    padding: 6px 8px;
+    border-bottom: 1px solid #ccc;
+    font-size: 12px;
+    font-weight: bold;
+  }
+  .state-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 10px;
+    padding: 6px 8px;
+    border-bottom: 1px solid #eee;
+  }
+  .state-row:last-child {
+    border-bottom: 0;
+  }
+  .state-row code,
+  .state-value {
+    font-family: monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .state-empty {
+    padding: 6px 8px;
+    color: #777;
+    font-size: 12px;
+  }
+  .console {
+    min-height: 0;
+    overflow: auto;
+    padding: 8px 10px;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .line {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: 8px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .stamp {
+    color: #777;
+  }
+  .error {
+    color: #b00020;
+  }
+  .warn {
+    color: #8a5a00;
+  }
+  .info,
+  .success,
+  .out {
+    color: #000;
+  }
+  @media (max-width: 800px) {
+    body {
+      overflow: auto;
+    }
+    .app {
+      height: auto;
+      min-height: 100vh;
+    }
+    .main {
+      grid-template-columns: 1fr;
+      grid-template-rows: 500px 600px;
+    }
+    .left {
+      border-right: 0;
+      border-bottom: 1px solid #ccc;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">Warp 4 Script</div>
+    <div class="spacer"></div>
+    <div class="toolbar">
+      <button class="btn optional" id="exampleBtn">Example</button>
+      <button class="btn optional" id="clearBtn">Clear output</button>
+      <button class="btn stop" id="stopBtn">Stop</button>
+      <button class="btn primary" id="runBtn">Run</button>
+    </div>
+  </header>
+  <main class="main">
+    <section class="left">
+      <div class="tabs">
+        <button class="tab active">Warp Script</button>
+      </div>
+      <div class="editor-wrap">
+        <textarea class="editor" id="scriptEditor" spellcheck="false"></textarea>
+        <div class="hint">⌘ / Ctrl + Enter = Run</div>
+      </div>
+    </section>
+    <section class="right">
+      <div class="panel" id="statePanel">
+        <div class="panel-head"><span class="dot"></span>Runtime State <span class="meta" id="statusText">Ready</span></div>
+        <div class="state-view" id="stateView"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">Console <span class="meta" id="consoleMeta">0 lines</span></div>
+        <div class="console" id="console"></div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+(() => {
+  "use strict";
+  const $ = (s) => document.querySelector(s);
+  const scriptEditor = $("#scriptEditor");
+  const consoleEl = $("#console");
+  const statusText = $("#statusText");
+  const statePanel = $("#statePanel");
+  const stateView = $("#stateView");
+  const consoleMeta = $("#consoleMeta");
+  const DEFAULT_SCRIPT = `# Warp 4 Script demo
+var.set name (world)
+var.set key (print)
+var.set age (10)
+var.set raw (1 + 2)
+var.set result (calc[var[age] + 1])
+var.set calcRaw (calc[var[raw]])
+var[key] (Hello, var[name])
+print(age + 1 is still text: var[age] + 1)
+print(result: var[result])
+print(calc raw: var[calcRaw])
+fun (countup) {
+  var.edit age (calc[var[age] + 1])
+  print(age = var[age])
+  if var[age] > 13 {
+    break
+  }
+  wait(200ms)
+}
+for (countup)
+const.set version (4)
+print(Warp version: const[version])`;
+  scriptEditor.value = DEFAULT_SCRIPT;
+  let lineCount = 0;
+  let currentRun = null;
+  function timeStamp() {
+    return new Date().toLocaleTimeString([], {
+      hour:"2-digit",
+      minute:"2-digit",
+      second:"2-digit"
+    });
+  }
+  function log(message, type="out") {
+    const row = document.createElement("div");
+    row.className = "line";
+    const t = document.createElement("span");
+    t.className = "stamp";
+    t.textContent = timeStamp();
+    const v = document.createElement("span");
+    v.className = type;
+    v.textContent = String(message);
+    row.append(t, v);
+    consoleEl.appendChild(row);
+    lineCount++;
+    consoleMeta.textContent = `${lineCount} line${lineCount === 1 ? "" : "s"}`;
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+  }
+  function clearConsole() {
+    consoleEl.innerHTML = "";
+    lineCount = 0;
+    consoleMeta.textContent = "0 lines";
+  }
+  function setStatus(text, kind="idle") {
+    statusText.textContent = text;
+    statePanel.classList.remove("status-running","status-error","status-idle");
+    statePanel.classList.add("status-" + kind);
+  }
+  function renderState(ctx) {
+    const section = (title, entries, emptyText) => {
+      const wrap = document.createElement("section");
+      wrap.className = "state-section";
+      const h = document.createElement("div");
+      h.className = "state-title";
+      h.textContent = title;
+      wrap.appendChild(h);
+      if (!entries.length) {
+        const empty = document.createElement("div");
+        empty.className = "state-empty";
+        empty.textContent = emptyText;
+        wrap.appendChild(empty);
+        return wrap;
+      }
+      for (const [name, value] of entries) {
+        const row = document.createElement("div");
+        row.className = "state-row";
+        const k = document.createElement("code");
+        k.textContent = name;
+        const v = document.createElement("div");
+        v.className = "state-value";
+        v.textContent = value;
+        row.append(k, v);
+        wrap.appendChild(row);
+      }
+      return wrap;
+    };
+    stateView.innerHTML = "";
+    stateView.append(
+      section("Variables", [...ctx.vars.entries()], "No variables"),
+      section("Constants", [...ctx.consts.entries()], "No constants"),
+      section("Functions", [...ctx.funs.keys()].map(name => [name, "defined"]), "No functions")
+    );
+  }
+  function stripComments(src) {
+    return src.split("\n").map(line => {
+      let quote = null, p = 0, b = 0;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if ((c === '"' || c === "'") && line[i - 1] !== "\\") {
+          quote = quote === c ? null : (quote || c);
+        }
+        if (quote) continue;
+        if (c === "(") p++;
+        else if (c === ")") p = Math.max(0, p - 1);
+        if (c === "[") b++;
+        else if (c === "]") b = Math.max(0, b - 1);
+        if (c === "#" && p === 0 && b === 0) {
+          return line.slice(0, i);
+        }
+        if (c === "/" && line[i + 1] === "/" && p === 0 && b === 0) {
+          return line.slice(0, i);
+        }
+      }
+      return line;
+    }).join("\n");
+  }
+  function parseProgram(source) {
+    source = stripComments(source).replace(/\r\n?/g, "\n");
+    let i = 0;
+    function skipSpace() {
+      while (i < source.length && /[ \t\n;]/.test(source[i])) i++;
+    }
+    function readHeaderUntilBlockOrEnd() {
+      const start = i;
+      let p = 0, b = 0, quote = null;
+      while (i < source.length) {
+        const c = source[i];
+        if ((c === "'" || c === '"') && source[i - 1] !== "\\") {
+          quote = quote === c ? null : (quote || c);
+          i++;
+          continue;
+        }
+        if (!quote) {
+          if (c === "(") p++;
+          else if (c === ")") p = Math.max(0, p - 1);
+          else if (c === "[") b++;
+          else if (c === "]") b = Math.max(0, b - 1);
+          else if (c === "{" && p === 0 && b === 0) {
+            return {
+              text: source.slice(start, i).trim(),
+              hasBlock: true
+            };
+          } else if ((c === "\n" || c === ";") && p === 0 && b === 0) {
+            return {
+              text: source.slice(start, i).trim(),
+              hasBlock: false
+            };
+          } else if (c === "}" && p === 0 && b === 0) {
+            return {
+              text: source.slice(start, i).trim(),
+              hasBlock: false,
+              closing: true
+            };
+          }
+        }
+        i++;
+      }
+      return {
+        text: source.slice(start, i).trim(),
+        hasBlock: false
+      };
+    }
+    function parseNodes(stopAtBrace = false) {
+      const nodes = [];
+      while (i < source.length) {
+        skipSpace();
+        if (i >= source.length) break;
+        if (stopAtBrace && source[i] === "}") {
+          i++;
+          break;
+        }
+        const h = readHeaderUntilBlockOrEnd();
+        if (!h.text && h.closing && stopAtBrace) {
+          i++;
+          break;
+        }
+        if (h.hasBlock) {
+          i++;
+          const body = parseNodes(true);
+          nodes.push({
+            type: "block",
+            header: h.text,
+            body
+          });
+        } else {
+          if (h.text) {
+            nodes.push({
+              type: "stmt",
+              text: h.text
+            });
+          }
+          if (i < source.length && (source[i] === "\n" || source[i] === ";")) {
+            i++;
+          } else if (h.closing && stopAtBrace) {
+            i++;
+            break;
+          }
+        }
+      }
+      return nodes;
+    }
+    return parseNodes(false);
+  }
+  function calculate(expr) {
+    const tokens = [];
+    const s = expr.trim();
+    let i = 0;
+    while (i < s.length) {
+      if (/\s/.test(s[i])) {
+        i++;
+        continue;
+      }
+      const n = s.slice(i).match(/^(?:\d+(?:\.\d*)?|\.\d+)/);
+      if (n) {
+        tokens.push({ t: "n", v: Number(n[0]) });
+        i += n[0].length;
+        continue;
+      }
+      const two = s.slice(i, i + 2);
+      if (two === "**") {
+        tokens.push({ t: "op", v: "**" });
+        i += 2;
+        continue;
+      }
+      if ("+-*/%()".includes(s[i])) {
+        tokens.push({
+          t: s[i] === "(" || s[i] === ")" ? s[i] : "op",
+          v: s[i]
+        });
+        i++;
+        continue;
+      }
+      throw new Error(`calc: unsupported token near "${s.slice(i, i + 12)}"`);
+    }
+    let p = 0;
+    const peek = () => tokens[p];
+    const take = () => tokens[p++];
+    function primary() {
+      const x = peek();
+      if (!x) throw new Error("calc: expression is incomplete");
+      if (x.t === "n") {
+        take();
+        return x.v;
+      }
+      if (x.t === "(") {
+        take();
+        const v = add();
+        if (!peek() || peek().t !== ")") {
+          throw new Error("calc: missing )");
+        }
+        take();
+        return v;
+      }
+      if (x.t === "op" && (x.v === "+" || x.v === "-")) {
+        take();
+        const v = primary();
+        return x.v === "-" ? -v : v;
+      }
+      throw new Error("calc: invalid expression");
+    }
+    function power() {
+      let v = primary();
+      if (peek()?.t === "op" && peek().v === "**") {
+        take();
+        v = v ** power();
+      }
+      return v;
+    }
+    function mul() {
+      let v = power();
+      while (peek()?.t === "op" && ["*", "/", "%"].includes(peek().v)) {
+        const op = take().v;
+        const r = power();
+        if (op === "*") v *= r;
+        else if (op === "/") v /= r;
+        else v %= r;
+      }
+      return v;
+    }
+    function add() {
+      let v = mul();
+      while (peek()?.t === "op" && ["+", "-"].includes(peek().v)) {
+        const op = take().v;
+        const r = mul();
+        v = op === "+" ? v + r : v - r;
+      }
+      return v;
+    }
+    const out = add();
+    if (p !== tokens.length) {
+      throw new Error("calc: unexpected token");
+    }
+    if (!Number.isFinite(out)) {
+      throw new Error("calc: result is not finite");
+    }
+    return String(out);
+  }
+  function makeContext() {
+    return {
+      vars: new Map(),
+      consts: new Map(),
+      funs: new Map(),
+      aborted: false,
+      callDepth: 0,
+      loopDepth: 0
+    };
+  }
+  function expandSpecials(input, ctx) {
+    let text = String(input);
+    for (let round = 0; round < 100; round++) {
+      const re = /(var|const|calc)\[([^\[\]]*)\]/g;
+      let changed = false;
+      text = text.replace(re, (full, kind, inside) => {
+        changed = true;
+        if (kind === "var") {
+          const key = inside.trim();
+          return ctx.vars.has(key) ? ctx.vars.get(key) : "";
+        }
+        if (kind === "const") {
+          const key = inside.trim();
+          return ctx.consts.has(key) ? ctx.consts.get(key) : "";
+        }
+        try {
+          return calculate(inside);
+        } catch (e) {
+          log(e.message, "error");
+          return "";
+        }
+      });
+      if (!changed) return text;
+    }
+    throw new Error("Expansion exceeded 100 levels");
+  }
+  function parseCallArg(stmt, keyword) {
+    let rest = stmt.slice(keyword.length).trim();
+    if (rest.startsWith("(") && rest.endsWith(")")) {
+      return rest.slice(1, -1);
+    }
+    return rest;
+  }
+  function compareValues(a, b, op) {
+    if (op === "<" || op === ">") {
+      const x = Number(a.trim());
+      const y = Number(b.trim());
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return false;
+      }
+      return op === "<" ? x < y : x > y;
+    }
+    return op === "=" ? a === b : a !== b;
+  }
+  function parseIfHeader(header, ctx) {
+    let h = expandSpecials(header, ctx).trim();
+    if (!h.startsWith("if ")) return null;
+    h = h.slice(3).trim();
+    let quote = null, p = 0, b = 0;
+    for (let i = 0; i < h.length; i++) {
+      const c = h[i];
+      if ((c === "'" || c === '"') && h[i - 1] !== "\\") {
+        quote = quote === c ? null : (quote || c);
+      }
+      if (quote) continue;
+      if (c === "(") p++;
+      else if (c === ")") p = Math.max(0, p - 1);
+      else if (c === "[") b++;
+      else if (c === "]") b = Math.max(0, b - 1);
+      if (p === 0 && b === 0) {
+        if (h.slice(i, i + 2) === "!=") {
+          return {
+            left: h.slice(0, i).trim(),
+            op: "!=",
+            right: h.slice(i + 2).trim()
+          };
+        }
+        if (c === "=" || c === "<" || c === ">") {
+          return {
+            left: h.slice(0, i).trim(),
+            op: c,
+            right: h.slice(i + 1).trim()
+          };
+        }
+      }
+    }
+    return null;
+  }
+  function preRegisterFunctions(nodes, ctx) {
+    for (const node of nodes) {
+      if (node.type !== "block") continue;
+      const expanded = expandSpecials(node.header, ctx);
+      const m = expanded.match(/^fun\s*\((.*?)\)\s*$/);
+      if (!m) continue;
+      const name = m[1].trim();
+      if (!ctx.funs.has(name)) {
+        ctx.funs.set(name, node.body);
+      }
+    }
+  }
+  const BREAK = Symbol("BREAK");
+  async function sleep(ms, ctx) {
+    const step = Math.min(ms, 50);
+    let left = ms;
+    while (left > 0 && !ctx.aborted) {
+      const chunk = Math.min(step, left);
+      await new Promise(resolve => setTimeout(resolve, chunk));
+      left -= chunk;
+    }
+  }
+  async function execFunction(name, ctx) {
+    if (ctx.aborted) return;
+    if (!ctx.funs.has(name)) {
+      log(`Function "${name}" is not defined`, "warn");
+      return;
+    }
+    if (ctx.callDepth > 256) {
+      throw new Error("Function call depth exceeded 256");
+    }
+    ctx.callDepth++;
+    const r = await execNodes(ctx.funs.get(name), ctx);
+    ctx.callDepth--;
+    return r;
+  }
+  async function execStatement(raw, ctx) {
+    if (ctx.aborted) return;
+    let stmt = expandSpecials(raw, ctx).trim();
+    if (!stmt) return;
+    if (stmt.startsWith("if ")) {
+      let depth = 0;
+      let open = -1;
+      for (let i = 3; i < stmt.length; i++) {
+        if (stmt[i] === "(") {
+          if (depth === 0) open = i;
+          depth++;
+        } else if (stmt[i] === ")") {
+          depth--;
+          if (depth === 0 && open >= 0 && i === stmt.length - 1) {
+            const cond = stmt.slice(0, open).trim();
+            const action = stmt.slice(open + 1, i).trim();
+            const pc = parseIfHeader(cond, ctx);
+            if (pc && compareValues(pc.left, pc.right, pc.op)) {
+              return await execStatement(action, ctx);
+            }
+            return;
+          }
+        }
+      }
+    }
+    let m;
+    if ((m = stmt.match(/^var\.set\s+([^\s(]+)\s*\(([\s\S]*)\)\s*$/))) {
+      const name = m[1];
+      const val = expandSpecials(m[2], ctx);
+      if (!ctx.vars.has(name)) {
+        ctx.vars.set(name, val);
+      }
+      renderState(ctx);
+      return;
+    }
+    if ((m = stmt.match(/^var\.edit\s+([^\s(]+)\s*\(([\s\S]*)\)\s*$/))) {
+      const name = m[1];
+      const val = expandSpecials(m[2], ctx);
+      if (ctx.vars.has(name)) {
+        ctx.vars.set(name, val);
+      } else {
+        log(`var.edit skipped: "${name}" is not defined`, "warn");
+      }
+      renderState(ctx);
+      return;
+    }
+    if ((m = stmt.match(/^const\.set\s+([^\s(]+)\s*\(([\s\S]*)\)\s*$/))) {
+      const name = m[1];
+      const val = expandSpecials(m[2], ctx);
+      if (!ctx.consts.has(name)) {
+        ctx.consts.set(name, val);
+      }
+      renderState(ctx);
+      return;
+    }
+    if (stmt === "break") {
+      return BREAK;
+    }
+    if (/^print\s*\(/.test(stmt)) {
+      const p = stmt.indexOf("(");
+      const val = stmt.endsWith(")")
+        ? stmt.slice(p + 1, -1)
+        : stmt.slice(p + 1);
+      log(expandSpecials(val, ctx), "out");
+      return;
+    }
+    if (/^wait\s*\(/.test(stmt)) {
+      const arg = parseCallArg(stmt, "wait").trim();
+      const mm = arg.match(/^(\d+(?:\.\d+)?)\s*(ms|s|m)$/i);
+      if (!mm) {
+        log(`wait: invalid time "${arg}"`, "warn");
+        return;
+      }
+      const n = Number(mm[1]);
+      const unit = mm[2].toLowerCase();
+      const ms = n * (unit === "ms" ? 1 : unit === "s" ? 1000 : 60000);
+      await sleep(ms, ctx);
+      return;
+    }
+    if (/^for\s*\(/.test(stmt)) {
+      const name = expandSpecials(parseCallArg(stmt, "for"), ctx).trim();
+      ctx.loopDepth++;
+      let iter = 0;
+      try {
+        while (!ctx.aborted) {
+          const r = await execFunction(name, ctx);
+          if (r === BREAK) break;
+          iter++;
+          if (iter % 100 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 0));
+          }
+        }
+      } finally {
+        ctx.loopDepth--;
+      }
+      return;
+    }
+    if (/^fun\b/.test(stmt)) {
+      let name = "";
+      const mm = stmt.match(/^fun\s*\((.*?)\)\s*$/);
+      if (mm) name = mm[1].trim();
+      else name = stmt.slice(3).trim();
+      name = expandSpecials(name, ctx);
+      return await execFunction(name, ctx);
+    }
+    log(`Unknown statement: ${stmt}`, "warn");
+  }
+  async function execBlock(node, ctx) {
+    const header = expandSpecials(node.header, ctx).trim();
+    let m = header.match(/^fun\s*\((.*?)\)\s*$/);
+    if (m) {
+      return;
+    }
+    if (header.startsWith("if ")) {
+      const c = parseIfHeader(header, ctx);
+      if (!c) {
+        log(`Invalid if: ${header}`, "warn");
+        return;
+      }
+      if (compareValues(c.left, c.right, c.op)) {
+        return await execNodes(node.body, ctx);
+      }
+      return;
+    }
+    log(`Unknown block: ${header} { ... }`, "warn");
+  }
+  async function execNodes(nodes, ctx) {
+    for (const node of nodes) {
+      if (ctx.aborted) return;
+      let r;
+      if (node.type === "stmt") {
+        r = await execStatement(node.text, ctx);
+      } else {
+        r = await execBlock(node, ctx);
+      }
+      if (r === BREAK) {
+        return BREAK;
+      }
+    }
+  }
+  async function run() {
+    if (currentRun) {
+      currentRun.aborted = true;
+    }
+    clearConsole();
+    setStatus("Running", "running");
+    const ctx = makeContext();
+    currentRun = ctx;
+    renderState(ctx);
+    try {
+      const ast = parseProgram(scriptEditor.value);
+      preRegisterFunctions(ast, ctx);
+      renderState(ctx);
+      log("Warp 4 runtime started", "info");
+      await execNodes(ast, ctx);
+      if (ctx.aborted) {
+        log("Execution stopped", "warn");
+        setStatus("Stopped", "idle");
+      } else {
+        log("Execution finished", "success");
+        setStatus("Ready", "idle");
+      }
+      renderState(ctx);
+    } catch (e) {
+      log(
+        e && e.message ? e.message : String(e),
+        "error"
+      );
+      setStatus("Error", "error");
+      renderState(ctx);
+    }
+  }
+  $("#runBtn").addEventListener("click", run);
+  $("#stopBtn").addEventListener("click", () => {
+    if (currentRun) {
+      currentRun.aborted = true;
+      log("Stop requested", "warn");
+    }
+  });
+  $("#clearBtn").addEventListener("click", clearConsole);
+  $("#exampleBtn").addEventListener("click", () => {
+    scriptEditor.value = DEFAULT_SCRIPT;
+    clearConsole();
+    renderState(makeContext());
+    setStatus("Ready", "idle");
+  });
+  scriptEditor.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      run();
+    }
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const a = scriptEditor.selectionStart;
+      const b = scriptEditor.selectionEnd;
+      scriptEditor.value =
+        scriptEditor.value.slice(0, a) +
+        "  " +
+        scriptEditor.value.slice(b);
+      scriptEditor.selectionStart =
+        scriptEditor.selectionEnd =
+        a + 2;
+    }
+  });
+  clearConsole();
+  renderState(makeContext());
+  log("Ready. Press Run or Ctrl/⌘ + Enter.", "info");
+})();
+</script>
+</body>
+</html>
