@@ -1,0 +1,21 @@
+[package]
+name = "mb5-runner"
+version = "0.1.0"
+edition = "2021"
+description = "Mosaic Board 5 の components を、std・GUIエンジン・GPUを使わずにピクセル単位で描画するランナー"
+
+[dependencies]
+
+[[bin]]
+name = "mb5-runner"
+path = "src/main.rs"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = 3
+debug = false
+
+[workspace]
