@@ -10,22 +10,24 @@ use crate::project::{
 pub const W: i32 = 760;
 pub const H: i32 = 640;
 
-const PAD_X: i32 = 36;
-const PAD_TOP: i32 = 28;
-const GAP: i32 = 18;
-const CARD_PAD: i32 = 24;
-const BTN_H: i32 = 42;
+const PAD_X: i32 = 32;
+const PAD_TOP: i32 = 24;
+const GAP: i32 = 16;
+const CARD_PAD: i32 = 20;
+const BTN_H: i32 = 44;
 const MAX_LINES: usize = 20;
 const MAX_HITS: usize = MAX_COMPS * (MAX_ITEMS + 2);
 const MAX_SCRIPT_DEPTH: usize = 8;
 
-const BG: Rgb = [246, 247, 250];
-const WHITE: Rgb = [255, 255, 255];
-const INK: Rgb = [27, 29, 34];
-const MUTED: Rgb = [112, 117, 127];
-const BORDER: Rgb = [220, 223, 230];
-const ACCENT: Rgb = [0, 112, 240];
-const SELECTED: Rgb = [231, 241, 255];
+// Warp4 light palette: keep the neutral surfaces quiet and reserve blue for actions.
+const BG: Rgb = [250, 250, 252];       // warp4_bg
+const WHITE: Rgb = [251, 251, 251];    // warp3_surface
+const INK: Rgb = [26, 26, 26];         // warp3_text
+const MUTED: Rgb = [93, 93, 93];       // warp3_muted
+const BORDER: Rgb = [211, 211, 211];   // warp3_border
+const ACCENT: Rgb = [0, 106, 255];     // warp4_primary
+const BUTTON_BG: Rgb = [238, 238, 239];
+const SELECTED: Rgb = [232, 242, 255];
 
 #[derive(Clone, Copy)]
 enum Action {
@@ -70,11 +72,14 @@ pub struct App {
 
 fn line_h(st: TextStyle) -> i32 {
     match st {
-        TextStyle::Title => 32,
-        TextStyle::Heading => 26,
+        TextStyle::Title => 28,
+        TextStyle::SectionTitle => 30,
+        TextStyle::SectionDescription => 18,
+        TextStyle::Heading => 20,
         TextStyle::Body => 22,
+        TextStyle::ListItem => 20,
         TextStyle::Small => 18,
-        TextStyle::Button => 20,
+        TextStyle::Button => 24,
     }
 }
 
@@ -103,29 +108,29 @@ fn wrap(c: &Canvas, s: &[u8], st: TextStyle, maxw: i32, out: &mut [(usize, usize
 fn text_block_height(c: &Canvas, maxw: i32, title: &[u8], body: &[u8]) -> i32 {
     let mut title_lines = [(0usize, 0usize); MAX_LINES];
     let mut body_lines = [(0usize, 0usize); MAX_LINES];
-    let nt = wrap(c, title, TextStyle::Heading, maxw, &mut title_lines);
-    let nb = wrap(c, body, TextStyle::Body, maxw, &mut body_lines);
+    let nt = wrap(c, title, TextStyle::SectionTitle, maxw, &mut title_lines);
+    let nb = wrap(c, body, TextStyle::SectionDescription, maxw, &mut body_lines);
     let gap = if nt > 0 && nb > 0 { 7 } else { 0 };
-    nt as i32 * line_h(TextStyle::Heading) + gap + nb as i32 * line_h(TextStyle::Body)
+    nt as i32 * line_h(TextStyle::SectionTitle) + gap + nb as i32 * line_h(TextStyle::SectionDescription)
 }
 
 fn text_block(c: &mut Canvas, draw: bool, x: i32, y: i32, maxw: i32, title: &[u8], body: &[u8]) -> i32 {
     let mut title_lines = [(0usize, 0usize); MAX_LINES];
     let mut body_lines = [(0usize, 0usize); MAX_LINES];
-    let nt = wrap(c, title, TextStyle::Heading, maxw, &mut title_lines);
-    let nb = wrap(c, body, TextStyle::Body, maxw, &mut body_lines);
+    let nt = wrap(c, title, TextStyle::SectionTitle, maxw, &mut title_lines);
+    let nb = wrap(c, body, TextStyle::SectionDescription, maxw, &mut body_lines);
     let gap = if nt > 0 && nb > 0 { 7 } else { 0 };
-    let height = nt as i32 * line_h(TextStyle::Heading) + gap + nb as i32 * line_h(TextStyle::Body);
+    let height = nt as i32 * line_h(TextStyle::SectionTitle) + gap + nb as i32 * line_h(TextStyle::SectionDescription);
     if draw {
         let mut cy = y;
         for (a, b) in title_lines.iter().take(nt) {
-            c.text(x, cy, &title[*a..*b], TextStyle::Heading, INK);
-            cy += line_h(TextStyle::Heading);
+            c.text(x, cy, &title[*a..*b], TextStyle::SectionTitle, INK);
+            cy += line_h(TextStyle::SectionTitle);
         }
         cy += gap;
         for (a, b) in body_lines.iter().take(nb) {
-            c.text(x, cy, &body[*a..*b], TextStyle::Body, INK);
-            cy += line_h(TextStyle::Body);
+            c.text(x, cy, &body[*a..*b], TextStyle::SectionDescription, MUTED);
+            cy += line_h(TextStyle::SectionDescription);
         }
     }
     height
@@ -139,26 +144,27 @@ fn draw_button(
     h: i32,
     label: &[u8],
     primary: bool,
+    text_button: bool,
     custom_bg: Option<Rgb>,
     custom_fg: Option<Rgb>,
     radius: i32,
 ) {
-    let fill = custom_bg.unwrap_or(if primary { ACCENT } else { BORDER });
-    let fg = custom_fg.unwrap_or(if primary || custom_bg.is_some() { WHITE } else { INK });
-    c.rrect(x, y, w, h, radius.min(h / 2), fill);
-    if !primary && custom_bg.is_none() {
-        c.rrect(x + 1, y + 1, w - 2, h - 2, (radius - 1).max(1), WHITE);
+    let transparent_text = text_button && custom_bg.is_none() && !primary;
+    let fill = custom_bg.unwrap_or(if primary { ACCENT } else { BUTTON_BG });
+    let fg = custom_fg.unwrap_or(if primary || custom_bg.is_some() { WHITE } else { ACCENT });
+    if !transparent_text {
+        c.rrect(x, y, w, h, radius.min(h / 2), fill);
     }
     let tw = c.measure(label, TextStyle::Button);
-    c.set_clip(x + 6, y + 2, (w - 12).max(1), h - 4);
+    c.set_clip(x + 8, y + 2, (w - 16).max(1), h - 4);
     c.text(x + (w - tw) / 2, y + (h - line_h(TextStyle::Button)) / 2, label, TextStyle::Button, fg);
     c.clear_clip();
 }
 
 fn button_height(comp: &Comp) -> i32 {
     match comp.size.get() {
-        b"large" => 50,
-        b"small" => 34,
+        b"large" => 52,
+        b"small" => 36,
         _ => BTN_H,
     }
 }
@@ -179,7 +185,8 @@ fn button_width(comp: &Comp, available: i32, natural: i32) -> i32 {
 
 fn button_natural_width(c: &Canvas, comp: &Comp, available: i32) -> i32 {
     let label = if comp.label1.is_empty() { &b"Button"[..] } else { comp.label1.get() };
-    button_width(comp, available, c.measure(label, TextStyle::Button) + 44)
+    let horizontal_padding = if comp.text_button { 28 } else { 48 };
+    button_width(comp, available, c.measure(label, TextStyle::Button) + horizontal_padding)
 }
 
 impl App {
@@ -348,6 +355,7 @@ impl App {
         let end_y = self.draw_board(c);
         self.max_scroll = core::cmp::max(0, end_y + self.scroll + PAD_TOP - H);
         if self.scroll > self.max_scroll { self.scroll = self.max_scroll; }
+        self.draw_scrollbar(c);
         self.draw_dialog(c);
         c.clear_clip();
     }
@@ -434,12 +442,14 @@ impl App {
             b"list" => self.draw_list(c, idx, x, y, width),
             b"button" => {
                 let label = if comp.label1.is_empty() { &b"Button"[..] } else { comp.label1.get() };
-                let natural = c.measure(label, TextStyle::Button) + 44;
+                let horizontal_padding = if comp.text_button { 28 } else { 48 };
+                let natural = c.measure(label, TextStyle::Button) + horizontal_padding;
                 let button_width = button_width(&comp, width, natural);
                 let button_h = button_height(&comp);
                 let bg = if comp.has_bg_color { Some(comp.bg_color) } else { None };
                 let fg = if comp.has_fg_color { Some(comp.fg_color) } else { None };
-                draw_button(c, x, y, button_width, button_h, label, comp.primary, bg, fg, comp.radius.max(12));
+                let radius = if comp.radius_custom { comp.radius } else { button_h / 2 };
+                draw_button(c, x, y, button_width, button_h, label, comp.primary, comp.text_button, bg, fg, radius);
                 let action = match self.find_board(comp.event.get()) {
                     Some(board) => Action::Goto(board),
                     None => Action::None,
@@ -453,13 +463,14 @@ impl App {
     }
 
     fn draw_card(&mut self, c: &mut Canvas, idx: usize, x: i32, y: i32, width: i32) -> i32 {
-        let radius = self.proj.comps[idx].radius.max(12);
+        let card_comp = self.proj.comps[idx];
+        let radius = if card_comp.radius_custom { card_comp.radius } else { 16 };
         let inner = width - CARD_PAD * 2;
         let content_h = self.card_content_height(c, idx, inner);
         let h = (content_h + CARD_PAD * 2).max(CARD_PAD * 2 + 8);
-        c.rrect(x, y + 2, width, h, radius, [226, 229, 235]);
-        c.rrect(x, y, width, h, radius, WHITE);
-        c.frame(x, y, width, h, BORDER);
+        c.rrect(x, y + 3, width, h, radius, [232, 234, 237]);
+        c.rrect(x, y, width, h, radius, BORDER);
+        c.rrect(x + 1, y + 1, width - 2, h - 2, (radius - 1).max(0), WHITE);
 
         let mut cy = y + CARD_PAD;
         let mut row_x = 0;
@@ -501,7 +512,7 @@ impl App {
 
     fn list_height(&self, c: &Canvas, comp: &Comp, width: i32) -> i32 {
         let head = text_block_height(c, width, comp.label1.get(), comp.label2.get());
-        let rows = comp.nitems as i32 * 46;
+        let rows = comp.nitems as i32 * 44;
         if head > 0 && comp.nitems > 0 { head + 14 + rows }
         else { head + rows }
     }
@@ -514,22 +525,41 @@ impl App {
         if head > 0 && comp.nitems > 0 { cy += 14; }
         for item_i in 0..comp.nitems.min(MAX_ITEMS) {
             let item = comp.items[item_i];
-            let row_h = 46;
+            let row_h = 44;
+            // Warp3-style ListView rows: flat surfaces and separators, no enclosing card.
+            c.fill(x, cy, width, row_h - 1, WHITE);
             if self.selected_items[idx] == item_i as i16 {
-                c.rrect(x - 8, cy, width + 16, row_h, 13, SELECTED);
+                c.rrect(x, cy + 1, width, row_h - 2, 10, SELECTED);
             }
-            c.fill(x + 2, cy + row_h - 1, width - 4, 1, [232, 234, 239]);
-            c.text(x + 8, cy + 13, "•".as_bytes(), TextStyle::Body, MUTED);
-            c.text(x + 28, cy + 12, item.text.get(), TextStyle::Body, INK);
+            c.fill(x, cy + row_h - 1, width, 1, BORDER);
+            c.text(x + 14, cy + (row_h - line_h(TextStyle::ListItem)) / 2, item.text.get(), TextStyle::ListItem, INK);
             if !item.call.is_empty() {
-                let arrow_x = x + width - 18;
-                c.text(arrow_x, cy + 11, "›".as_bytes(), TextStyle::Heading, MUTED);
+                let arrow_x = x + width - 16;
+                c.text(arrow_x, cy + (row_h - line_h(TextStyle::Heading)) / 2, "›".as_bytes(), TextStyle::Heading, ACCENT);
             }
             let action = Action::SelectItem(idx, item_i);
-            self.push_hit(x - 8, cy, width + 16, row_h, action);
+            self.push_hit(x, cy, width, row_h, action);
             cy += row_h;
         }
         cy - y
+    }
+
+    /// Draw the compact Warp4-style vertical scrollbar only when the document overflows.
+    fn draw_scrollbar(&self, c: &mut Canvas) {
+        if self.max_scroll <= 0 { return; }
+        let track_h = (H - 4).max(1);
+        let thumb_h = ((track_h as i64 * H as i64) / (H as i64 + self.max_scroll as i64))
+            .max(18)
+            .min(track_h as i64) as i32;
+        let max_thumb_y = track_h - thumb_h;
+        let thumb_y = if self.max_scroll > 0 {
+            (max_thumb_y as i64 * self.scroll as i64 / self.max_scroll as i64) as i32
+        } else {
+            0
+        };
+        let x = W - 9;
+        c.rrect(x, 2, 6, track_h, 3, [241, 241, 241]);
+        c.rrect(x, 2 + thumb_y, 6, thumb_h, 3, [184, 184, 184]);
     }
 
     fn draw_dialog(&mut self, c: &mut Canvas) {
@@ -543,31 +573,46 @@ impl App {
         }
         let idx = match selected { Some(v) => v, None => return };
 
-        c.overlay(0, 0, W, H, [17, 22, 32], 142);
+        c.overlay(0, 0, W, H, [17, 22, 32], 132);
         self.push_hit(0, 0, W, H, Action::None); // Modal backdrop blocks clicks behind the dialog.
         let comp = self.proj.comps[idx];
         let dialog_w = 520.min(W - 48);
         let inner_w = dialog_w - 56;
-        let body_h = text_block_height(c, inner_w, comp.label1.get(), comp.label2.get());
-        let dialog_h = (body_h + 56 + 18 + BTN_H + 28).max(208).min(H - 48);
+        let title_w = dialog_w - 112;
+        let mut title_lines = [(0usize, 0usize); MAX_LINES];
+        let mut body_lines = [(0usize, 0usize); MAX_LINES];
+        let title_count = wrap(c, comp.label1.get(), TextStyle::SectionTitle, title_w, &mut title_lines);
+        let body_count = wrap(c, comp.label2.get(), TextStyle::SectionDescription, inner_w, &mut body_lines);
+        let title_h = title_count as i32 * line_h(TextStyle::SectionTitle);
+        let header_h = title_h.max(42);
+        let body_h = body_count as i32 * line_h(TextStyle::SectionDescription);
+        let dialog_h = (28 + header_h + 12 + body_h + 24 + BTN_H + 28).max(208).min(H - 48);
         let dx = (W - dialog_w) / 2;
         let dy = (H - dialog_h) / 2;
 
-        c.rrect(dx, dy + 5, dialog_w, dialog_h, 24, [205, 209, 218]);
-        c.rrect(dx, dy, dialog_w, dialog_h, 24, WHITE);
-        c.frame(dx, dy, dialog_w, dialog_h, BORDER);
-        c.rrect(dx + 28, dy + 27, 42, 42, 14, [232, 242, 255]);
+        c.rrect(dx, dy + 5, dialog_w, dialog_h, 18, [226, 228, 232]);
+        c.rrect(dx, dy, dialog_w, dialog_h, 18, BORDER);
+        c.rrect(dx + 1, dy + 1, dialog_w - 2, dialog_h - 2, 17, WHITE);
+        c.rrect(dx + 28, dy + 27, 42, 42, 13, [232, 242, 255]);
         c.text(dx + 41, dy + 38, "!".as_bytes(), TextStyle::Heading, ACCENT);
         let title_y = dy + 34;
-        c.text(dx + 84, title_y, comp.label1.get(), TextStyle::Heading, INK);
-        let body_y = title_y + 40;
-        text_block(c, true, dx + 28, body_y, inner_w, b"", comp.label2.get());
+        let mut title_line_y = title_y;
+        for (a, b) in title_lines.iter().take(title_count) {
+            c.text(dx + 84, title_line_y, &comp.label1.get()[*a..*b], TextStyle::SectionTitle, INK);
+            title_line_y += line_h(TextStyle::SectionTitle);
+        }
+        let body_y = dy + 28 + header_h + 12;
+        let mut body_line_y = body_y;
+        for (a, b) in body_lines.iter().take(body_count) {
+            c.text(dx + 28, body_line_y, &comp.label2.get()[*a..*b], TextStyle::SectionDescription, MUTED);
+            body_line_y += line_h(TextStyle::SectionDescription);
+        }
 
         let close_label = if comp.close_label.is_empty() { b"OK" as &[u8] } else { comp.close_label.get() };
-        let button_w = c.measure(close_label, TextStyle::Button) + 42;
+        let button_w = c.measure(close_label, TextStyle::Button) + 48;
         let bx = dx + dialog_w - 28 - button_w;
         let by = dy + dialog_h - 28 - BTN_H;
-        draw_button(c, bx, by, button_w, BTN_H, close_label, true, None, None, 14);
+        draw_button(c, bx, by, button_w, BTN_H, close_label, true, false, None, None, BTN_H / 2);
         self.push_hit(bx, by, button_w, BTN_H, Action::Close(idx));
     }
 
@@ -606,13 +651,31 @@ impl App {
         false
     }
 
+    /// Apply a normalized vertical scroll delta in logical pixels.
+    ///
+    /// Platform event adapters should convert their native wheel/trackpad
+    /// units to logical-pixel deltas before calling this method.
     pub fn scroll(&mut self, dy: f64) -> bool {
-        self.scroll_acc -= dy;
+        if !dy.is_finite() || self.max_scroll <= 0 {
+            return false;
+        }
+
+        // Bound a single event so malformed or unusually large backend values
+        // cannot overflow the accumulator or jump beyond the document.
+        let delta = dy.max(-4096.0).min(4096.0);
+        self.scroll_acc = (self.scroll_acc - delta).max(-4096.0).min(4096.0);
         let step = self.scroll_acc as i32;
         self.scroll_acc -= step as f64;
-        if step == 0 { return false; }
-        let next = core::cmp::max(0, core::cmp::min(self.max_scroll, self.scroll + step));
-        if next == self.scroll { return false; }
+        if step == 0 {
+            return false;
+        }
+
+        let next = (self.scroll as i64 + step as i64)
+            .max(0)
+            .min(self.max_scroll as i64) as i32;
+        if next == self.scroll {
+            return false;
+        }
         self.scroll = next;
         true
     }

@@ -50,4 +50,5 @@ fi
 
 cargo build --release --quiet --manifest-path "$HERE/Cargo.toml"
 
+
 exec "$HERE/target/release/mb5-runner" "$COMPONENTS" "$@"

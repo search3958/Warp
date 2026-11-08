@@ -1,12 +1,8 @@
-//! 画素を自前で管理するフレームバッファ。
-//!
-//! 座標は論理座標（ポイント）で扱い、1 論理ピクセルを s×s のデバイス画素に展開する
-//! （Retina では s=2）。画素は [R, G, B, 0] の4バイト（kCGImageAlphaNoneSkipLast と一致）。
-//! 図形の描画はすべてこのコードが画素単位で行う。
-//! 文字は macOS では OS 標準フォント（CoreGraphics 経由）、それ以外では内蔵の簡易フォントを使う。
+//! Software framebuffer for the MB5 preview runner.
+//! Shapes, rounded corners, and text are rasterized without OS drawing APIs.
+//! Coordinates use logical pixels; `s` expands each logical pixel to device pixels.
 
-#[cfg(not(target_os = "macos"))]
-use crate::font::glyph;
+
 use crate::sys::{write_all, write_num, STDOUT};
 
 pub type Rgb = [u8; 3];
@@ -14,10 +10,42 @@ pub type Rgb = [u8; 3];
 #[derive(Clone, Copy, PartialEq)]
 pub enum TextStyle {
     Title,
+    SectionTitle,
+    SectionDescription,
     Heading,
     Body,
+    ListItem,
     Small,
     Button,
+}
+
+#[inline]
+fn circle_edge_coverage(
+    px: i32,
+    py: i32,
+    center_x: f32,
+    center_y: f32,
+    radius: f32,
+    left_edge: bool,
+) -> u8 {
+    const SUB_ROWS: i32 = 4;
+    let radius_sq = radius * radius;
+    let mut coverage = 0.0f32;
+
+    for sub_y in 0..SUB_ROWS {
+        let sample_y = py as f32 + (sub_y as f32 + 0.5) / SUB_ROWS as f32;
+        let dy = sample_y - center_y;
+        let dx = stb_truetype_rust::c_runtime::sqrt((radius_sq - dy * dy).max(0.0));
+        let edge_x = if left_edge { center_x - dx } else { center_x + dx };
+        let overlap = if left_edge {
+            (px as f32 + 1.0 - edge_x).max(0.0).min(1.0)
+        } else {
+            (edge_x - px as f32).max(0.0).min(1.0)
+        };
+        coverage += overlap;
+    }
+
+    (coverage * (255.0 / SUB_ROWS as f32) + 0.5) as u8
 }
 
 pub struct Canvas {
@@ -120,34 +148,98 @@ impl Canvas {
         }
     }
 
-    /// 角丸の矩形を塗る（角は半径 r の円弧で切り落とす）。
+    /// Anti-aliased rounded rectangle using four vertical subpixel samples
+    /// and exact fractional horizontal coverage on each scanline.
+    ///
+    /// The axis-aligned interior is filled directly. Only the four corner
+    /// regions need coverage calculations, keeping the cost proportional to
+    /// the corner area rather than the full rectangle.
     pub fn rrect(&mut self, x: i32, y: i32, w: i32, h: i32, r: i32, c: Rgb) {
         if w <= 0 || h <= 0 {
             return;
         }
-        let r = r.min(w / 2).min(h / 2).max(0);
-        for yy in y..y + h {
-            for xx in x..x + w {
-                let cx = if xx < x + r {
-                    x + r - 1
-                } else if xx >= x + w - r {
-                    x + w - r
-                } else {
-                    xx
-                };
-                let cy = if yy < y + r {
-                    y + r - 1
-                } else if yy >= y + h - r {
-                    y + h - r
-                } else {
-                    yy
-                };
-                let dx = (xx - cx) as i64;
-                let dy = (yy - cy) as i64;
-                if dx * dx + dy * dy > (r as i64) * (r as i64) {
-                    continue;
-                }
-                self.put(xx, yy, c);
+        let radius = r.min(w / 2).min(h / 2).max(0);
+        if radius == 0 {
+            self.fill(x, y, w, h, c);
+            return;
+        }
+
+        // Axis-aligned center regions are fully covered and need no AA.
+        self.fill(x + radius, y, w - radius * 2, h, c);
+        self.fill(x, y + radius, radius, h - radius * 2, c);
+        self.fill(x + w - radius, y + radius, radius, h - radius * 2, c);
+
+        let scale = self.s.max(1) as i32;
+        let left = x.saturating_mul(scale);
+        let top = y.saturating_mul(scale);
+        let right = x.saturating_add(w).saturating_mul(scale);
+        let bottom = y.saturating_add(h).saturating_mul(scale);
+        let radius_px = radius.saturating_mul(scale);
+        let radius_f = radius_px as f32;
+        let left_center = (left + radius_px) as f32;
+        let right_center = (right - radius_px) as f32;
+        let top_center = (top + radius_px) as f32;
+        let bottom_center = (bottom - radius_px) as f32;
+
+        // Top-left / top-right corners.
+        for py in top..top + radius_px {
+            for px in left..left + radius_px {
+                let alpha = circle_edge_coverage(
+                    px, py, left_center, top_center, radius_f, true,
+                );
+                if alpha != 0 { self.blend_device(px, py, c, alpha); }
+            }
+            for px in right - radius_px..right {
+                let alpha = circle_edge_coverage(
+                    px, py, right_center, top_center, radius_f, false,
+                );
+                if alpha != 0 { self.blend_device(px, py, c, alpha); }
+            }
+        }
+
+        // Bottom-left / bottom-right corners.
+        for py in bottom - radius_px..bottom {
+            for px in left..left + radius_px {
+                let alpha = circle_edge_coverage(
+                    px, py, left_center, bottom_center, radius_f, true,
+                );
+                if alpha != 0 { self.blend_device(px, py, c, alpha); }
+            }
+            for px in right - radius_px..right {
+                let alpha = circle_edge_coverage(
+                    px, py, right_center, bottom_center, radius_f, false,
+                );
+                if alpha != 0 { self.blend_device(px, py, c, alpha); }
+            }
+        }
+    }
+
+    /// Alpha-composite one physical pixel, respecting the logical clip.
+    #[inline]
+    fn blend_device(&mut self, px: i32, py: i32, color: Rgb, alpha: u8) {
+        if alpha == 0 || px < 0 || py < 0 {
+            return;
+        }
+        let scale = self.s.max(1) as i32;
+        let lx = px / scale;
+        let ly = py / scale;
+        let (x0, y0, x1, y1) = self.clip;
+        if lx < x0 || ly < y0 || lx >= x1 || ly >= y1 {
+            return;
+        }
+        let dw = self.w.max(0) as usize * self.s.max(1);
+        let dh = self.h.max(0) as usize * self.s.max(1);
+        if px as usize >= dw || py as usize >= dh {
+            return;
+        }
+        let offset = (py as usize * dw + px as usize) * 4;
+        let a = alpha as u32;
+        let inv = 255 - a;
+        unsafe {
+            for channel in 0..3 {
+                let old = *self.px.add(offset + channel) as u32;
+                let src = color[channel] as u32;
+                *self.px.add(offset + channel) = ((src * a + old * inv + 127) / 255) as u8;
             }
         }
     }
@@ -160,66 +252,18 @@ impl Canvas {
         self.fill(x + w - 1, y, 1, h, c);
     }
 
-    /// 文字列を描画し、描画幅（論理ピクセル）を返す。
-    #[cfg(target_os = "macos")]
-    pub fn text(&mut self, x: i32, y: i32, s: &[u8], st: TextStyle, c: Rgb) -> i32 {
-        crate::mac::draw_text(x, y, s, st, c, self.clip)
+    /// Draw TrueType text into the software framebuffer. This path is identical
+    /// on macOS, Linux, and other supported targets.
+    pub fn text(&mut self, x: i32, y: i32, text: &[u8], style: TextStyle, color: Rgb) -> i32 {
+        let scale = self.s.max(1);
+        crate::font::draw(x, y, text, style, scale, |px, py, coverage| {
+            self.blend_device(px, py, color, coverage);
+        })
     }
 
-    /// 文字列の描画幅（論理ピクセル）を返す。
-    #[cfg(target_os = "macos")]
-    pub fn measure(&self, s: &[u8], st: TextStyle) -> i32 {
-        crate::mac::measure(s, st)
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    pub fn text(&mut self, x: i32, y: i32, s: &[u8], st: TextStyle, c: Rgb) -> i32 {
-        self.fallback_text(true, x, y, s, st, c)
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    pub fn measure(&self, s: &[u8], st: TextStyle) -> i32 {
-        // 描画しない版。c は使わない
-        let mut dummy = Canvas { px: self.px, s: self.s, w: self.w, h: self.h, clip: self.clip };
-        dummy.fallback_text(false, 0, 0, s, st, [0, 0, 0])
-    }
-
-    /// 内蔵の 5x7 フォントで描く（draw=false のときは幅の計算のみ）。
-    #[cfg(not(target_os = "macos"))]
-    fn fallback_text(&mut self, draw: bool, mut x: i32, y: i32, s: &[u8], st: TextStyle, c: Rgb) -> i32 {
-        let sc: i32 = match st {
-            TextStyle::Title | TextStyle::Heading => 2,
-            _ => 1,
-        };
-        let start = x;
-        let mut i = 0;
-        while i < s.len() {
-            let b = s[i];
-            if b < 0x20 {
-                x += 6 * sc;
-                i += 1;
-            } else if b < 0x80 {
-                if draw {
-                    let rows = glyph(b);
-                    for (r, bits) in rows.iter().enumerate() {
-                        for col in 0..5 {
-                            if bits & (0x10 >> col) != 0 {
-                                self.fill(x + col * sc, y + r as i32 * sc, sc, sc, c);
-                            }
-                        }
-                    }
-                }
-                x += 6 * sc;
-                i += 1;
-            } else {
-                if draw {
-                    self.frame(x, y, 10 * sc, 7 * sc, c);
-                }
-                x += 12 * sc;
-                i += utf8_len(b);
-            }
-        }
-        x - start
+    /// Measure text using the same bundled font metrics used by drawing.
+    pub fn measure(&self, text: &[u8], style: TextStyle) -> i32 {
+        crate::font::measure(text, style, self.s.max(1))
     }
 
     /// 画像を PPM (P6) 形式で標準出力に書き出す（デバイス画素単位）。

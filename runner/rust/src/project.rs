@@ -84,6 +84,8 @@ pub struct Comp {
     pub close_label: Text<48>,
     pub hidden: bool,
     pub primary: bool,
+    /// `.type(text)` renders as a transparent text button.
+    pub text_button: bool,
     pub deleted: bool,
     pub width: Text<24>,
     pub size: Text<16>,
@@ -92,6 +94,8 @@ pub struct Comp {
     pub has_bg_color: bool,
     pub has_fg_color: bool,
     pub radius: i32,
+    /// True when `.radius(...)` was explicitly supplied.
+    pub radius_custom: bool,
     pub items: [ModelItem; MAX_ITEMS],
     pub nitems: usize,
 }
@@ -110,14 +114,16 @@ const EMPTY_COMP: Comp = Comp {
     close_label: Text::new(),
     hidden: false,
     primary: false,
+    text_button: false,
     deleted: false,
     width: Text::new(),
     size: Text::new(),
-    bg_color: [0, 112, 240],
-    fg_color: [28, 28, 32],
+    bg_color: [0, 106, 255],
+    fg_color: [26, 26, 26],
     has_bg_color: false,
     has_fg_color: false,
-    radius: 18,
+    radius: 16,
+    radius_custom: false,
     items: [EMPTY_ITEM; MAX_ITEMS],
     nitems: 0,
 };
@@ -238,6 +244,47 @@ fn strip_comment(s: &[u8]) -> &[u8] {
             quoted = true;
         } else if c == b'/' && s[i + 1] == b'/' {
             return trim(&s[..i]);
+        }
+        i += 1;
+    }
+    trim(s)
+}
+
+/// Remove YAML comments without modifying quoted scalars.
+/// `#` starts a YAML comment only outside quotes and when it begins the line
+/// or is preceded by whitespace. Single-quoted YAML escapes itself as `''`.
+fn strip_yaml_comment(s: &[u8]) -> &[u8] {
+    let mut quote = 0u8; // 0 = none, 1 = single, 2 = double
+    let mut escaped = false;
+    let mut i = 0usize;
+
+    while i < s.len() {
+        let c = s[i];
+        if quote == 2 {
+            if escaped {
+                escaped = false;
+            } else if c == b'\\' {
+                escaped = true;
+            } else if c == b'"' {
+                quote = 0;
+            }
+        } else if quote == 1 {
+            if c == b'\'' {
+                if i + 1 < s.len() && s[i + 1] == b'\'' {
+                    i += 1;
+                } else {
+                    quote = 0;
+                }
+            }
+        } else {
+            match c {
+                b'"' => quote = 2,
+                b'\'' => quote = 1,
+                b'#' if i == 0 || s[i - 1].is_ascii_whitespace() => {
+                    return trim(&s[..i]);
+                }
+                _ => {}
+            }
         }
         i += 1;
     }
@@ -504,13 +551,19 @@ pub fn parse_mb5(p: &mut Project, src: &[u8]) {
             } else if t.starts_with(b".display(") {
                 c.hidden = t.windows(4).any(|w| w == b"hide");
             } else if t.starts_with(b".type(") {
-                c.primary = t.windows(7).any(|w| w == b"primary");
+                if let Some(v) = value_after(t, b".type(") {
+                    c.primary = v == b"primary";
+                    c.text_button = v == b"text";
+                }
             } else if t.starts_with(b".width(") {
                 if let Some(v) = value_after(t, b".width(") { c.width.set(v); }
             } else if t.starts_with(b".size(") {
                 if let Some(v) = value_after(t, b".size(") { c.size.set(v); }
             } else if t.starts_with(b".radius(") {
-                if let Some(v) = value_after(t, b".radius(") { c.radius = parse_u64(v).min(64) as i32; }
+                if let Some(v) = value_after(t, b".radius(") {
+                    c.radius = parse_u64(v).min(64) as i32;
+                    c.radius_custom = true;
+                }
             } else if t.starts_with(b".bgColor(") {
                 if let Some(v) = value_after(t, b".bgColor(") { if let Some(rgb) = parse_hex_color(v) { c.bg_color = rgb; c.has_bg_color = true; } }
             } else if t.starts_with(b".fgColor(") {
@@ -595,7 +648,18 @@ fn parse_structs(p: &mut Project, src: &[u8]) {
             let comp = &mut p.structs[current_struct].comps[last_comp];
             if t.starts_with(b".id(") { if let Some(v) = value_after(t, b".id(") { comp.id.set(v); } }
             else if t.starts_with(b".display(") { comp.hidden = t.windows(4).any(|w| w == b"hide"); }
-            else if t.starts_with(b".type(") { comp.primary = t.windows(7).any(|w| w == b"primary"); }
+            else if t.starts_with(b".type(") {
+                if let Some(v) = value_after(t, b".type(") {
+                    comp.primary = v == b"primary";
+                    comp.text_button = v == b"text";
+                }
+            }
+            else if t.starts_with(b".radius(") {
+                if let Some(v) = value_after(t, b".radius(") {
+                    comp.radius = parse_u64(v).min(64) as i32;
+                    comp.radius_custom = true;
+                }
+            }
             else if t.starts_with(b".bgColor(") { if let Some(v) = value_after(t, b".bgColor(") { if let Some(rgb) = parse_hex_color(v) { comp.bg_color = rgb; comp.has_bg_color = true; } } }
             else if t.starts_with(b".fgColor(") { if let Some(v) = value_after(t, b".fgColor(") { if let Some(rgb) = parse_hex_color(v) { comp.fg_color = rgb; comp.has_fg_color = true; } } }
             else if t.starts_with(b"config:title:") { if let Some(v) = value_after(t, b"config:title:") { comp.label1.set(v); } }
@@ -726,7 +790,10 @@ fn resolve_component_yaml(comp: &mut Comp, src: &[u8]) {
         let line = strip_cr(raw);
         if line.is_empty() { continue; }
         let indent = line.iter().take_while(|&&c| c == b' ').count();
-        let t = strip_comment(trim(line));
+        let t = strip_yaml_comment(trim(line));
+        if t.is_empty() {
+            continue;
+        }
         if indent == 0 {
             if found { break; }
             if t.len() == key.get().len() + 1 && t.starts_with(key.get()) && t.last() == Some(&b':') {
@@ -734,7 +801,7 @@ fn resolve_component_yaml(comp: &mut Comp, src: &[u8]) {
             }
             continue;
         }
-        if !found || t.is_empty() { continue; }
+        if !found { continue; }
 
         if indent == 2 {
             section = if t == b"config:" { 1 } else if t == b"model:" { 2 } else if t == b"events:" { 3 } else { 0 };
@@ -808,13 +875,16 @@ fn resolve_component_yaml(comp: &mut Comp, src: &[u8]) {
         let line = strip_cr(raw);
         if line.is_empty() { continue; }
         let indent = line.iter().take_while(|&&c| c == b' ').count();
-        let t = strip_comment(trim(line));
+        let t = strip_yaml_comment(trim(line));
+        if t.is_empty() {
+            continue;
+        }
         if indent == 0 {
             if found { break; }
             if t.len() == key.get().len() + 1 && t.starts_with(key.get()) && t.last() == Some(&b':') { found = true; }
             continue;
         }
-        if !found || t.is_empty() { continue; }
+        if !found { continue; }
         if indent == 2 {
             in_events = t == b"events:";
             continue;

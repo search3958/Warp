@@ -6,8 +6,9 @@
 //!   components_dir : components/ のパス（省略時は ./components）
 //!   --ppm          : ウィンドウを開かず、描画結果を PPM (P6) として標準出力に書く
 //!
-//! 画素は canvas.rs のバッファに書き込む。macOS ではそのバッファを
-//! CoreGraphics のビットマップとして AppKit のウィンドウに表示する。
+//! 図形・角丸・テキストは canvas.rs と font.rs がOS非依存で描画する。
+//! macOSでは画素バッファをAppKitのウィンドウに表示する。
+//! --ppmはウィンドウバックエンドなしで同じ描画結果を書き出す。
 
 #![no_std]
 #![no_main]
@@ -103,8 +104,11 @@ pub extern "C" fn main(argc: i32, argv: *const *const c_char) -> i32 {
         project::resolve_labels(&mut proj, &buf[..n]);
     }
 
+    if !font::init() {
+        sys::eprint(b"mb5-runner: bundled TrueType font initialization failed; using bitmap fallback\n");
+    }
     let mut app = App::new(proj);
-    let pixels = unsafe { addr_of_mut!(PIXELS) as *mut u8 };
+    let pixels = addr_of_mut!(PIXELS) as *mut u8;
 
     if ppm {
         // 出力は論理サイズそのまま（1 倍）

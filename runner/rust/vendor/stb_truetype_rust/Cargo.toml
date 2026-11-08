@@ -1,0 +1,11 @@
+[package]
+name = "stb_truetype_rust"
+version = "1.26.1"
+edition = "2021"
+license = "Unlicense"
+description = "Vendored no_std TrueType rasterizer for Mosaic Board 5"
+
+[dependencies]
+libm = "0.2"
+
+[lib]

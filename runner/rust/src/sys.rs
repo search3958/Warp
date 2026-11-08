@@ -9,6 +9,7 @@ extern "C" {
     fn read(fd: c_int, buf: *mut c_void, n: usize) -> isize;
     fn write(fd: c_int, buf: *const c_void, n: usize) -> isize;
     fn close(fd: c_int) -> c_int;
+    fn getenv(name: *const c_char) -> *mut c_char;
     #[allow(dead_code)]
     fn usleep(us: u32) -> c_int;
     fn exit(code: c_int) -> !;
@@ -45,6 +46,28 @@ pub fn write_num(fd: c_int, mut n: usize) -> bool {
 
 pub fn eprint(s: &[u8]) {
     let _ = write_all(STDERR, s);
+}
+
+
+/// Return an environment variable as UTF-8 bytes without allocating.
+/// The C runtime owns the returned memory for the lifetime of the process.
+pub fn env_bytes(name: &[u8]) -> Option<&'static [u8]> {
+    let mut key = [0u8; 96];
+    if name.is_empty() || name.len() >= key.len() || name.iter().any(|&b| b == 0) {
+        return None;
+    }
+    key[..name.len()].copy_from_slice(name);
+    let ptr = unsafe { getenv(key.as_ptr() as *const c_char) };
+    if ptr.is_null() {
+        return None;
+    }
+    let mut len = 0usize;
+    unsafe {
+        while *ptr.add(len) != 0 {
+            len += 1;
+        }
+        Some(core::slice::from_raw_parts(ptr as *const u8, len))
+    }
 }
 
 pub fn die(code: i32) -> ! {

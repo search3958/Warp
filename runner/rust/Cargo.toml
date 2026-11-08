@@ -5,6 +5,7 @@ edition = "2021"
 description = "Mosaic Board 5 の components を、std・GUIエンジン・GPUを使わずにピクセル単位で描画するランナー"
 
 [dependencies]
+stb_truetype_rust = { path = "vendor/stb_truetype_rust" }
 
 [[bin]]
 name = "mb5-runner"
