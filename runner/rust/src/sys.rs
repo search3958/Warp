@@ -58,6 +58,32 @@ pub fn sleep_us(us: u32) {
     }
 }
 
+#[repr(C)]
+struct Timespec {
+    tv_sec: i64,
+    tv_nsec: i64,
+}
+
+#[link(name = "c")]
+extern "C" {
+    fn clock_gettime(clock_id: c_int, tp: *mut Timespec) -> c_int;
+}
+
+/// Monotonic milliseconds for script scheduling.
+pub fn monotonic_ms() -> u64 {
+    #[cfg(target_os = "macos")]
+    const CLOCK_ID: c_int = 6; // CLOCK_MONOTONIC
+    #[cfg(target_os = "linux")]
+    const CLOCK_ID: c_int = 1; // CLOCK_MONOTONIC
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    const CLOCK_ID: c_int = 1;
+
+    let mut ts = Timespec { tv_sec: 0, tv_nsec: 0 };
+    let result = unsafe { clock_gettime(CLOCK_ID, &mut ts) };
+    if result != 0 || ts.tv_sec < 0 || ts.tv_nsec < 0 { return 0; }
+    (ts.tv_sec as u64).saturating_mul(1000).saturating_add((ts.tv_nsec as u64) / 1_000_000)
+}
+
 /// argv[i] を &[u8] として取り出す（NUL終端まで）。
 ///
 /// # Safety

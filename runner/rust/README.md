@@ -1,10 +1,10 @@
 # Mosaic Board 5 Runner (Rust)
 
-MB5 の画面構造を読み込み、macOS 上にプレビュー表示する軽量ランナーです。外部GUIエンジンやGPU描画APIには依存せず、独自のフレームバッファとAppKit/CoreGraphicsで表示します。
+Mosaic Board 5 の `components/` を読み込み、MB5の画面構成と一部のイベント・スクリプトをプレビューするランナーです。
 
 ## 起動
 
-プロジェクトルート（`runner/` と `example/` がある場所）から実行します。
+プロジェクトルート（`runner/` と `example/` がある場所）で実行します。
 
 ```sh
 sh ./runner/rust/run.sh
@@ -12,64 +12,84 @@ sh ./runner/rust/run.sh path/to/components
 sh ./runner/rust/run.sh components --ppm > preview.ppm
 ```
 
-初回ビルドには Rust の `cargo` が必要です。macOS 以外ではウィンドウ表示ではなく `--ppm` による画像出力を使用してください。
+初回起動には Rust の `cargo` が必要です。
 
-## 表示方針
+## UIの扱い
 
-- 独自のプロジェクトヘッダーや board タブは表示しません。
-- `@mainBoard` の直後に定義された `board` を初期表示します。
-- `@mainBoard` がない場合は、最初に定義された `board` を初期表示します。
-- `moveboard(name)` が設定されたボタンをクリックした場合は、その遷移先 board を表示します。これはDSLで定義された動作であり、ランナー独自のタブUIではありません。
-- 内容がウィンドウより長い場合は、ホイール／トラックパッドでスクロールできます。
+- `@mainBoard` に対応するボードを初期表示します。画面上部に独自のヘッダーやボード切替タブは描画しません。
+- `card { ... }` で明示した範囲だけをカードとして描画します。
+- `list(...)` はカードではなく、通常の行リストとして描画します。各行はクリック可能で、選択状態を表示します。イベントが定義されている行をクリックすると、そのイベントを実行します。
+- `button(...)` はクリック可能です。`event: moveboard(boardName)` が指定されている場合は、そのボードへ移動します。
+- `alert(...)` はカードとして配置せず、暗いバックドロップを伴うモーダルダイアログとして表示します。閉じる操作はYAMLの `events.close` または `model.close.event` に接続できます。
+- カード内の連続したボタンは横並びに配置し、幅が足りない場合は折り返します。
+- ホイール／トラックパッドでコンテンツをスクロールできます。
 
-## 読み込むファイル
+## MB5の読み取り範囲
 
-| ファイル | 用途 |
-|---|---|
-| `config.ini` | プロジェクト名などの基本設定 |
-| `app/main.mb5` | board、コンポーネント、入れ子構造、修飾子 |
-| `models/main.yaml` | コンポーネントの設定値・モデルデータ |
-| `resources/` | アイコンなどのアセットの配置基準 |
+現在のランナーが扱う主な構文は次のとおりです。
 
-アセットの相対パスは `resources/` を基準とします。
+- `@mainBoard`、`board`、`card { ... }`
+- `text(...)`、`list(...)`、`button(...)`、`alert(...)`
+- `.id()`、`.display()`、`.type()`、`.width()`、`.size()`、`.radius()`、`.bgColor()`、`.fgColor()`
+- コンポーネント内の `config:title:`、`config:text:`、`config:message:`、`event: moveboard(...)`
+- YAMLの `config`、`model`、`event`／`events`
+- `@struct` の `components name { ... }` と `addComponent()`／`deleteComponent()`
+- `@mainScript` のスクリプト、`message(...)` 分岐、`wait()`、スクリプト呼び出し、`setComponentConfig()`
+- `.target(boardName)` による命令対象ボードの指定
 
-## MB5パーサー
+YAMLの `model` 内に定義したIDはリスト項目などのデータ識別子として扱います。`events` の同名IDは、そのデータ項目に紐付けられます。モデル項目のオブジェクト形式では `text` と `event` を読み取ります。
 
-パーサーは行頭の文字列検索ではなく、文字列・コメントを考慮しながら括弧とブロックを追跡します。
+### スクリプトの実行
 
-現在のプレビューで読み取る構文:
+`@mainScript` 内で最初に定義されたスクリプトを起動時に実行します。例えば、次の処理は1秒後に `closewelcome()` を呼び出します。
 
-- `@mainBoard` と `board name { ... }`
-- `alert(...)`、`text(...)`、`list(...)`、`button(...)`
-- `card { ... }` 内のコンポーネント
-- コンポーネント引数内に置かれた入れ子コンポーネント
-- `config:title:`、`config:text:`、`config:message:`、`config:target:`
-- `event: moveboard(name)`
-- `.id(...)`、`.display(...)`、`.type(...)`、`.bgColor(...)`、`.fgColor(...)`、`.size(...)`、`.radius(...)`、`.width(...)` の修飾子チェーン
-- `[...]` で囲まれた複数行のインラインモデル
-- `models/main.yaml` の `config` と `model` の値、および `event` / `events` のブロック境界（イベント処理自体は未実装）
+```text
+@mainScript
+script hello{
+    wait(1000)
+    closewelcome()
+}
 
-`[]` を付けない `model` は1行の値として扱います。`model:` のように値がない場合や、複数行データを角括弧なしで記述した場合はコンパイルエラーになります。
+script closewelcome{
+    setComponentConfig(welcome-alert,display:hide)
+}
+```
 
-YAMLとMB5の両方で同一の `config` 値を指定した場合は、上書きせず競合エラーとして起動を中止します。未定義のモデル参照、コンポーネントと `target` の不一致もエラーになります。
+`wait()` 後の命令は、その命令が実行される時点の現在のボードを基準にします。`.target()` が指定されている場合は、そのボードが対象です。
 
-## プレビュー上の表現
+### リストのイベント例
 
-- `text`: 見出しと本文のカード
-- `alert`: 見出し・本文・閉じる操作。閉じるラベルはYAMLの `model.close` があればそれを使用
-- `list`: 見出し・本文と、インラインまたはYAMLのモデル項目
-- `button`: ボタン。`moveboard(...)`、`.type(primary)`、色・幅・角丸・サイズの指定を反映します。`.id(...)` は識別子として保持しますが、スクリプト実行が未対応のため、現段階では実行時の参照には使用しません。
-- `card { ... }`: 中のコンポーネントを解析し、表示順を維持します。現段階では独立したカードコンテナとしての装飾は行いません。
+```yaml
+components:
+  model:
+    easteregg:
+      text: "Lucky board"
+      event: luckyalert(show)
+```
 
-## 現段階の制限
+または、IDと表示文字列を `model` に置き、複数イベントを `events` にまとめて定義できます。
 
-これはMB5言語全体の完全な実行系ではなく、画面構造のプレビューランナーです。次の機能はまだ実行しません。
+```yaml
+components:
+  events:
+    easteregg: luckyalert(show)
+  model:
+    easteregg: "Lucky board"
+```
 
-- `@struct` の定義・`addComponent()`／`deleteComponent()` による動的な追加・削除
-- `@mainScript`、`script`、`message()`、`wait()` などのスクリプト実行
-- YAMLの `events` に定義されたスクリプト呼び出し
-- 入力フォームやキーボード入力
-- SVGアセットの描画
-- MB5全仕様を対象にした一般的なYAML 1.2の解析
+## 表示フォント
 
-未対応構文を実行できるように見せかけず、画面プレビューに必要な構造と値の解析に範囲を限定しています。
+macOSでは `HarmonyOS Sans SC` がシステムにインストールされていれば通常テキストに使用します。フォントが見つからない場合はシステムフォントへフォールバックします。見出し・ボタンは太字スタイルを使用します。
+
+フォントファイルはこのソース配布物には含めていません。指定フォントを使う場合は、ユーザー自身のフォントファイルをmacOSのFont Bookからインストールしてください。
+
+## 描画・実装方式
+
+- 図形は自前のフレームバッファへ描画します。
+- macOSの文字描画はAppKit／CoreGraphicsを使用します。
+- macOSではRetina倍率に合わせて描画します。
+- `--ppm` は描画結果をPPMとして出力します。macOS以外では簡易ASCIIフォントを使用します。
+
+## 現時点の制限
+
+このランナーはMB5全仕様のコンパイラ／実行環境ではなく、サンプルを確認するためのプレビュー実装です。現時点では、任意の式評価、全コンポーネント・全修飾子、アイコン画像の描画、入力フォーム、完全な診断メッセージ、すべてのネスト構文は未対応です。未対応構文を使う場合は、このプレビュー結果を正式なMB5実行結果として扱わないでください。

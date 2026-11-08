@@ -1,18 +1,15 @@
-//! MB5 project reader and parser.
-//!
-//! This module intentionally keeps the runner dependency-free and `no_std`.
-//! It parses the structural MB5 subset used by the preview runner: boards,
-//! nested component calls, card blocks, chained modifiers, inline model lists,
-//! and the corresponding YAML model data. Script execution is not implemented.
+//! MB5 project reader.
+//! Fixed-capacity data structures are used to keep the runner no_std-friendly.
 
-pub const MAX_BOARDS: usize = 16;
-pub const MAX_COMPS: usize = 128;
-pub const MAX_ITEMS: usize = 32;
-pub const MAX_MODELS: usize = 64;
-const NO_PARENT: usize = usize::MAX;
-const MAX_NESTING: usize = 32;
+pub const MAX_BOARDS: usize = 8;
+pub const MAX_COMPS: usize = 48;
+pub const MAX_ITEMS: usize = 16;
+pub const MAX_SCRIPTS: usize = 24;
+pub const MAX_COMMANDS: usize = 32;
+pub const MAX_STRUCTS: usize = 16;
+pub const MAX_STRUCT_COMPS: usize = 8;
+pub const NO_PARENT: usize = usize::MAX;
 
-/// Fixed-capacity UTF-8 byte string for the `no_std` runner.
 #[derive(Clone, Copy)]
 pub struct Text<const N: usize> {
     b: [u8; N],
@@ -24,14 +21,14 @@ impl<const N: usize> Text<N> {
         Self { b: [0; N], n: 0 }
     }
 
-    pub fn set(&mut self, value: &[u8]) {
-        let mut n = value.len().min(N);
-        // Fixed-capacity storage must never cut a UTF-8 code point in half.
-        while n > 0 && n < value.len() && (value[n] & 0b1100_0000) == 0b1000_0000 {
-            n -= 1;
+    pub fn set(&mut self, s: &[u8]) {
+        let mut k = core::cmp::min(s.len(), N);
+        // Never leave a partial UTF-8 code point at the end of the fixed buffer.
+        while k > 0 && k < s.len() && (s[k] & 0xC0) == 0x80 {
+            k -= 1;
         }
-        self.b[..n].copy_from_slice(&value[..n]);
-        self.n = n;
+        self.b[..k].copy_from_slice(&s[..k]);
+        self.n = k;
     }
 
     pub fn get(&self) -> &[u8] {
@@ -44,35 +41,58 @@ impl<const N: usize> Text<N> {
 }
 
 #[derive(Clone, Copy)]
+pub struct ScriptCall {
+    pub name: Text<48>,
+    pub arg: Text<48>,
+}
+
+impl ScriptCall {
+    pub const fn new() -> Self {
+        Self { name: Text::new(), arg: Text::new() }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.name.is_empty()
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct ModelItem {
+    pub id: Text<48>,
+    pub text: Text<96>,
+    pub call: ScriptCall,
+}
+
+const EMPTY_ITEM: ModelItem = ModelItem { id: Text::new(), text: Text::new(), call: ScriptCall::new() };
+
+#[derive(Clone, Copy)]
 pub struct Comp {
     pub board: usize,
     pub parent: usize,
     pub kind: Text<16>,
-    /// YAML model key, e.g. `welcome-text`.
-    pub name: Text<64>,
-    /// Explicit component identifier supplied by `.id(...)`.
-    pub id: Text<64>,
-    /// Requested visual size supplied by `.size(...)`.
-    pub size: Text<16>,
-    pub label1: Text<128>,
-    pub label2: Text<192>,
-    pub close_label: Text<48>,
-    pub config_target: Text<16>,
-    pub has_target: bool,
-    /// Destination board used by `moveboard(...)`.
+    /// YAML model key referenced by the component.
+    pub name: Text<48>,
+    /// Parent struct name for dynamically added components.
+    pub struct_name: Text<48>,
+    /// Explicit `.id(...)`, used by setComponentConfig().
+    pub id: Text<48>,
+    pub label1: Text<96>,
+    pub label2: Text<128>,
+    /// moveboard() target.
     pub event: Text<48>,
+    pub close_event: ScriptCall,
+    pub close_label: Text<48>,
     pub hidden: bool,
     pub primary: bool,
-    pub radius: i16,
-    pub width_px: u16,
-    pub width_percent: bool,
+    pub deleted: bool,
+    pub width: Text<24>,
+    pub size: Text<16>,
     pub bg_color: [u8; 3],
     pub fg_color: [u8; 3],
     pub has_bg_color: bool,
     pub has_fg_color: bool,
-    pub has_label1: bool,
-    pub has_label2: bool,
-    pub items: [Text<96>; MAX_ITEMS],
+    pub radius: i32,
+    pub items: [ModelItem; MAX_ITEMS],
     pub nitems: usize,
 }
 
@@ -81,36 +101,93 @@ const EMPTY_COMP: Comp = Comp {
     parent: NO_PARENT,
     kind: Text::new(),
     name: Text::new(),
+    struct_name: Text::new(),
     id: Text::new(),
-    size: Text::new(),
     label1: Text::new(),
     label2: Text::new(),
-    close_label: Text::new(),
-    config_target: Text::new(),
-    has_target: false,
     event: Text::new(),
+    close_event: ScriptCall::new(),
+    close_label: Text::new(),
     hidden: false,
     primary: false,
-    radius: 12,
-    width_px: 0,
-    width_percent: false,
+    deleted: false,
+    width: Text::new(),
+    size: Text::new(),
     bg_color: [0, 112, 240],
-    fg_color: [255, 255, 255],
+    fg_color: [28, 28, 32],
     has_bg_color: false,
     has_fg_color: false,
-    has_label1: false,
-    has_label2: false,
-    items: [Text::new(); MAX_ITEMS],
+    radius: 18,
+    items: [EMPTY_ITEM; MAX_ITEMS],
     nitems: 0,
+};
+
+pub const CMD_WAIT: u8 = 1;
+pub const CMD_SET_DISPLAY: u8 = 2;
+pub const CMD_CALL: u8 = 3;
+pub const CMD_ADD_COMPONENT: u8 = 4;
+pub const CMD_DELETE_COMPONENT: u8 = 5;
+
+#[derive(Clone, Copy)]
+pub struct ScriptCommand {
+    pub kind: u8,
+    pub subject: Text<48>,
+    pub arg: Text<48>,
+    pub target: Text<48>,
+    pub millis: u64,
+    pub flag: bool,
+}
+
+const EMPTY_COMMAND: ScriptCommand = ScriptCommand {
+    kind: 0,
+    subject: Text::new(),
+    arg: Text::new(),
+    target: Text::new(),
+    millis: 0,
+    flag: false,
+};
+
+#[derive(Clone, Copy)]
+pub struct Script {
+    pub name: Text<48>,
+    /// Empty for a normal script; non-empty for a message(show) branch.
+    pub branch: Text<48>,
+    pub commands: [ScriptCommand; MAX_COMMANDS],
+    pub ncommands: usize,
+}
+
+const EMPTY_SCRIPT: Script = Script {
+    name: Text::new(),
+    branch: Text::new(),
+    commands: [EMPTY_COMMAND; MAX_COMMANDS],
+    ncommands: 0,
+};
+
+#[derive(Clone, Copy)]
+pub struct StructDef {
+    pub name: Text<48>,
+    pub comps: [Comp; MAX_STRUCT_COMPS],
+    pub ncomps: usize,
+}
+
+const EMPTY_STRUCT: StructDef = StructDef {
+    name: Text::new(),
+    comps: [EMPTY_COMP; MAX_STRUCT_COMPS],
+    ncomps: 0,
 };
 
 pub struct Project {
     pub title: Text<96>,
     pub boards: [Text<48>; MAX_BOARDS],
     pub nboards: usize,
-    pub main_board: usize,
+    pub main_board: Text<48>,
     pub comps: [Comp; MAX_COMPS],
     pub ncomps: usize,
+    pub scripts: [Script; MAX_SCRIPTS],
+    pub nscripts: usize,
+    pub structs: [StructDef; MAX_STRUCTS],
+    pub nstructs: usize,
+    pub main_script: Text<48>,
 }
 
 impl Project {
@@ -119,876 +196,170 @@ impl Project {
             title: Text::new(),
             boards: [Text::new(); MAX_BOARDS],
             nboards: 0,
-            main_board: 0,
+            main_board: Text::new(),
             comps: [EMPTY_COMP; MAX_COMPS],
             ncomps: 0,
+            scripts: [EMPTY_SCRIPT; MAX_SCRIPTS],
+            nscripts: 0,
+            structs: [EMPTY_STRUCT; MAX_STRUCTS],
+            nstructs: 0,
+            main_script: Text::new(),
         }
     }
-
-    fn add_comp(&mut self, board: usize, parent: usize, kind: &[u8]) -> Option<usize> {
-        if self.ncomps >= MAX_COMPS {
-            return None;
-        }
-        let index = self.ncomps;
-        let mut comp = EMPTY_COMP;
-        comp.board = board;
-        comp.parent = parent;
-        comp.kind.set(kind);
-        self.comps[index] = comp;
-        self.ncomps += 1;
-        Some(index)
-    }
 }
 
-fn is_space(c: u8) -> bool {
-    c == b' ' || c == b'\t' || c == b'\r'
-}
-
-fn is_ident(c: u8) -> bool {
-    c.is_ascii_alphanumeric() || c == b'_' || c == b'-'
-}
+fn is_space(c: u8) -> bool { c == b' ' || c == b'\t' || c == b'\r' }
+fn is_ident(c: u8) -> bool { c.is_ascii_alphanumeric() || c == b'-' || c == b'_' }
 
 pub fn trim(s: &[u8]) -> &[u8] {
-    let mut start = 0;
-    let mut end = s.len();
-    while start < end && is_space(s[start]) {
-        start += 1;
-    }
-    while end > start && is_space(s[end - 1]) {
-        end -= 1;
-    }
-    &s[start..end]
+    let mut a = 0;
+    let mut b = s.len();
+    while a < b && is_space(s[a]) { a += 1; }
+    while b > a && is_space(s[b - 1]) { b -= 1; }
+    &s[a..b]
 }
 
-fn strip_cr(line: &[u8]) -> &[u8] {
-    if line.last() == Some(&b'\r') {
-        &line[..line.len() - 1]
-    } else {
-        line
-    }
+fn strip_cr(s: &[u8]) -> &[u8] {
+    if s.last() == Some(&b'\r') { &s[..s.len() - 1] } else { s }
 }
 
-fn strip_ini_comment(line: &[u8]) -> &[u8] {
+/// Strip `//` only outside quoted strings.
+fn strip_comment(s: &[u8]) -> &[u8] {
     let mut quoted = false;
     let mut escaped = false;
     let mut i = 0;
-    while i < line.len() {
-        let c = line[i];
-        if c == b'"' && !escaped {
-            quoted = !quoted;
-        }
-        if !quoted && c == b'/' && line.get(i + 1) == Some(&b'/') {
-            return trim(&line[..i]);
-        }
-        escaped = c == b'\\' && !escaped;
-        if c != b'\\' {
-            escaped = false;
+    while i + 1 < s.len() {
+        let c = s[i];
+        if quoted {
+            if escaped { escaped = false; }
+            else if c == b'\\' { escaped = true; }
+            else if c == b'"' { quoted = false; }
+        } else if c == b'"' {
+            quoted = true;
+        } else if c == b'/' && s[i + 1] == b'/' {
+            return trim(&s[..i]);
         }
         i += 1;
     }
-    trim(line)
+    trim(s)
 }
 
-fn unquote(value: &[u8]) -> &[u8] {
-    let v = trim(value);
-    if v.len() >= 2 && v[0] == b'"' && v[v.len() - 1] == b'"' {
-        &v[1..v.len() - 1]
+fn ident(s: &[u8]) -> &[u8] {
+    let mut n = 0;
+    while n < s.len() && is_ident(s[n]) { n += 1; }
+    &s[..n]
+}
+
+fn quoted_or_raw(v: &[u8]) -> &[u8] {
+    let v = trim(v);
+    if v.first() == Some(&b'"') {
+        let mut i = 1;
+        let mut escaped = false;
+        while i < v.len() {
+            let c = v[i];
+            if escaped { escaped = false; }
+            else if c == b'\\' { escaped = true; }
+            else if c == b'"' { return &v[1..i]; }
+            i += 1;
+        }
+        &v[1..]
     } else {
-        v
+        let end = v.iter().position(|&c| c == b',' || c == b')').unwrap_or(v.len());
+        trim(&v[..end])
     }
 }
 
-fn ini_value<'a>(line: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
-    let rest = trim(line.strip_prefix(key)?);
-    rest.strip_prefix(b"=").map(trim)
+fn value_after<'a>(line: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+    let p = line.windows(key.len()).position(|w| w == key)?;
+    Some(quoted_or_raw(&line[p + key.len()..]))
 }
 
-pub fn parse_config(project: &mut Project, src: &[u8]) {
-    for raw in src.split(|&c| c == b'\n') {
-        let line = strip_ini_comment(strip_cr(raw));
-        if let Some(value) = ini_value(line, b"name") {
-            project.title.set(unquote(value));
+fn call_parts(src: &[u8]) -> Option<(&[u8], &[u8])> {
+    let s = trim(src);
+    let open = s.iter().position(|&c| c == b'(')?;
+    let name = trim(&s[..open]);
+    if name.is_empty() { return None; }
+
+    // Find the matching ')' while respecting nested calls and quoted strings.
+    let mut depth = 1usize;
+    let mut quoted = false;
+    let mut escaped = false;
+    let mut close = s.len();
+    let mut i = open + 1;
+    while i < s.len() {
+        let ch = s[i];
+        if quoted {
+            if escaped { escaped = false; }
+            else if ch == b'\\' { escaped = true; }
+            else if ch == b'"' { quoted = false; }
+        } else if ch == b'"' {
+            quoted = true;
+        } else if ch == b'(' {
+            depth += 1;
+        } else if ch == b')' {
+            depth -= 1;
+            if depth == 0 { close = i; break; }
         }
+        i += 1;
     }
-}
+    if close == s.len() { return None; }
 
-fn is_component_kind(name: &[u8]) -> bool {
-    name == b"alert" || name == b"text" || name == b"list" || name == b"button"
-}
-
-struct Mb5Parser<'a, 'p> {
-    src: &'a [u8],
-    pos: usize,
-    line: usize,
-    project: &'p mut Project,
-    errors: usize,
-    main_board_pending: bool,
-}
-
-impl<'a, 'p> Mb5Parser<'a, 'p> {
-    fn new(project: &'p mut Project, src: &'a [u8]) -> Self {
-        Self { src, pos: 0, line: 1, project, errors: 0, main_board_pending: false }
-    }
-
-    fn peek(&self) -> Option<u8> {
-        self.src.get(self.pos).copied()
-    }
-
-    fn peek_n(&self, offset: usize) -> Option<u8> {
-        self.src.get(self.pos + offset).copied()
-    }
-
-    fn bump(&mut self) -> Option<u8> {
-        let c = self.peek()?;
-        self.pos += 1;
-        if c == b'\n' {
-            self.line += 1;
-        }
-        Some(c)
-    }
-
-    fn error(&mut self, message: &[u8]) {
-        self.errors += 1;
-        crate::sys::eprint(b"main.mb5:");
-        crate::sys::write_num(crate::sys::STDERR, self.line);
-        crate::sys::eprint(b": ");
-        crate::sys::eprint(message);
-        crate::sys::eprint(b"\n");
-    }
-
-    fn skip_horizontal(&mut self) {
-        while self.peek().map_or(false, is_space) {
-            self.bump();
-        }
-    }
-
-    fn skip_comment(&mut self) {
-        if self.peek() == Some(b'/') && self.peek_n(1) == Some(b'/') {
-            while let Some(c) = self.bump() {
-                if c == b'\n' {
-                    break;
-                }
-            }
-        }
-    }
-
-    fn skip_trivia(&mut self) {
-        loop {
-            self.skip_horizontal();
-            if self.peek() == Some(b'/') && self.peek_n(1) == Some(b'/') {
-                self.skip_comment();
-                continue;
-            }
-            if self.peek() == Some(b'\n') {
-                self.bump();
-                continue;
-            }
+    let args = &s[open + 1..close];
+    let mut depth = 0usize;
+    quoted = false;
+    escaped = false;
+    let mut comma = args.len();
+    for (i, &ch) in args.iter().enumerate() {
+        if quoted {
+            if escaped { escaped = false; }
+            else if ch == b'\\' { escaped = true; }
+            else if ch == b'"' { quoted = false; }
+        } else if ch == b'"' {
+            quoted = true;
+        } else if ch == b'(' {
+            depth += 1;
+        } else if ch == b')' {
+            depth = depth.saturating_sub(1);
+        } else if ch == b',' && depth == 0 {
+            comma = i;
             break;
         }
     }
-
-    fn read_ident(&mut self) -> &'a [u8] {
-        let start = self.pos;
-        while self.peek().map_or(false, is_ident) {
-            self.bump();
-        }
-        &self.src[start..self.pos]
-    }
-
-    fn read_quoted(&mut self) -> Option<&'a [u8]> {
-        if self.peek() != Some(b'"') {
-            return None;
-        }
-        self.bump();
-        let start = self.pos;
-        let mut escaped = false;
-        let mut crossed_line = false;
-        while let Some(c) = self.bump() {
-            if c == b'"' && !escaped {
-                if crossed_line {
-                    self.error("文字列は1行で記述してください".as_bytes());
-                }
-                return Some(&self.src[start..self.pos - 1]);
-            }
-            if c == b'\n' {
-                crossed_line = true;
-            }
-            if c == b'\\' && !escaped {
-                escaped = true;
-            } else {
-                escaped = false;
-            }
-        }
-        self.error("閉じられていない文字列です".as_bytes());
-        Some(&self.src[start..self.pos])
-    }
-
-    /// Reads a single scalar. Unquoted values end at a comma, line break,
-    /// closing parenthesis/bracket/brace, or comment.
-    fn read_scalar(&mut self) -> &'a [u8] {
-        self.skip_horizontal();
-        if self.peek() == Some(b'"') {
-            return self.read_quoted().unwrap_or(&self.src[self.pos..self.pos]);
-        }
-        let start = self.pos;
-        while let Some(c) = self.peek() {
-            if c == b'\n' || c == b',' || c == b')' || c == b']' || c == b'}' {
-                break;
-            }
-            if c == b'/' && self.peek_n(1) == Some(b'/') {
-                break;
-            }
-            self.bump();
-        }
-        trim(&self.src[start..self.pos])
-    }
-
-    fn consume(&mut self, expected: u8) -> bool {
-        self.skip_horizontal();
-        if self.peek() == Some(expected) {
-            self.bump();
-            true
-        } else {
-            false
-        }
-    }
-
-    fn skip_line(&mut self) {
-        while let Some(c) = self.bump() {
-            if c == b'\n' {
-                break;
-            }
-        }
-    }
-
-    fn skip_balanced_block(&mut self) {
-        if !self.consume(b'{') {
-            self.skip_line();
-            return;
-        }
-        self.skip_block_after_open();
-    }
-
-    fn skip_block_after_open(&mut self) {
-        let mut depth = 1usize;
-        let mut in_string = false;
-        let mut escaped = false;
-        while let Some(c) = self.bump() {
-            if in_string {
-                if c == b'"' && !escaped {
-                    in_string = false;
-                }
-                if c == b'\\' && !escaped {
-                    escaped = true;
-                } else {
-                    escaped = false;
-                }
-                continue;
-            }
-            if c == b'"' {
-                in_string = true;
-            } else if c == b'/' && self.peek() == Some(b'/') {
-                self.bump();
-                while let Some(comment_char) = self.bump() {
-                    if comment_char == b'\n' { break; }
-                }
-            } else if c == b'{' {
-                depth += 1;
-            } else if c == b'}' {
-                depth -= 1;
-                if depth == 0 {
-                    return;
-                }
-            }
-        }
-        self.error("閉じられていないブロックです".as_bytes());
-    }
-
-    fn parse(mut self) -> usize {
-        while self.pos < self.src.len() {
-            self.skip_trivia();
-            if self.pos >= self.src.len() {
-                break;
-            }
-            if self.peek() == Some(b'@') {
-                self.bump();
-                let directive = self.read_ident();
-                self.main_board_pending = directive == b"mainBoard";
-                self.skip_line();
-                continue;
-            }
-
-            let saved = self.pos;
-            let name = self.read_ident();
-            if name == b"board" {
-                self.skip_horizontal();
-                let board_name = self.read_ident();
-                self.skip_horizontal();
-                if board_name.is_empty() || !self.consume(b'{') {
-                    self.error("board 定義は `board name { ... }` の形式で記述してください".as_bytes());
-                    self.skip_line();
-                    continue;
-                }
-                if self.project.nboards >= MAX_BOARDS {
-                    self.error("board の上限を超えました".as_bytes());
-                    self.skip_block_after_open();
-                    self.main_board_pending = false;
-                    continue;
-                }
-                let board = self.project.nboards;
-                self.project.boards[board].set(board_name);
-                self.project.nboards += 1;
-                if self.project.nboards == 1 || self.main_board_pending {
-                    self.project.main_board = board;
-                }
-                self.main_board_pending = false;
-                self.parse_body(board, NO_PARENT, 0);
-                continue;
-            }
-
-            // Ignore declarations outside boards (structs and scripts are not
-            // executed by this preview runner, but their braces are balanced).
-            self.pos = saved;
-            self.skip_unknown_top_level();
-        }
-        self.errors
-    }
-
-    fn skip_unknown_top_level(&mut self) {
-        let mut in_string = false;
-        let mut escaped = false;
-        while let Some(c) = self.peek() {
-            if in_string {
-                self.bump();
-                if c == b'"' && !escaped {
-                    in_string = false;
-                }
-                if c == b'\\' && !escaped {
-                    escaped = true;
-                } else {
-                    escaped = false;
-                }
-                continue;
-            }
-            if c == b'"' {
-                in_string = true;
-                self.bump();
-            } else if c == b'/' && self.peek_n(1) == Some(b'/') {
-                self.skip_comment();
-                if self.peek().is_none() {
-                    return;
-                }
-            } else if c == b'{' {
-                self.skip_balanced_block();
-                return;
-            } else if c == b'\n' {
-                self.bump();
-                return;
-            } else {
-                self.bump();
-            }
-        }
-    }
-
-    fn parse_body(&mut self, board: usize, parent: usize, nesting: usize) {
-        if nesting > MAX_NESTING {
-            self.error("コンポーネントのネストが深すぎます".as_bytes());
-            return;
-        }
-        loop {
-            self.skip_trivia();
-            match self.peek() {
-                None => {
-                    self.error("board の閉じ括弧 `}` がありません".as_bytes());
-                    return;
-                }
-                Some(b'}') => {
-                    self.bump();
-                    return;
-                }
-                Some(b';') | Some(b',') => {
-                    self.bump();
-                    continue;
-                }
-                _ => {}
-            }
-
-            let start = self.pos;
-            let word = self.read_ident();
-            if word.is_empty() {
-                self.bump();
-                continue;
-            }
-            self.skip_horizontal();
-
-            if word == b"card" && self.peek() == Some(b'{') {
-                self.bump();
-                self.parse_body(board, parent, nesting + 1);
-                continue;
-            }
-
-            if is_component_kind(word) && self.peek() == Some(b'(') {
-                if let Some(index) = self.project.add_comp(board, parent, word) {
-                    self.bump();
-                    self.parse_component_args(index, nesting + 1);
-                    self.parse_modifiers(index);
-                } else {
-                    self.error("コンポーネント数の上限を超えました".as_bytes());
-                    self.skip_call();
-                }
-                continue;
-            }
-
-            // Fail visibly rather than silently dropping syntax the preview
-            // runner cannot interpret.
-            self.error("board 内に未対応の命令があります".as_bytes());
-            self.pos = start;
-            self.skip_unknown_statement();
-        }
-    }
-
-    fn skip_unknown_statement(&mut self) {
-        let mut parens = 0usize;
-        let mut brackets = 0usize;
-        let mut braces = 0usize;
-        let mut in_string = false;
-        let mut escaped = false;
-        while let Some(c) = self.peek() {
-            if in_string {
-                self.bump();
-                if c == b'"' && !escaped {
-                    in_string = false;
-                }
-                if c == b'\\' && !escaped {
-                    escaped = true;
-                } else {
-                    escaped = false;
-                }
-                continue;
-            }
-            match c {
-                b'"' => { in_string = true; self.bump(); }
-                b'/' if self.peek_n(1) == Some(b'/') => { self.skip_comment(); return; }
-                b'(' => { parens += 1; self.bump(); }
-                b')' => {
-                    if parens == 0 { self.bump(); return; }
-                    parens -= 1; self.bump();
-                }
-                b'[' => { brackets += 1; self.bump(); }
-                b']' => { if brackets > 0 { brackets -= 1; } self.bump(); }
-                b'{' => { braces += 1; self.bump(); }
-                b'}' => {
-                    if braces == 0 && parens == 0 && brackets == 0 { return; }
-                    if braces > 0 { braces -= 1; }
-                    self.bump();
-                }
-                b'\n' if parens == 0 && brackets == 0 && braces == 0 => { self.bump(); return; }
-                _ => { self.bump(); }
-            }
-        }
-    }
-
-    fn skip_call(&mut self) {
-        if !self.consume(b'(') { return; }
-        let mut depth = 1usize;
-        while let Some(c) = self.bump() {
-            if c == b'(' { depth += 1; }
-            if c == b')' {
-                depth -= 1;
-                if depth == 0 { return; }
-            }
-        }
-    }
-
-    fn parse_component_args(&mut self, index: usize, nesting: usize) {
-        if nesting > MAX_NESTING {
-            self.error("コンポーネントのネストが深すぎます".as_bytes());
-            self.skip_call();
-            return;
-        }
-        loop {
-            self.skip_trivia();
-            match self.peek() {
-                None => {
-                    self.error("コンポーネントの `)` がありません".as_bytes());
-                    return;
-                }
-                Some(b')') => { self.bump(); return; }
-                Some(b',') => { self.bump(); continue; }
-                Some(b'[') => {
-                    self.parse_inline_model(index);
-                    continue;
-                }
-                Some(b'(') => {
-                    self.error("引数の位置に予期しない `(` があります".as_bytes());
-                    self.bump();
-                    continue;
-                }
-                _ => {}
-            }
-
-            let key = self.read_ident();
-            if key.is_empty() {
-                self.bump();
-                continue;
-            }
-            self.skip_horizontal();
-
-            if self.peek() == Some(b':') {
-                self.bump();
-                if key == b"config" {
-                    self.parse_config_property(index);
-                } else if key == b"event" {
-                    self.parse_event_property(index);
-                } else if key == b"events" {
-                    // Event maps are YAML-side definitions; keep the syntax
-                    // balanced here without pretending to execute them.
-                    self.skip_property_value();
-                } else if key == b"model" {
-                    self.skip_horizontal();
-                    if self.peek() == Some(b'[') {
-                        self.parse_inline_model(index);
-                    } else if self.peek() == Some(b'\n') || self.peek() == Some(b')') || self.peek().is_none() {
-                        self.error("model に値がありません。複数行データは `[...]` で囲んでください".as_bytes());
-                    } else {
-                        // An unbracketed model is deliberately limited to one
-                        // physical line. A one-line scalar or key:value pair is
-                        // accepted; multiline input is rejected at `model:`.
-                        let raw = self.read_scalar();
-                        let value = match raw.iter().position(|&c| c == b':') {
-                            Some(colon) => unquote(trim(&raw[colon + 1..])),
-                            None => unquote(raw),
-                        };
-                        if value.is_empty() {
-                            self.error("model の値が空です".as_bytes());
-                        } else if self.project.comps[index].nitems < MAX_ITEMS {
-                            let comp = &mut self.project.comps[index];
-                            comp.items[comp.nitems].set(value);
-                            comp.nitems += 1;
-                        }
-                    }
-                } else {
-                    self.error("未対応の引数キーです".as_bytes());
-                    self.skip_property_value();
-                }
-                continue;
-            }
-
-            if self.peek() == Some(b'(') {
-                if is_component_kind(key) {
-                    let board = self.project.comps[index].board;
-                    if let Some(child) = self.project.add_comp(board, index, key) {
-                        self.bump();
-                        self.parse_component_args(child, nesting + 1);
-                        self.parse_modifiers(child);
-                    } else {
-                        self.error("コンポーネント数の上限を超えました".as_bytes());
-                        self.skip_call();
-                    }
-                } else if key == b"moveboard" {
-                    self.bump();
-                    self.parse_moveboard_call(index);
-                } else {
-                    self.error("引数内に未対応の関数呼び出しがあります".as_bytes());
-                    self.skip_call();
-                }
-                continue;
-            }
-
-            // The first bare identifier is the model reference. Additional
-            // bare tokens are invalid rather than being silently reinterpreted.
-            if self.project.comps[index].name.is_empty() {
-                self.project.comps[index].name.set(key);
-            } else {
-                self.error("モデル参照以外の位置に裸の識別子があります".as_bytes());
-            }
-        }
-    }
-
-    fn parse_config_property(&mut self, index: usize) {
-        self.skip_horizontal();
-        let property = self.read_ident();
-        if property.is_empty() || !self.consume(b':') {
-            self.error("config は `config:property: value` の形式で記述してください".as_bytes());
-            self.skip_property_value();
-            return;
-        }
-        let value = self.read_scalar();
-        let mut invalid_config = false;
-        {
-            let comp = &mut self.project.comps[index];
-            if property == b"title" {
-                comp.label1.set(value);
-                comp.has_label1 = true;
-            } else if property == b"text" || property == b"message" {
-                if comp.kind.get() == b"button" {
-                    comp.label1.set(value);
-                    comp.has_label1 = true;
-                } else {
-                    comp.label2.set(value);
-                    comp.has_label2 = true;
-                }
-            } else if property == b"target" {
-                comp.config_target.set(value);
-                comp.has_target = true;
-                invalid_config = value != comp.kind.get();
-            } else {
-                invalid_config = true;
-            }
-        }
-        if invalid_config {
-            self.error("config のキーが未対応、または target とコンポーネントの種類が一致しません".as_bytes());
-        }
-    }
-
-    fn parse_event_property(&mut self, index: usize) {
-        self.skip_trivia();
-        let key = self.read_ident();
-        self.skip_horizontal();
-        if key.is_empty() {
-            self.error("event の値がありません".as_bytes());
-            self.skip_property_value();
-            return;
-        }
-        if key == b"moveboard" && self.peek() == Some(b'(') {
-            self.bump();
-            self.skip_trivia();
-            let target = self.read_ident();
-            if target.is_empty() {
-                self.error("moveboard の遷移先がありません".as_bytes());
-            }
-            self.project.comps[index].event.set(target);
-            self.skip_horizontal();
-            if !self.consume(b')') {
-                self.error("moveboard の `)` がありません".as_bytes());
-                self.skip_property_value();
-            }
-        } else {
-            self.skip_property_value();
-        }
-    }
-
-    fn parse_moveboard_call(&mut self, index: usize) {
-        self.skip_trivia();
-        let target = self.read_ident();
-        if target.is_empty() {
-            self.error("moveboard の遷移先がありません".as_bytes());
-        }
-        self.project.comps[index].event.set(target);
-        self.skip_horizontal();
-        if !self.consume(b')') {
-            self.error("moveboard の `)` がありません".as_bytes());
-            self.skip_property_value();
-        }
-    }
-
-    fn skip_property_value(&mut self) {
-        self.skip_horizontal();
-        if self.peek() == Some(b'"') {
-            let _ = self.read_quoted();
-            return;
-        }
-        let mut parens = 0usize;
-        while let Some(c) = self.peek() {
-            if c == b'\n' || c == b',' || (c == b')' && parens == 0) || c == b']' {
-                return;
-            }
-            if c == b'(' { parens += 1; }
-            if c == b')' && parens > 0 { parens -= 1; }
-            if c == b'/' && self.peek_n(1) == Some(b'/') { return; }
-            self.bump();
-        }
-    }
-
-    fn parse_inline_model(&mut self, index: usize) {
-        if !self.consume(b'[') {
-            self.error("インラインモデルの `[` がありません".as_bytes());
-            return;
-        }
-        let start_count = self.project.comps[index].nitems;
-        loop {
-            self.skip_trivia();
-            match self.peek() {
-                None => {
-                    self.error("インラインモデルの `]` がありません".as_bytes());
-                    return;
-                }
-                Some(b']') => {
-                    self.bump();
-                    if self.project.comps[index].nitems == start_count {
-                        self.error("インラインモデルに項目がありません".as_bytes());
-                    }
-                    return;
-                }
-                Some(b',') => { self.bump(); continue; }
-                _ => {}
-            }
-            let key_start = self.pos;
-            while self.peek().map_or(false, |c| c.is_ascii_alphanumeric() || c == b'_' || c == b'-') {
-                self.bump();
-            }
-            let key_end = self.pos;
-            if self.pos == key_start || !self.consume(b':') {
-                self.error("インラインモデルの項目は `key: value` の形式で記述してください".as_bytes());
-                self.skip_line();
-                continue;
-            }
-            let value = self.read_scalar();
-            if key_is_model_header(&self.src[key_start..key_end], value) {
-                // `[` may contain a YAML-style `model:` section header whose
-                // entries continue on subsequent lines.
-                continue;
-            }
-            if value.is_empty() {
-                self.error("インラインモデルの項目に値がありません".as_bytes());
-            } else if self.project.comps[index].nitems < MAX_ITEMS {
-                let comp = &mut self.project.comps[index];
-                comp.items[comp.nitems].set(value);
-                comp.nitems += 1;
-            } else {
-                self.error("モデル項目数の上限を超えました".as_bytes());
-            }
-        }
-    }
-
-    fn parse_modifiers(&mut self, index: usize) {
-        loop {
-            let saved = self.pos;
-            let saved_line = self.line;
-            self.skip_trivia();
-            if self.peek() != Some(b'.') {
-                self.pos = saved;
-                self.line = saved_line;
-                return;
-            }
-            self.bump();
-            let method = self.read_ident();
-            self.skip_horizontal();
-            if method.is_empty() || !self.consume(b'(') {
-                self.error("修飾子は `.name(value)` の形式で記述してください".as_bytes());
-                self.skip_line();
-                return;
-            }
-            self.skip_horizontal();
-            let value = if self.peek() == Some(b'"') {
-                self.read_quoted().unwrap_or(&self.src[self.pos..self.pos])
-            } else {
-                self.read_scalar()
-            };
-            self.skip_horizontal();
-            if !self.consume(b')') {
-                self.error("修飾子の `)` がありません".as_bytes());
-                self.skip_line();
-                return;
-            }
-            let mut invalid_modifier = false;
-            {
-                let comp = &mut self.project.comps[index];
-                if method == b"id" {
-                    comp.id.set(value);
-                } else if method == b"size" {
-                    if value == b"small" || value == b"medium" || value == b"large" {
-                        comp.size.set(value);
-                    } else {
-                        invalid_modifier = true;
-                    }
-                } else if method == b"display" {
-                    if value == b"hide" {
-                        comp.hidden = true;
-                    } else if value == b"show" {
-                        comp.hidden = false;
-                    } else {
-                        invalid_modifier = true;
-                    }
-                } else if method == b"type" {
-                    if value == b"primary" {
-                        comp.primary = true;
-                    } else if value == b"text" {
-                        comp.primary = false;
-                    } else {
-                        invalid_modifier = true;
-                    }
-                } else if method == b"radius" {
-                    if let Some(n) = parse_u16(value) {
-                        comp.radius = n.min(i16::MAX as u16) as i16;
-                    } else {
-                        invalid_modifier = true;
-                    }
-                } else if method == b"width" {
-                    if let Some((n, percent)) = parse_width(value) {
-                        comp.width_px = n;
-                        comp.width_percent = percent;
-                    } else {
-                        invalid_modifier = true;
-                    }
-                } else if method == b"bgColor" {
-                    if let Some(color) = parse_hex_color(value) {
-                        comp.bg_color = color;
-                        comp.has_bg_color = true;
-                    } else {
-                        invalid_modifier = true;
-                    }
-                } else if method == b"fgColor" {
-                    if let Some(color) = parse_hex_color(value) {
-                        comp.fg_color = color;
-                        comp.has_fg_color = true;
-                    } else {
-                        invalid_modifier = true;
-                    }
-                }
-            }
-            if invalid_modifier {
-                self.error("修飾子の値が不正です".as_bytes());
-            }
-            // Future modifiers are still consumed as complete chain elements
-            // so they cannot desynchronize parsing of the following component.
-        }
-    }
+    Some((name, trim(&args[..comma])))
 }
 
-fn key_is_model_header(key_slice: &[u8], value: &[u8]) -> bool {
-    trim(key_slice) == b"model" && value.is_empty()
+fn raw_after<'a>(line: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+    let at = line.windows(key.len()).position(|window| window == key)?;
+    Some(trim(&line[at + key.len()..]))
 }
 
-fn parse_u16(value: &[u8]) -> Option<u16> {
-    let mut n = 0u16;
-    let mut any = false;
-    for &c in value {
-        if c.is_ascii_digit() {
-            any = true;
-            n = n.checked_mul(10)?.checked_add((c - b'0') as u16)?;
-        } else if c == b'p' || c == b'x' || c == b'%' {
-            break;
-        } else if !is_space(c) {
-            return None;
-        }
+fn parse_script_call(src: &[u8]) -> ScriptCall {
+    let mut out = ScriptCall::new();
+    if let Some((name, arg)) = call_parts(src) {
+        out.name.set(name);
+        out.arg.set(arg);
     }
-    if any { Some(n) } else { None }
+    out
 }
 
-fn parse_width(value: &[u8]) -> Option<(u16, bool)> {
-    let v = trim(value);
-    let percent = v.ends_with(b"%");
-    let numeric = if percent { &v[..v.len() - 1] } else if v.ends_with(b"px") {
-        &v[..v.len() - 2]
-    } else {
-        v
-    };
-    let n = parse_u16(numeric)?;
-    if percent && n > 100 { return None; }
-    Some((n, percent))
-}
-
-fn parse_hex_color(value: &[u8]) -> Option<[u8; 3]> {
-    let v = trim(value);
-    if v.len() != 7 || v[0] != b'#' {
-        return None;
+fn parse_u64(src: &[u8]) -> u64 {
+    let mut n = 0u64;
+    for &c in trim(src) {
+        if !c.is_ascii_digit() { break; }
+        n = n.saturating_mul(10).saturating_add((c - b'0') as u64);
     }
+    n
+}
+
+fn parse_hex_color(src: &[u8]) -> Option<[u8; 3]> {
+    let s = trim(src);
+    let hex = if s.first() == Some(&b'#') { &s[1..] } else { s };
+    if hex.len() != 6 { return None; }
     let mut out = [0u8; 3];
     for i in 0..3 {
-        let a = hex_digit(v[1 + i * 2])?;
-        let b = hex_digit(v[2 + i * 2])?;
-        out[i] = a * 16 + b;
+        let hi = hex_digit(hex[i * 2])?;
+        let lo = hex_digit(hex[i * 2 + 1])?;
+        out[i] = hi * 16 + lo;
     }
     Some(out)
 }
@@ -1002,298 +373,476 @@ fn hex_digit(c: u8) -> Option<u8> {
     }
 }
 
-pub fn parse_mb5(project: &mut Project, src: &[u8]) -> usize {
-    Mb5Parser::new(project, src).parse()
+fn is_component_kind(k: &[u8]) -> bool {
+    k == b"alert" || k == b"text" || k == b"list" || k == b"button" || k == b"card"
 }
 
-/// Validate references that can be checked without executing scripts.
-pub fn validate_structure(project: &Project) -> usize {
-    let mut errors = 0usize;
-    if project.nboards == 0 {
-        crate::sys::eprint("main.mb5: board が定義されていません\n".as_bytes());
-        errors += 1;
+fn add_comp(p: &mut Project, board: usize, parent: usize, kind: &[u8], name: &[u8]) -> Option<usize> {
+    if p.ncomps >= MAX_COMPS { return None; }
+    let idx = p.ncomps;
+    let c = &mut p.comps[idx];
+    *c = EMPTY_COMP;
+    c.board = board;
+    c.parent = parent;
+    c.kind.set(kind);
+    c.name.set(name);
+    p.ncomps += 1;
+    Some(idx)
+}
+
+fn add_item(c: &mut Comp, id: &[u8], label: &[u8]) -> Option<usize> {
+    if c.nitems >= MAX_ITEMS { return None; }
+    let i = c.nitems;
+    c.items[i] = EMPTY_ITEM;
+    c.items[i].id.set(id);
+    c.items[i].text.set(label);
+    c.nitems += 1;
+    Some(i)
+}
+
+fn component_start(t: &[u8]) -> Option<(&[u8], &[u8])> {
+    let open = t.iter().position(|&c| c == b'(')?;
+    let kind = trim(&t[..open]);
+    if !is_component_kind(kind) || kind == b"card" { return None; }
+    let args = trim(&t[open + 1..]);
+    let first = ident(args);
+    let after = args.get(first.len()).copied();
+    let name = if !first.is_empty() && (after.is_none() || after == Some(b')') || after == Some(b',') || after == Some(b'\n')) {
+        first
+    } else { &args[..0] };
+    Some((kind, name))
+}
+
+fn parse_inline_component_props(c: &mut Comp, t: &[u8]) {
+    if let Some(v) = value_after(t, b"config:title:") { c.label1.set(v); }
+    if let Some(v) = value_after(t, b"config:text:") {
+        if c.kind.get() == b"button" { c.label1.set(v); } else { c.label2.set(v); }
     }
-    for i in 0..project.nboards {
-        for j in i + 1..project.nboards {
-            if project.boards[i].get() == project.boards[j].get() {
-                crate::sys::eprint(b"main.mb5: duplicate board name: ");
-                crate::sys::eprint(project.boards[i].get());
-                crate::sys::eprint(b"\n");
-                errors += 1;
-            }
+    if let Some(v) = value_after(t, b"config:message:") { c.label2.set(v); }
+    if let Some(v) = value_after(t, b".bgColor(") {
+        if let Some(rgb) = parse_hex_color(v) { c.bg_color = rgb; c.has_bg_color = true; }
+    }
+    if let Some(v) = value_after(t, b".fgColor(") {
+        if let Some(rgb) = parse_hex_color(v) { c.fg_color = rgb; c.has_fg_color = true; }
+    }
+    if let Some(v) = raw_after(t, b"event:") {
+        if let Some((name, arg)) = call_parts(v) {
+            if name == b"moveboard" { c.event.set(arg); }
         }
     }
-    for i in 0..project.ncomps {
-        let target = project.comps[i].event.get();
-        if target.is_empty() { continue; }
-        let found = (0..project.nboards).any(|b| project.boards[b].get() == target);
-        if !found {
-            crate::sys::eprint(b"main.mb5: moveboard target not found: ");
-            crate::sys::eprint(target);
-            crate::sys::eprint(b"\n");
-            errors += 1;
-        }
+}
+
+pub fn parse_config(p: &mut Project, src: &[u8]) {
+    for raw in src.split(|&c| c == b'\n') {
+        let line = trim(strip_cr(raw));
+        if let Some(v) = line.strip_prefix(b"name=") { p.title.set(trim(v)); }
     }
-    errors
 }
 
-#[derive(Clone, Copy)]
-struct ModelItem {
-    key: Text<48>,
-    value: Text<128>,
-}
-
-const EMPTY_MODEL_ITEM: ModelItem = ModelItem { key: Text::new(), value: Text::new() };
-
-#[derive(Clone, Copy)]
-struct Model {
-    name: Text<64>,
-    target: Text<16>,
-    title: Text<128>,
-    text: Text<192>,
-    message: Text<192>,
-    items: [ModelItem; MAX_ITEMS],
-    nitems: usize,
-}
-
-const EMPTY_MODEL: Model = Model {
-    name: Text::new(),
-    target: Text::new(),
-    title: Text::new(),
-    text: Text::new(),
-    message: Text::new(),
-    items: [EMPTY_MODEL_ITEM; MAX_ITEMS],
-    nitems: 0,
-};
-
-#[derive(Clone, Copy, PartialEq)]
-enum YamlSection {
-    None,
-    Config,
-    Model,
-    Event,
-    Events,
-}
-
-fn yaml_pair(line: &[u8]) -> Option<(&[u8], &[u8])> {
-    let mut quoted = false;
-    let mut escaped = false;
-    for (i, &c) in line.iter().enumerate() {
-        if c == b'"' && !escaped { quoted = !quoted; }
-        if c == b':' && !quoted {
-            return Some((trim(&line[..i]), trim(&line[i + 1..])));
-        }
-        if c == b'\\' && !escaped { escaped = true; } else { escaped = false; }
-    }
-    None
-}
-
-fn yaml_scalar(value: &[u8]) -> &[u8] {
-    let v = trim(value);
-    let mut quoted = false;
-    let mut escaped = false;
-    let mut end = v.len();
-    for (i, &c) in v.iter().enumerate() {
-        if c == b'"' && !escaped { quoted = !quoted; }
-        if !quoted && c == b'#' && (i == 0 || is_space(v[i - 1])) {
-            end = i;
-            break;
-        }
-        if c == b'\\' && !escaped { escaped = true; } else { escaped = false; }
-    }
-    unquote(trim(&v[..end]))
-}
-
-fn yaml_indent(line: &[u8]) -> usize {
-    line.iter().take_while(|&&c| c == b' ').count()
-}
-
-fn find_model(models: &[Model; MAX_MODELS], count: usize, key: &[u8]) -> Option<usize> {
-    (0..count).find(|&i| models[i].name.get() == key)
-}
-
-fn append_model_item(model: &mut Model, key: &[u8], value: &[u8]) {
-    if model.nitems >= MAX_ITEMS { return; }
-    let index = model.nitems;
-    model.items[index].key.set(key);
-    model.items[index].value.set(value);
-    model.nitems += 1;
-}
-
-/// Resolve simple, indentation-based YAML used by MB5 models. This is not a
-/// general YAML 1.2 parser; unsupported YAML constructs are intentionally not
-/// guessed or coerced.
-pub fn resolve_labels(project: &mut Project, src: &[u8]) -> usize {
-    let mut models = [EMPTY_MODEL; MAX_MODELS];
-    let mut nmodels = 0usize;
-    let mut section = YamlSection::None;
-    let mut current_item: Option<usize> = None;
+/// Parse board/component declarations and the documented one-line / bracketed model syntax.
+pub fn parse_mb5(p: &mut Project, src: &[u8]) {
+    let mut board: Option<usize> = None;
+    let mut card_stack = [NO_PARENT; 8];
+    let mut card_depth = 0usize;
+    let mut last_component = NO_PARENT;
+    let mut inline_model = false;
+    let mut in_model = false;
 
     for raw in src.split(|&c| c == b'\n') {
-        let raw = strip_cr(raw);
-        let line = trim(raw);
-        if line.is_empty() || line.starts_with(b"#") || line == b"---" {
-            continue;
-        }
-        let indent = yaml_indent(raw);
-        let pair = match yaml_pair(line) {
-            Some(pair) => pair,
-            None => continue,
-        };
-        let (key, value) = pair;
+        let t = strip_comment(strip_cr(raw));
+        if t.is_empty() { continue; }
+        if t.starts_with(b"@mainScript") || t.starts_with(b"@struct") { board = None; card_depth = 0; continue; }
+        if t.starts_with(b"@mainBoard") { continue; }
 
-        if indent == 0 {
-            if nmodels >= MAX_MODELS {
-                continue;
+        if t.starts_with(b"board ") && t.contains(&b'{') {
+            let n = ident(trim(&t[6..]));
+            if p.nboards < MAX_BOARDS {
+                let idx = p.nboards;
+                p.boards[idx].set(n);
+                p.nboards += 1;
+                board = Some(idx);
+                if p.main_board.is_empty() { p.main_board.set(n); }
             }
-            models[nmodels] = EMPTY_MODEL;
-            models[nmodels].name.set(key);
-            nmodels += 1;
-            section = YamlSection::None;
-            current_item = None;
+            card_depth = 0;
+            last_component = NO_PARENT;
             continue;
         }
+        let b = match board { Some(v) => v, None => continue };
 
-        let model_index = nmodels.saturating_sub(1);
-        if nmodels == 0 { continue; }
-
-        if indent == 2 && value.is_empty() {
-            section = if key == b"config" {
-                YamlSection::Config
-            } else if key == b"model" {
-                YamlSection::Model
-            } else if key == b"event" {
-                YamlSection::Event
-            } else if key == b"events" {
-                YamlSection::Events
-            } else {
-                YamlSection::None
-            };
-            current_item = None;
+        if t.starts_with(b"card") && t.contains(&b'{') {
+            let parent = if card_depth > 0 { card_stack[card_depth - 1] } else { NO_PARENT };
+            if let Some(idx) = add_comp(p, b, parent, b"card", b"") {
+                if card_depth < card_stack.len() { card_stack[card_depth] = idx; card_depth += 1; }
+                last_component = idx;
+            }
+            continue;
+        }
+        if t == b"}" || t.starts_with(b"}") {
+            if card_depth > 0 { card_depth -= 1; }
+            else { board = None; }
+            last_component = NO_PARENT;
+            inline_model = false;
+            in_model = false;
             continue;
         }
 
-        match section {
-            YamlSection::Config if indent >= 4 => {
-                let value = yaml_scalar(value);
-                let model = &mut models[model_index];
-                if key == b"target" { model.target.set(value); }
-                else if key == b"title" { model.title.set(value); }
-                else if key == b"text" { model.text.set(value); }
-                else if key == b"message" { model.message.set(value); }
+        if let Some((kind, name)) = component_start(t) {
+            let parent = if card_depth > 0 { card_stack[card_depth - 1] } else { NO_PARENT };
+            if let Some(idx) = add_comp(p, b, parent, kind, name) {
+                last_component = idx;
+                parse_inline_component_props(&mut p.comps[idx], t);
             }
-            YamlSection::Model if indent == 4 => {
-                let model = &mut models[model_index];
-                append_model_item(model, key, yaml_scalar(value));
-                current_item = Some(model.nitems - 1);
-            }
-            YamlSection::Model if indent >= 6 => {
-                if let Some(item_index) = current_item {
-                    if key == b"text" {
-                        models[model_index].items[item_index].value.set(yaml_scalar(value));
-                    }
+            inline_model = false;
+            in_model = false;
+            continue;
+        }
+
+        if last_component != NO_PARENT && last_component < p.ncomps {
+            let c = &mut p.comps[last_component];
+            if t.starts_with(b".id(") {
+                if let Some(v) = value_after(t, b".id(") { c.id.set(v); }
+            } else if t.starts_with(b".display(") {
+                c.hidden = t.windows(4).any(|w| w == b"hide");
+            } else if t.starts_with(b".type(") {
+                c.primary = t.windows(7).any(|w| w == b"primary");
+            } else if t.starts_with(b".width(") {
+                if let Some(v) = value_after(t, b".width(") { c.width.set(v); }
+            } else if t.starts_with(b".size(") {
+                if let Some(v) = value_after(t, b".size(") { c.size.set(v); }
+            } else if t.starts_with(b".radius(") {
+                if let Some(v) = value_after(t, b".radius(") { c.radius = parse_u64(v).min(64) as i32; }
+            } else if t.starts_with(b".bgColor(") {
+                if let Some(v) = value_after(t, b".bgColor(") { if let Some(rgb) = parse_hex_color(v) { c.bg_color = rgb; c.has_bg_color = true; } }
+            } else if t.starts_with(b".fgColor(") {
+                if let Some(v) = value_after(t, b".fgColor(") { if let Some(rgb) = parse_hex_color(v) { c.fg_color = rgb; c.has_fg_color = true; } }
+            } else if t.starts_with(b"config:title:") {
+                if let Some(v) = value_after(t, b"config:title:") { c.label1.set(v); }
+            } else if t.starts_with(b"config:text:") {
+                if let Some(v) = value_after(t, b"config:text:") {
+                    if c.kind.get() == b"button" { c.label1.set(v); } else { c.label2.set(v); }
                 }
-            }
-            YamlSection::Event | YamlSection::Events => {}
-            _ => {}
-        }
-    }
-
-    let mut errors = 0usize;
-    for i in 0..project.ncomps {
-        let mut name_copy = Text::<64>::new();
-        name_copy.set(project.comps[i].name.get());
-        let name = name_copy.get();
-        if name.is_empty() { continue; }
-        let model_index = match find_model(&models, nmodels, name) {
-            Some(index) => index,
-            None => {
-                crate::sys::eprint(b"main.yaml: model reference not found: ");
-                crate::sys::eprint(name);
-                crate::sys::eprint(b"\n");
-                errors += 1;
-                continue;
-            }
-        };
-        let model = models[model_index];
-        let comp = &mut project.comps[i];
-
-        if !model.target.is_empty() && model.target.get() != comp.kind.get() {
-            crate::sys::eprint(b"main.yaml: model target does not match component `");
-            crate::sys::eprint(comp.kind.get());
-            crate::sys::eprint(b"`\n");
-            errors += 1;
-        }
-        if comp.has_target && !model.target.is_empty() {
-            crate::sys::eprint(b"main.yaml: YAML config and MB5 config conflict for model `");
-            crate::sys::eprint(name);
-            crate::sys::eprint(b"` (target)\n");
-            errors += 1;
-        }
-        if comp.has_target && comp.config_target.get() != comp.kind.get() {
-            crate::sys::eprint(b"main.mb5: config target does not match component `");
-            crate::sys::eprint(comp.kind.get());
-            crate::sys::eprint(b"`\n");
-            errors += 1;
-        }
-
-        let yaml_label1 = if comp.kind.get() == b"button" {
-            model.text.get()
-        } else {
-            model.title.get()
-        };
-        let yaml_label2: &[u8] = if comp.kind.get() == b"button" {
-            &[]
-        } else if comp.kind.get() == b"alert" && !model.message.is_empty() {
-            model.message.get()
-        } else {
-            model.text.get()
-        };
-
-        if !yaml_label1.is_empty() {
-            if comp.has_label1 {
-                crate::sys::eprint(b"main.yaml: YAML config and MB5 config conflict for model `");
-                crate::sys::eprint(name);
-                crate::sys::eprint(b"` (title/text)\n");
-                errors += 1;
-            } else {
-                comp.label1.set(yaml_label1);
-            }
-        }
-        if !yaml_label2.is_empty() {
-            if comp.has_label2 {
-                crate::sys::eprint(b"main.yaml: YAML config and MB5 config conflict for model `");
-                crate::sys::eprint(name);
-                crate::sys::eprint(b"` (text/message)\n");
-                errors += 1;
-            } else {
-                comp.label2.set(yaml_label2);
-            }
-        }
-
-        if comp.kind.get() == b"alert" {
-            for item in model.items[..model.nitems].iter() {
-                if item.key.get() == b"close" {
-                    comp.close_label.set(item.value.get());
+            } else if t.starts_with(b"config:message:") {
+                if let Some(v) = value_after(t, b"config:message:") { c.label2.set(v); }
+            } else if t.starts_with(b"event:") {
+                if let Some(v) = raw_after(t, b"event:") {
+                    let call = parse_script_call(v);
+                    if call.name.get() == b"moveboard" { c.event.set(call.arg.get()); }
                 }
-            }
-        } else if comp.kind.get() == b"list" {
-            if comp.nitems > 0 && model.nitems > 0 {
-                crate::sys::eprint(b"main.yaml: inline model and YAML model both define list items for `");
-                crate::sys::eprint(name);
-                crate::sys::eprint(b"`\n");
-                errors += 1;
-            } else {
-                for item in model.items[..model.nitems].iter() {
-                    if item.value.is_empty() { continue; }
-                    if comp.nitems < MAX_ITEMS {
-                        comp.items[comp.nitems].set(item.value.get());
-                        comp.nitems += 1;
+            } else if t == b"[" || t.starts_with(b"[") {
+                inline_model = true;
+                in_model = false;
+            } else if t == b"]" || t.starts_with(b"]") {
+                inline_model = false;
+                in_model = false;
+            } else if inline_model && t == b"model:" {
+                in_model = true;
+            } else if inline_model && in_model {
+                if let Some(colon) = t.iter().position(|&ch| ch == b':') {
+                    let key = trim(&t[..colon]);
+                    let value = quoted_or_raw(&t[colon + 1..]);
+                    if !key.is_empty() && key.iter().all(|ch| ch.is_ascii_digit()) {
+                        let _ = add_item(c, key, value);
                     }
                 }
             }
         }
     }
-    errors
+    parse_structs(p, src);
+    parse_scripts(p, src);
 }
 
+fn parse_structs(p: &mut Project, src: &[u8]) {
+    let mut in_section = false;
+    let mut current_struct = NO_PARENT;
+    let mut last_comp = NO_PARENT;
+
+    for raw in src.split(|&c| c == b'\n') {
+        let t = strip_comment(strip_cr(raw));
+        if t == b"@struct" { in_section = true; continue; }
+        if !in_section || t.is_empty() { continue; }
+        if t.starts_with(b"@mainScript") { break; }
+        if t.starts_with(b"components ") && t.contains(&b'{') {
+            if p.nstructs >= MAX_STRUCTS { current_struct = NO_PARENT; continue; }
+            let name = ident(trim(&t[11..]));
+            let idx = p.nstructs;
+            p.structs[idx] = EMPTY_STRUCT;
+            p.structs[idx].name.set(name);
+            p.nstructs += 1;
+            current_struct = idx;
+            last_comp = NO_PARENT;
+            continue;
+        }
+        if t == b"}" || t.starts_with(b"}") {
+            current_struct = NO_PARENT;
+            last_comp = NO_PARENT;
+            continue;
+        }
+        if current_struct == NO_PARENT { continue; }
+        if let Some((kind, name)) = component_start(t) {
+            let sd = &mut p.structs[current_struct];
+            if sd.ncomps < MAX_STRUCT_COMPS {
+                let comp_idx = sd.ncomps;
+                sd.comps[comp_idx] = EMPTY_COMP;
+                sd.comps[comp_idx].kind.set(kind);
+                sd.comps[comp_idx].name.set(name);
+                parse_inline_component_props(&mut sd.comps[comp_idx], t);
+                sd.ncomps += 1;
+                last_comp = comp_idx;
+            }
+            continue;
+        }
+        if last_comp != NO_PARENT {
+            let comp = &mut p.structs[current_struct].comps[last_comp];
+            if t.starts_with(b".id(") { if let Some(v) = value_after(t, b".id(") { comp.id.set(v); } }
+            else if t.starts_with(b".display(") { comp.hidden = t.windows(4).any(|w| w == b"hide"); }
+            else if t.starts_with(b".type(") { comp.primary = t.windows(7).any(|w| w == b"primary"); }
+            else if t.starts_with(b".bgColor(") { if let Some(v) = value_after(t, b".bgColor(") { if let Some(rgb) = parse_hex_color(v) { comp.bg_color = rgb; comp.has_bg_color = true; } } }
+            else if t.starts_with(b".fgColor(") { if let Some(v) = value_after(t, b".fgColor(") { if let Some(rgb) = parse_hex_color(v) { comp.fg_color = rgb; comp.has_fg_color = true; } } }
+            else if t.starts_with(b"config:title:") { if let Some(v) = value_after(t, b"config:title:") { comp.label1.set(v); } }
+            else if t.starts_with(b"config:text:") { if let Some(v) = value_after(t, b"config:text:") { if comp.kind.get() == b"button" { comp.label1.set(v); } else { comp.label2.set(v); } } }
+            else if t.starts_with(b"config:message:") { if let Some(v) = value_after(t, b"config:message:") { comp.label2.set(v); } }
+        }
+    }
+}
+
+
+fn add_script(p: &mut Project, name: &[u8], branch: &[u8]) -> Option<usize> {
+    if p.nscripts >= MAX_SCRIPTS { return None; }
+    let i = p.nscripts;
+    p.scripts[i] = EMPTY_SCRIPT;
+    p.scripts[i].name.set(name);
+    p.scripts[i].branch.set(branch);
+    p.nscripts += 1;
+    Some(i)
+}
+
+fn push_command(p: &mut Project, script: usize, cmd: ScriptCommand) {
+    if script >= p.nscripts { return; }
+    let s = &mut p.scripts[script];
+    if s.ncommands < MAX_COMMANDS {
+        s.commands[s.ncommands] = cmd;
+        s.ncommands += 1;
+    }
+}
+
+fn parse_script_command(t: &[u8]) -> Option<ScriptCommand> {
+    let mut cmd = EMPTY_COMMAND;
+    if t.starts_with(b"wait(") {
+        let (_, arg) = call_parts(t)?;
+        cmd.kind = CMD_WAIT;
+        cmd.millis = parse_u64(arg);
+        return Some(cmd);
+    }
+    if t.starts_with(b"setComponentConfig(") {
+        let body = t.strip_prefix(b"setComponentConfig(")?;
+        let close = body.iter().rposition(|&c| c == b')').unwrap_or(body.len());
+        let args = &body[..close];
+        let comma = args.iter().position(|&c| c == b',')?;
+        cmd.kind = CMD_SET_DISPLAY;
+        cmd.subject.set(trim(&args[..comma]));
+        cmd.flag = !args.windows(b"display:hide".len()).any(|w| w == b"display:hide");
+        return Some(cmd);
+    }
+    if t.starts_with(b"addComponent(") || t.starts_with(b"deleteComponent(") || t.starts_with(b"deleteCmponent(") {
+        let add = t.starts_with(b"addComponent(");
+        let call = call_parts(t)?;
+        cmd.kind = if add { CMD_ADD_COMPONENT } else { CMD_DELETE_COMPONENT };
+        cmd.subject.set(call.1);
+        return Some(cmd);
+    }
+    let (name, arg) = call_parts(t)?;
+    if name == b"moveboard" { return None; }
+    cmd.kind = CMD_CALL;
+    cmd.subject.set(name);
+    cmd.arg.set(arg);
+    Some(cmd)
+}
+
+/// Parse the independent @mainScript section. The first script is the startup script.
+fn parse_scripts(p: &mut Project, src: &[u8]) {
+    let mut in_section = false;
+    let mut base_script = NO_PARENT;
+    let mut active_script = NO_PARENT;
+    let mut in_branch = false;
+
+    for raw in src.split(|&c| c == b'\n') {
+        let t = strip_comment(strip_cr(raw));
+        if t.starts_with(b"@mainScript") { in_section = true; continue; }
+        if !in_section || t.is_empty() { continue; }
+
+        if t.starts_with(b"script ") && t.contains(&b'{') {
+            let name = ident(trim(&t[7..]));
+            if let Some(idx) = add_script(p, name, b"") {
+                base_script = idx;
+                active_script = idx;
+                if p.main_script.is_empty() { p.main_script.set(name); }
+            }
+            in_branch = false;
+            continue;
+        }
+        if active_script != NO_PARENT && t.starts_with(b"message(") {
+            if let Some((_, arg)) = call_parts(t) {
+                let base_name = p.scripts[base_script].name;
+                active_script = add_script(p, base_name.get(), arg).unwrap_or(base_script);
+                in_branch = true;
+            }
+            continue;
+        }
+        if t == b"}" || t.starts_with(b"}") {
+            if in_branch {
+                active_script = base_script;
+                in_branch = false;
+            } else {
+                active_script = NO_PARENT;
+                base_script = NO_PARENT;
+            }
+            continue;
+        }
+        if active_script == NO_PARENT { continue; }
+        if t.starts_with(b".target(") {
+            if let Some(v) = value_after(t, b".target(") {
+                let s = &mut p.scripts[active_script];
+                if s.ncommands > 0 { s.commands[s.ncommands - 1].target.set(v); }
+            }
+            continue;
+        }
+        if let Some(cmd) = parse_script_command(t) {
+            push_command(p, active_script, cmd);
+        }
+    }
+}
+
+/// Resolve one component's YAML model.
+fn resolve_component_yaml(comp: &mut Comp, src: &[u8]) {
+    if comp.name.is_empty() { return; }
+    let key = comp.name;
+    let mut found = false;
+    let mut section = 0u8; // 1=config, 2=model, 3=events
+    let mut current_item: Option<usize> = None;
+    let mut item_is_object = false;
+    let mut close_is_object = false;
+
+    for raw in src.split(|&c| c == b'\n') {
+        let line = strip_cr(raw);
+        if line.is_empty() { continue; }
+        let indent = line.iter().take_while(|&&c| c == b' ').count();
+        let t = strip_comment(trim(line));
+        if indent == 0 {
+            if found { break; }
+            if t.len() == key.get().len() + 1 && t.starts_with(key.get()) && t.last() == Some(&b':') {
+                found = true;
+            }
+            continue;
+        }
+        if !found || t.is_empty() { continue; }
+
+        if indent == 2 {
+            section = if t == b"config:" { 1 } else if t == b"model:" { 2 } else if t == b"events:" { 3 } else { 0 };
+            current_item = None;
+            item_is_object = false;
+            close_is_object = false;
+            continue;
+        }
+
+        if section == 1 && indent >= 4 {
+            if t.starts_with(b"target:") { continue; }
+            if let Some(v) = t.strip_prefix(b"title:") { comp.label1.set(quoted_or_raw(v)); }
+            else if let Some(v) = t.strip_prefix(b"message:") { comp.label2.set(quoted_or_raw(v)); }
+            else if let Some(v) = t.strip_prefix(b"text:") {
+                if comp.kind.get() == b"button" { comp.label1.set(quoted_or_raw(v)); }
+                else { comp.label2.set(quoted_or_raw(v)); }
+            }
+        } else if section == 3 && indent >= 4 {
+            if let Some(colon) = t.iter().position(|&c| c == b':') {
+                let event_name = trim(&t[..colon]);
+                let call = parse_script_call(&t[colon + 1..]);
+                if event_name == b"close" { comp.close_event = call; }
+            }
+        } else if section == 2 {
+            if indent == 4 {
+                let colon = match t.iter().position(|&c| c == b':') { Some(v) => v, None => continue };
+                let item_key = trim(&t[..colon]);
+                let v = trim(&t[colon + 1..]);
+                if item_key == b"close" {
+                    if !v.is_empty() {
+                        comp.close_label.set(quoted_or_raw(v));
+                        close_is_object = false;
+                    } else {
+                        close_is_object = true;
+                    }
+                    current_item = None;
+                    item_is_object = false;
+                    continue;
+                }
+                close_is_object = false;
+                if comp.kind.get() == b"list" {
+                    if !v.is_empty() {
+                        current_item = add_item(comp, item_key, quoted_or_raw(v));
+                        item_is_object = false;
+                    } else {
+                        current_item = add_item(comp, item_key, b"");
+                        item_is_object = true;
+                    }
+                } else {
+                    current_item = None;
+                    item_is_object = false;
+                }
+            } else if indent >= 6 {
+                if close_is_object {
+                    if let Some(v) = t.strip_prefix(b"text:") { comp.close_label.set(quoted_or_raw(v)); }
+                    else if let Some(v) = t.strip_prefix(b"event:") { comp.close_event = parse_script_call(v); }
+                } else if item_is_object && comp.kind.get() == b"list" {
+                    if let Some(item_idx) = current_item {
+                        if let Some(v) = t.strip_prefix(b"text:") { comp.items[item_idx].text.set(quoted_or_raw(v)); }
+                        else if let Some(v) = t.strip_prefix(b"event:") { comp.items[item_idx].call = parse_script_call(v); }
+                    }
+                }
+            }
+        }
+    }
+
+    // Events can be declared before model IDs, so resolve the model-key mapping after parsing.
+    found = false;
+    let mut in_events = false;
+    for raw in src.split(|&c| c == b'\n') {
+        let line = strip_cr(raw);
+        if line.is_empty() { continue; }
+        let indent = line.iter().take_while(|&&c| c == b' ').count();
+        let t = strip_comment(trim(line));
+        if indent == 0 {
+            if found { break; }
+            if t.len() == key.get().len() + 1 && t.starts_with(key.get()) && t.last() == Some(&b':') { found = true; }
+            continue;
+        }
+        if !found || t.is_empty() { continue; }
+        if indent == 2 {
+            in_events = t == b"events:";
+            continue;
+        }
+        if in_events && indent >= 4 {
+            if let Some(colon) = t.iter().position(|&c| c == b':') {
+                let event_id = trim(&t[..colon]);
+                let call = parse_script_call(&t[colon + 1..]);
+                if event_id == b"close" {
+                    comp.close_event = call;
+                } else {
+                    for item_i in 0..comp.nitems {
+                        if comp.items[item_i].id.get() == event_id {
+                            comp.items[item_i].call = call;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn resolve_labels(p: &mut Project, src: &[u8]) {
+    for i in 0..p.ncomps { resolve_component_yaml(&mut p.comps[i], src); }
+    for si in 0..p.nstructs {
+        for ci in 0..p.structs[si].ncomps {
+            resolve_component_yaml(&mut p.structs[si].comps[ci], src);
+        }
+    }
+}

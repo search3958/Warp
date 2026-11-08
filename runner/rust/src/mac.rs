@@ -184,6 +184,16 @@ unsafe fn m_font(o: Id, s: Sel, size: f64) -> Id {
     f(o, s, size)
 }
 
+unsafe fn m_font_named(o: Id, s: Sel, name: Id, size: f64) -> Id {
+    let f: unsafe extern "C" fn(Id, Sel, Id, f64) -> Id = msg();
+    f(o, s, name, size)
+}
+
+unsafe fn m_font_trait(o: Id, s: Sel, font: Id, traits: usize) -> Id {
+    let f: unsafe extern "C" fn(Id, Sel, Id, usize) -> Id = msg();
+    f(o, s, font, traits)
+}
+
 unsafe fn m_color(o: Id, s: Sel, r: f64, g: f64, b: f64, a: f64) -> Id {
     let f: unsafe extern "C" fn(Id, Sel, f64, f64, f64, f64) -> Id = msg();
     f(o, s, r, g, b, a)
@@ -238,7 +248,17 @@ unsafe fn ns_string(s: &[u8]) -> Id {
 unsafe fn text_attrs(st: TextStyle, c: Rgb) -> Id {
     let (size, bold) = style_font(st);
     let font_cls = cls(b"NSFont\0");
-    let font = if bold {
+    let harmony_name = ns_string(b"HarmonyOS Sans SC");
+    let harmony_font = m_font_named(font_cls, sel(b"fontWithName:size:\0"), harmony_name, size);
+    let font = if !harmony_font.is_null() {
+        if bold {
+            let manager = m_id(cls(b"NSFontManager\0"), sel(b"sharedFontManager\0"));
+            let emphasized = m_font_trait(manager, sel(b"convertFont:toHaveTrait:\0"), harmony_font, 2);
+            if emphasized.is_null() { harmony_font } else { emphasized }
+        } else {
+            harmony_font
+        }
+    } else if bold {
         m_font(font_cls, sel(b"boldSystemFontOfSize:\0"), size)
     } else {
         m_font(font_cls, sel(b"systemFontOfSize:\0"), size)
@@ -424,15 +444,15 @@ pub fn run(app: &mut App, buf: *mut u8) -> i32 {
             let pool = m_id(m_id(cls(b"NSAutoreleasePool\0"), pool_alloc), pool_init);
 
             let ev = m_event(nsapp, next_event, u64::MAX, distant_past, mode, 1);
-            let mut dirty = false;
+            let mut dirty = app.tick(crate::sys::monotonic_ms());
             if !ev.is_null() {
                 let t = m_u64(ev, ev_type);
                 if t == EV_LEFT_MOUSE_DOWN {
                     let p = m_point_ret(ev, ev_loc);
                     // ウィンドウは左下が原点なので、論理座標（左上原点）に直す
-                    dirty = app.click(p.x, H as f64 - p.y);
+                    dirty |= app.click(p.x, H as f64 - p.y);
                 } else if t == EV_SCROLL_WHEEL {
-                    dirty = app.scroll(m_f64(ev, ev_dy));
+                    dirty |= app.scroll(m_f64(ev, ev_dy));
                 }
                 m_id1(nsapp, send_event, ev);
             }

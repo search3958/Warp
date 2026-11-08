@@ -89,6 +89,37 @@ impl Canvas {
         }
     }
 
+    /// Alpha-blend a solid overlay into the existing framebuffer.
+    pub fn overlay(&mut self, x: i32, y: i32, w: i32, h: i32, color: Rgb, alpha: u8) {
+        let (x0, y0, x1, y1) = self.clip;
+        let xa = x.max(x0);
+        let ya = y.max(y0);
+        let xb = (x + w).min(x1);
+        let yb = (y + h).min(y1);
+        let a = alpha as u32;
+        let inv = 255 - a;
+        let dw = self.w as usize * self.s;
+        for yy in ya..yb {
+            for xx in xa..xb {
+                for dy in 0..self.s {
+                    for dx in 0..self.s {
+                        let px_x = xx as usize * self.s + dx;
+                        let px_y = yy as usize * self.s + dy;
+                        let i = (px_y * dw + px_x) * 4;
+                        // SAFETY: coordinates are clipped to the framebuffer.
+                        unsafe {
+                            for channel in 0..3 {
+                                let old = *self.px.add(i + channel) as u32;
+                                let new = color[channel] as u32;
+                                *self.px.add(i + channel) = ((old * inv + new * a + 127) / 255) as u8;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// 角丸の矩形を塗る（角は半径 r の円弧で切り落とす）。
     pub fn rrect(&mut self, x: i32, y: i32, w: i32, h: i32, r: i32, c: Rgb) {
         if w <= 0 || h <= 0 {
