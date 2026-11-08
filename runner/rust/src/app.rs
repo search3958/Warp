@@ -1,9 +1,9 @@
 //! 画面（UI）の状態・配置・描画・クリック処理。
 //!
 //! 構成:
-//!   - ヘッダー（プロジェクト名）
-//!   - board タブ（クリックで board を切り替え）
-//!   - board の内容（縦に積むカード。ホイールでスクロール）
+//!   - @mainBoard で指定された board の内容を表示
+//!   - board タブや独自ヘッダーは表示しない
+//!   - board の内容はホイールでスクロール
 //!
 //! 命令ごとの表示:
 //!   text   : 見出し（label1）と本文（label2）のカード
@@ -12,15 +12,12 @@
 //!   button : 角丸のボタン。moveboard(名前) を持つ場合はクリックで board を切り替える
 
 use crate::canvas::{utf8_len, Canvas, Rgb, TextStyle};
-use crate::project::{Comp, Project, MAX_BOARDS, MAX_COMPS};
+use crate::project::{Comp, Project, MAX_COMPS};
 
 /// ウィンドウの論理サイズ（ポイント）。
 pub const W: i32 = 760;
 pub const H: i32 = 640;
 
-const HEADER_H: i32 = 60;
-const TABBAR_H: i32 = 52;
-const TOP: i32 = HEADER_H + TABBAR_H;
 const PAD: i32 = 20;
 const CARD_X: i32 = 40;
 const CARD_W: i32 = W - 2 * CARD_X;
@@ -29,9 +26,8 @@ const GAP: i32 = 14;
 const RADIUS: i32 = 12;
 const BTN_H: i32 = 36;
 const BTN_GAP: i32 = 10;
-const TAB_H: i32 = 32;
 const MAX_LINES: usize = 16;
-const MAX_HITS: usize = MAX_COMPS * 2 + MAX_BOARDS;
+const MAX_HITS: usize = MAX_COMPS * 2;
 
 const BG: Rgb = [242, 243, 246];
 const WHITE: Rgb = [255, 255, 255];
@@ -43,7 +39,6 @@ const ACCENT: Rgb = [0, 112, 240];
 #[derive(Clone, Copy, PartialEq)]
 enum Action {
     None,
-    Tab(usize),
     Goto(usize),
     Close(usize),
 }
@@ -119,6 +114,31 @@ fn pill(c: &mut Canvas, x: i32, y: i32, w: i32, h: i32, label: &[u8], primary: b
     c.text(x + (w - tw) / 2, y + (h - 16) / 2, label, st, fg);
 }
 
+/// Comp に指定された色・角丸を反映したコンポーネントボタン。
+fn component_pill(c: &mut Canvas, x: i32, y: i32, w: i32, h: i32, label: &[u8], comp: &Comp) {
+    let fill = if comp.has_bg_color {
+        comp.bg_color
+    } else if comp.primary {
+        ACCENT
+    } else {
+        BORDER
+    };
+    let fg = if comp.has_fg_color {
+        comp.fg_color
+    } else if comp.primary || comp.has_bg_color {
+        WHITE
+    } else {
+        INK
+    };
+    let radius = (comp.radius as i32).max(0).min(h / 2);
+    c.rrect(x, y, w, h, radius, fill);
+    if !comp.primary && !comp.has_bg_color {
+        c.rrect(x + 1, y + 1, w - 2, h - 2, (radius - 1).max(0), WHITE);
+    }
+    let tw = c.measure(label, TextStyle::Button);
+    c.text(x + (w - tw) / 2, y + (h - 16) / 2, label, TextStyle::Button, fg);
+}
+
 /// 見出し・本文の行を描き、使った高さを返す（カードの中身の高さ計算にも使う）。
 /// draw=false のときは描かず、高さだけ返す。
 fn text_block(
@@ -160,9 +180,10 @@ impl App {
         for i in 0..proj.ncomps {
             closed[i] = proj.comps[i].hidden;
         }
+        let board = proj.main_board.min(proj.nboards.saturating_sub(1));
         App {
             proj,
-            board: 0,
+            board,
             scroll: 0,
             max_scroll: 0,
             scroll_acc: 0.0,
@@ -192,35 +213,33 @@ impl App {
         c.fill(0, 0, W, H, BG);
         self.nhits = 0;
 
-        c.set_clip(0, TOP, W, H - TOP);
+        c.set_clip(0, 0, W, H);
         let y_end = self.draw_board(c);
         c.clear_clip();
 
         // スクロール上限（描いた内容の高さから計算）
-        let total = y_end + self.scroll - TOP;
-        self.max_scroll = core::cmp::max(0, total + PAD - (H - TOP));
+        let total = y_end + self.scroll;
+        self.max_scroll = core::cmp::max(0, total + PAD - H);
         if self.scroll > self.max_scroll {
             self.scroll = self.max_scroll;
         }
-
-        self.draw_chrome(c);
     }
 
     /// 現在の board の内容を描く。戻り値は最後の要素の下端（スクロール後の座標）。
     fn draw_board(&mut self, c: &mut Canvas) -> i32 {
         if self.proj.nboards == 0 {
-            c.text(CARD_X, TOP + 24, "表示できる board がありません".as_bytes(), TextStyle::Body, MUTED);
-            return TOP + 60;
+            c.text(CARD_X, 24, "表示できる board がありません".as_bytes(), TextStyle::Body, MUTED);
+            return 60;
         }
 
         let board = self.board;
-        let mut y = TOP + PAD - self.scroll;
-        // ボタンを並べる行の状態: (次のボタンの x, 行の y)
-        let mut row: Option<(i32, i32)> = None;
+        let mut y = PAD - self.scroll;
+        // ボタン行の状態: (次の x, 行の y, 行内の最大高さ)
+        let mut row: Option<(i32, i32, i32)> = None;
 
         for i in 0..self.proj.ncomps {
             let comp: Comp = self.proj.comps[i];
-            if comp.board != board {
+            if comp.board != board || comp.hidden {
                 continue;
             }
 
@@ -231,26 +250,43 @@ impl App {
                     comp.label1.get()
                 };
                 let tw = c.measure(label, TextStyle::Button);
-                let bw = core::cmp::max(tw + 36, 96);
-                let (bx, by) = match row {
-                    Some((nx, ry)) if nx + bw <= CARD_X + CARD_W => (nx, ry),
-                    Some((_, ry)) => (CARD_X, ry + BTN_H + BTN_GAP),
-                    None => (CARD_X, y),
+                let natural_width = core::cmp::max(tw + 36, 96);
+                let requested_width = if comp.width_px > 0 {
+                    if comp.width_percent {
+                        (CARD_W * comp.width_px as i32) / 100
+                    } else {
+                        comp.width_px as i32
+                    }
+                } else {
+                    natural_width
                 };
-                row = Some((bx + bw + BTN_GAP, by));
+                let bw = core::cmp::min(core::cmp::max(requested_width, 32), CARD_W);
+                let bh = if comp.size.get() == b"small" {
+                    30
+                } else if comp.size.get() == b"large" {
+                    44
+                } else {
+                    BTN_H
+                };
+                let (bx, by, row_height) = match row {
+                    Some((nx, ry, rh)) if nx + bw <= CARD_X + CARD_W => (nx, ry, core::cmp::max(rh, bh)),
+                    Some((_, ry, rh)) => (CARD_X, ry + rh + BTN_GAP, bh),
+                    None => (CARD_X, y, bh),
+                };
+                row = Some((bx + bw + BTN_GAP, by, row_height));
 
                 let action = match self.find_board(comp.event.get()) {
                     Some(target) => Action::Goto(target),
                     None => Action::None,
                 };
-                pill(c, bx, by, bw, BTN_H, label, comp.primary, TextStyle::Button);
-                self.push_hit(bx, by, bw, BTN_H, action);
+                component_pill(c, bx, by, bw, bh, label, &comp);
+                self.push_hit(bx, by, bw, bh, action);
                 continue;
             }
 
             // ボタン以外が来たら、直前のボタン行を閉じる
-            if let Some((_, ry)) = row.take() {
-                y = ry + BTN_H + GAP;
+            if let Some((_, ry, rh)) = row.take() {
+                y = ry + rh + GAP;
             }
 
             let used = if comp.kind.get() == b"text" {
@@ -271,8 +307,8 @@ impl App {
             }
         }
 
-        if let Some((_, ry)) = row {
-            y = ry + BTN_H + GAP;
+        if let Some((_, ry, rh)) = row {
+            y = ry + rh + GAP;
         }
         y
     }
@@ -295,7 +331,11 @@ impl App {
         let l2 = comp.label2.get();
         let stripe = 8;
         let inner = CARD_W - 2 * CARD_PAD - stripe;
-        let close_label = "閉じる".as_bytes();
+        let close_label: &[u8] = if comp.close_label.get().is_empty() {
+            "閉じる".as_bytes()
+        } else {
+            comp.close_label.get()
+        };
         let cw = core::cmp::max(c.measure(close_label, TextStyle::Button) + 36, 88);
         let h = text_block(c, false, 0, 0, inner, l1, l2) + 2 * CARD_PAD + 14 + BTN_H;
 
@@ -347,35 +387,6 @@ impl App {
         h
     }
 
-    /// ヘッダーとボードタブ（画面の上部に重ねて描く）。
-    fn draw_chrome(&mut self, c: &mut Canvas) {
-        c.fill(0, 0, W, HEADER_H, WHITE);
-        c.fill(0, HEADER_H - 1, W, 1, BORDER);
-        let title: &[u8] = if self.proj.title.get().is_empty() {
-            "Mosaic Board".as_bytes()
-        } else {
-            self.proj.title.get()
-        };
-        c.text(PAD + 4, 18, title, TextStyle::Title, INK);
-
-        c.fill(0, HEADER_H, W, TABBAR_H, WHITE);
-        c.fill(0, TOP - 1, W, 1, BORDER);
-        let ty = HEADER_H + (TABBAR_H - TAB_H) / 2;
-        let mut x = PAD + 4;
-        for b in 0..self.proj.nboards {
-            let bn = self.proj.boards[b];
-            let name = bn.get();
-            let tw = c.measure(name, TextStyle::Button);
-            let tabw = tw + 36;
-            if x + tabw > W - PAD {
-                break;
-            }
-            pill(c, x, ty, tabw, TAB_H, name, b == self.board, TextStyle::Button);
-            self.push_hit(x, ty, tabw, TAB_H, Action::Tab(b));
-            x += tabw + 8;
-        }
-    }
-
     /// クリック（論理座標、左上原点）。画面が変わったら true を返す。
     pub fn click(&mut self, x: f64, y: f64) -> bool {
         let (x, y) = (x as i32, y as i32);
@@ -386,7 +397,7 @@ impl App {
             if x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h {
                 return match h.action {
                     Action::None => false,
-                    Action::Tab(b) | Action::Goto(b) => {
+                    Action::Goto(b) => {
                         self.board = b;
                         self.scroll = 0;
                         true

@@ -5,6 +5,7 @@
 //! 図形の描画はすべてこのコードが画素単位で行う。
 //! 文字は macOS では OS 標準フォント（CoreGraphics 経由）、それ以外では内蔵の簡易フォントを使う。
 
+#[cfg(not(target_os = "macos"))]
 use crate::font::glyph;
 use crate::sys::{write_all, write_num, STDOUT};
 

@@ -97,10 +97,24 @@ pub extern "C" fn main(argc: i32, argv: *const *const c_char) -> i32 {
             return 1;
         }
     };
-    project::parse_mb5(&mut proj, &buf[..n]);
+    let mb5_errors = project::parse_mb5(&mut proj, &buf[..n]);
+    let structure_errors = project::validate_structure(&proj);
+    if mb5_errors + structure_errors > 0 {
+        sys::eprint("MB5: コンパイルエラーがあるため起動を中止しました。\n".as_bytes());
+        return 1;
+    }
 
-    if let Some(n) = load(dir, b"models/main.yaml", buf) {
-        project::resolve_labels(&mut proj, &buf[..n]);
+    let yaml_len = match load(dir, b"models/main.yaml", buf) {
+        Some(n) => n,
+        None => {
+            sys::eprint("MB5: models/main.yaml が見つかりません。\n".as_bytes());
+            0
+        }
+    };
+    let yaml_errors = project::resolve_labels(&mut proj, &buf[..yaml_len]);
+    if yaml_errors > 0 {
+        sys::eprint("MB5: YAMLの参照・設定エラーがあるため起動を中止しました。\n".as_bytes());
+        return 1;
     }
 
     let mut app = App::new(proj);

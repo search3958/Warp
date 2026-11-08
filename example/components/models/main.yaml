@@ -11,7 +11,7 @@ components:
     easteregg2: #書き方2
       text: "Lucky board"
       event: luckyalert(show)
-      icon: text/happyegg.svg
+      icon: test/happyegg.svg
 
 luckyalert-text:
   config:

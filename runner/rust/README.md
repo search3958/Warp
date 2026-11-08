@@ -1,59 +1,75 @@
-# Mosaic Board 5 Runner (Rust / no_std)
+# Mosaic Board 5 Runner (Rust)
 
-`components/` を、GUIエンジン・GPU・std を使わずにピクセル単位で描画して開くランナーです。
+MB5 の画面構造を読み込み、macOS 上にプレビュー表示する軽量ランナーです。外部GUIエンジンやGPU描画APIには依存せず、独自のフレームバッファとAppKit/CoreGraphicsで表示します。
 
 ## 起動
 
-プロジェクトのルート（`runner/` と `example/` がある場所）で実行します。
+プロジェクトルート（`runner/` と `example/` がある場所）から実行します。
 
 ```sh
-sh ./runner/rust/run.sh                         # ./example/components を開く（なければ ./components）
-sh ./runner/rust/run.sh path/to/components      # 指定した components を開く
-sh ./runner/rust/run.sh components --ppm > out.ppm   # ウィンドウを開かず画像を書き出す
+sh ./runner/rust/run.sh
+sh ./runner/rust/run.sh path/to/components
+sh ./runner/rust/run.sh components --ppm > preview.ppm
 ```
 
-初回のみ Rust（cargo）が必要です。 https://rustup.rs
+初回ビルドには Rust の `cargo` が必要です。macOS 以外ではウィンドウ表示ではなく `--ppm` による画像出力を使用してください。
 
-## 構成
+## 表示方針
 
-| ファイル | 役割 |
+- 独自のプロジェクトヘッダーや board タブは表示しません。
+- `@mainBoard` の直後に定義された `board` を初期表示します。
+- `@mainBoard` がない場合は、最初に定義された `board` を初期表示します。
+- `moveboard(name)` が設定されたボタンをクリックした場合は、その遷移先 board を表示します。これはDSLで定義された動作であり、ランナー独自のタブUIではありません。
+- 内容がウィンドウより長い場合は、ホイール／トラックパッドでスクロールできます。
+
+## 読み込むファイル
+
+| ファイル | 用途 |
 |---|---|
-| `run.sh` | 引数の解釈、ビルド、起動 |
-| `src/main.rs` | エントリポイント（`#![no_std]` / `#![no_main]`） |
-| `src/sys.rs` | libc の最小限のラッパー（ファイル読み込み、書き出し） |
-| `src/canvas.rs` | 1ピクセル単位のフレームバッファ、文字描画、PPM出力 |
-| `src/font.rs` | 5x7 ASCII ビットマップフォント |
-| `src/project.rs` | `config.ini` / `app/main.mb5` / `models/main.yaml` の読み取り |
-| `src/render.rs` | 画面のレイアウトと描画 |
-| `src/mac.rs` | macOS 用のウィンドウ表示（AppKit / CoreGraphics を objc_msgSend で直接呼ぶ） |
+| `config.ini` | プロジェクト名などの基本設定 |
+| `app/main.mb5` | board、コンポーネント、入れ子構造、修飾子 |
+| `models/main.yaml` | コンポーネントの設定値・モデルデータ |
+| `resources/` | アイコンなどのアセットの配置基準 |
 
-## 画面の仕様
+アセットの相対パスは `resources/` を基準とします。
 
-- 上部: プロジェクト名（config.ini の name）と board タブ。タブをクリックすると board を切り替えます。
-- 本体: 選択中の board の内容を上から順に並べたカード。ホイールまたはトラックパッドでスクロールします。
-- `text`: 見出し（title）と本文（text）のカード。
-- `alert`: 見出し・本文と「閉じる」ボタンのカード。閉じると非表示になります（`.display(hide)` の場合は最初から非表示）。
-- `list`: 見出し・本文と、`N: "..."` の項目一覧。
-- `button`: 角丸のボタン。`moveboard(名前)` を持つ場合はクリックで board を切り替えます。`.type(primary)` は塗りつぶし表示になります。
+## MB5パーサー
 
-## 描画方式
+パーサーは行頭の文字列検索ではなく、文字列・コメントを考慮しながら括弧とブロックを追跡します。
 
-- 図形（カード・ボタン・枠線）は、コードが自前のバッファに1画素ずつ書き込みます。
-- 文字は macOS の OS 標準フォントで描きます（NSString の描画を、同じバッファを指す CoreGraphics のコンテキストに対して行う）。日本語も OS のフォントで表示されます。
-- Retina ディスプレイでは 2 倍の解像度で描画します。
-- 表示は更新のたびに CGImage を作って NSImageView に載せます。Metal / OpenGL / CoreAnimation の独自描画は使いません。
-- Linux など macOS 以外では、`--ppm` で画像を書き出せます。文字は内蔵の簡易フォント（ASCII のみ）で描きます。
+現在のプレビューで読み取る構文:
 
-## 対応範囲と未対応
+- `@mainBoard` と `board name { ... }`
+- `alert(...)`、`text(...)`、`list(...)`、`button(...)`
+- `card { ... }` 内のコンポーネント
+- コンポーネント引数内に置かれた入れ子コンポーネント
+- `config:title:`、`config:text:`、`config:message:`、`config:target:`
+- `event: moveboard(name)`
+- `.id(...)`、`.display(...)`、`.type(...)`、`.bgColor(...)`、`.fgColor(...)`、`.size(...)`、`.radius(...)`、`.width(...)` の修飾子チェーン
+- `[...]` で囲まれた複数行のインラインモデル
+- `models/main.yaml` の `config` と `model` の値、および `event` / `events` のブロック境界（イベント処理自体は未実装）
 
-対応:
-- `config.ini` の `name`（タイトル）
-- `app/main.mb5` の `board`、`alert` / `text` / `list` / `button`、`config:title` / `config:text`、リストの項目、`moveboard()`、`.display(hide)`、`.type(primary)`
-- `models/main.yaml` の、参照名に対応する `title` / `text` / `message`
+`[]` を付けない `model` は1行の値として扱います。`model:` のように値がない場合や、複数行データを角括弧なしで記述した場合はコンパイルエラーになります。
 
-未対応（仕様が未確定、または今後の実装）:
-- DSL の式評価、`message()`、`wait()`、`closewelcome()` などのスクリプト実行
-- 文字列の入力、キー操作
-- `icon.svg` の描画
-- `list(components)` のような、YAML のモデルから項目を作る機能
-- 色やサイズの指定（`.bgColor` など）の反映
+YAMLとMB5の両方で同一の `config` 値を指定した場合は、上書きせず競合エラーとして起動を中止します。未定義のモデル参照、コンポーネントと `target` の不一致もエラーになります。
+
+## プレビュー上の表現
+
+- `text`: 見出しと本文のカード
+- `alert`: 見出し・本文・閉じる操作。閉じるラベルはYAMLの `model.close` があればそれを使用
+- `list`: 見出し・本文と、インラインまたはYAMLのモデル項目
+- `button`: ボタン。`moveboard(...)`、`.type(primary)`、色・幅・角丸・サイズの指定を反映します。`.id(...)` は識別子として保持しますが、スクリプト実行が未対応のため、現段階では実行時の参照には使用しません。
+- `card { ... }`: 中のコンポーネントを解析し、表示順を維持します。現段階では独立したカードコンテナとしての装飾は行いません。
+
+## 現段階の制限
+
+これはMB5言語全体の完全な実行系ではなく、画面構造のプレビューランナーです。次の機能はまだ実行しません。
+
+- `@struct` の定義・`addComponent()`／`deleteComponent()` による動的な追加・削除
+- `@mainScript`、`script`、`message()`、`wait()` などのスクリプト実行
+- YAMLの `events` に定義されたスクリプト呼び出し
+- 入力フォームやキーボード入力
+- SVGアセットの描画
+- MB5全仕様を対象にした一般的なYAML 1.2の解析
+
+未対応構文を実行できるように見せかけず、画面プレビューに必要な構造と値の解析に範囲を限定しています。
