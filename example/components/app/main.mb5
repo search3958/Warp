@@ -68,10 +68,10 @@ script luckyalert{
         addComponent(luckyalert)
         .target(home) //書かなかったら自動で今のボードになる。 
         wait(5000)
-        deletecCmponent(luckyalert)
+        deleteCmponent(luckyalert)
     }
     message(close){
-        deletecCmponent(luckyalert)
+        deleteCmponent(luckyalert)
         .target(home)
     }
 }
