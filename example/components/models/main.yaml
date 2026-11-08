@@ -1,0 +1,45 @@
+components:
+  config:
+    title: "要素一覧"
+    target: list
+  events:
+    easteregg: luckyalert(show)
+  model:
+    list: "リスト"
+    button: "ボタン"
+    easteregg: "Lucky board" #書き方1
+    easteregg2: #書き方2
+      text: "Lucky board"
+      events: luckyalert(show)
+      icon: text/happyegg.svg
+
+luckyalert-text:
+  config:
+    target: alert
+    title: "幸福を感じています"
+    messge: "開発を楽しんで！"
+  model:
+    close: #書き方2
+      text: "Close now"
+      events: luckyalert(close)
+
+welcome-text:
+  config:
+    target: alert
+    title: "Hello, Developer!"
+    messge: "Mosaic Board 5 へようこそ"
+  events:
+    close: closewelcome()
+  model:
+    close: "Close now" #書き方1
+
+about-button:
+  config:
+    target: text
+    title: "ボタン"
+    text: "Button"
+
+button-text:
+  config:
+    target: button
+    text: "フルカスタマイズ"

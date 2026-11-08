@@ -1,0 +1,77 @@
+@mainBoard
+board home{
+    alert(welcome-text)
+    .id("welcome-alert")
+    .display(show)
+    list(components)
+
+    text(about-list)
+    card{
+        list(
+            config:title: "タイトル" 
+            config:text: "本文を追加できます" // []によって囲まれていない場合は1行ずつ個別になる
+            [
+                model:
+                    1: "項目1"
+                    2: "項目2"
+                    3: "項目3"
+            ] // []によって囲まれる場合はインラインyamlのようにできる
+        )
+    }
+
+    text(about-button)
+    card{
+        button(config:text:"別画面へ移動する",event: moveboard(board1))
+        button(config:text:"Primary")
+        .type(primary)
+        button(config:text:"Text")
+        .type(text)
+        button(button-text)
+        .type(primary)
+        .bgColor(#cc0000)
+        .fgColor(#eeddcc)
+        .size(large)
+        .radius(24)
+        .width(50px)
+        .display(show)
+    }
+}
+
+board board1{
+    text(
+        config:text: "こんにちは"
+        button(
+            config:text: "メインに戻る"
+            event: moveboard(home) //直接のイベント指定もできる
+        )
+    )
+}
+
+@struct
+components luckyalert{
+    alert(luckyalert-text)
+}
+
+
+@mainScript
+script hello{
+        wait(1000)
+        closewelcome()
+}
+
+script closewelcome{
+    setComponentConfig(welcome-alert,display:hide)
+}
+
+script luckyalert{
+    message(show){
+        addComponent(luckyalert)
+        .target(home) //書かなかったら自動で今のボードになる。 
+        wait(5000)
+        deletecCmponent(luckyalert)
+    }
+    message(close){
+        deletecCmponent(luckyalert)
+        .target(home)
+    }
+}
