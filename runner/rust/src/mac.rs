@@ -73,6 +73,9 @@ extern "C" {
 const KCG_IMAGE_ALPHA_NONE_SKIP_LAST: u32 = 5;
 /// NSEventTypeLeftMouseDown / NSEventTypeScrollWheel
 const EV_LEFT_MOUSE_DOWN: u64 = 1;
+const EV_LEFT_MOUSE_UP: u64 = 2;
+const EV_MOUSE_MOVED: u64 = 5;
+const EV_LEFT_MOUSE_DRAGGED: u64 = 6;
 const EV_SCROLL_WHEEL: u64 = 22;
 /// How long to wait for the window to become visible (ms).
 const SHOW_TIMEOUT_MS: u64 = 5000;
@@ -184,7 +187,7 @@ unsafe fn present(view: Id, ctx: *mut c_void) {
 
 /// Open the window and run until it is closed.
 /// buf must hold up to 2x the logical W x H pixels (for Retina).
-pub fn run(app: &mut App, buf: *mut u8, speed_mhz: Option<u32>) -> i32 {
+pub fn run(app: &mut App, buf: *mut u8, speed_percent: Option<u32>) -> i32 {
     unsafe {
         let nsapp_class = cls(b"NSApplication\0");
         if nsapp_class.is_null() {
@@ -219,6 +222,8 @@ pub fn run(app: &mut App, buf: *mut u8, speed_mhz: Option<u32>) -> i32 {
         }
         // Do not release the window when closed; later calls would break.
         m_bool1(win, sel(b"setReleasedWhenClosed:\0"), 0);
+        // Request mouseMoved events so software-rendered controls can show hover states.
+        m_bool1(win, sel(b"setAcceptsMouseMovedEvents:\0"), 1);
 
         let title = app.title();
         let mut tbuf = [0u8; 128];
@@ -285,24 +290,25 @@ pub fn run(app: &mut App, buf: *mut u8, speed_mhz: Option<u32>) -> i32 {
         let mut shown = false;
         let mut pending_dirty = true;
         let mut last_render_ms = 0u64;
-        // 1000MHz相当を基準に60FPS・64命令/ tick。MHz値は実クロックではなく
-        // エンジンの相対的な処理予算として扱う。
-        let (frame_interval_ms, script_budget, time_scale_permille) = match speed_mhz {
-            Some(mhz) => {
-                let normalized_mhz = mhz.min(1000);
-                let fps = (normalized_mhz / 16).max(1).min(60);
-                let budget = ((64u64 * normalized_mhz as u64) / 1000).max(1).min(64) as usize;
-                let time_scale = (1_000_000u64 / normalized_mhz as u64).min(u32::MAX as u64) as u32;
-                ((1000u64 + fps as u64 - 1) / fps as u64, budget, time_scale)
+        // 100% = 60FPS / 64 script commands per tick. Lower percentages
+        // proportionally reduce the frame and script budgets and stretch waits.
+        let (frame_interval_ms, script_budget, time_scale_permille) = match speed_percent {
+            Some(percent) => {
+                let normalized = percent.min(100).max(1);
+                let fps = ((60u64 * normalized as u64) / 100).max(1);
+                let budget = ((64u64 * normalized as u64) / 100).max(1) as usize;
+                let time_scale = (100_000u64 / normalized as u64).min(u32::MAX as u64) as u32;
+                ((1000u64 + fps - 1) / fps, budget, time_scale)
             }
             None => (0, 64, 1000),
         };
-        if let Some(mhz) = speed_mhz {
-            eprint(b"mb5-runner: software speed limit enabled (MHz-equivalent): ");
-            let mut digits = [0u8; 10]; let mut value = mhz; let mut len = 0usize;
-            while value > 0 { digits[len] = b'0' + (value % 10) as u8; value /= 10; len += 1; }
+        if let Some(percent) = speed_percent {
+            eprint(b"mb5-runner: software speed limit enabled: ");
+            let mut digits = [0u8; 3]; let mut value = percent; let mut len = 0usize;
+            while value > 0 && len < digits.len() { digits[len] = b'0' + (value % 10) as u8; value /= 10; len += 1; }
+            if len == 0 { crate::sys::write_all(crate::sys::STDERR, b"0"); }
             while len > 0 { len -= 1; crate::sys::write_all(crate::sys::STDERR, &digits[len..len + 1]); }
-            eprint(b"MHz\n");
+            eprint(b"%\n");
         }
 
         loop {
@@ -316,7 +322,16 @@ pub fn run(app: &mut App, buf: *mut u8, speed_mhz: Option<u32>) -> i32 {
                 if t == EV_LEFT_MOUSE_DOWN {
                     let p = m_point_ret(ev, ev_loc);
                     // Window origin is bottom-left; convert to top-left logical coords.
-                    dirty |= app.click(p.x, H as f64 - p.y);
+                    dirty |= app.pointer_press(p.x, H as f64 - p.y);
+                } else if t == EV_LEFT_MOUSE_UP {
+                    let p = m_point_ret(ev, ev_loc);
+                    let x = p.x;
+                    let y = H as f64 - p.y;
+                    dirty |= app.pointer_release(x, y);
+                    dirty |= app.click(x, y);
+                } else if t == EV_MOUSE_MOVED || t == EV_LEFT_MOUSE_DRAGGED {
+                    let p = m_point_ret(ev, ev_loc);
+                    dirty |= app.pointer_move(p.x, H as f64 - p.y);
                 } else if t == EV_SCROLL_WHEEL {
                     let raw_delta = m_f64(ev, ev_dy);
                     let logical_delta = if m_bool(ev, ev_precise_scroll) != 0 {

@@ -20,14 +20,13 @@ const MAX_HITS: usize = MAX_COMPS * (MAX_ITEMS + 2);
 const MAX_SCRIPT_DEPTH: usize = 8;
 
 // Warp4 light palette: keep the neutral surfaces quiet and reserve blue for actions.
-const BG: Rgb = [250, 250, 252];       // warp4_bg
-const WHITE: Rgb = [251, 251, 251];    // warp3_surface
+const BG: Rgb = [245, 245, 246];       // #f5f5f6
+const WHITE: Rgb = [255, 255, 255];    // card and list surface
 const INK: Rgb = [26, 26, 26];         // warp3_text
 const MUTED: Rgb = [93, 93, 93];       // warp3_muted
 const BORDER: Rgb = [211, 211, 211];   // warp3_border
 const ACCENT: Rgb = [0, 106, 255];     // warp4_primary
 const BUTTON_BG: Rgb = [238, 238, 239];
-const SELECTED: Rgb = [232, 242, 255];
 
 #[derive(Clone, Copy)]
 enum Action {
@@ -62,7 +61,9 @@ pub struct App {
     scroll: i32,
     max_scroll: i32,
     scroll_acc: f64,
-    selected_items: [i16; MAX_COMPS],
+    pointer_x: i32,
+    pointer_y: i32,
+    pointer_down: bool,
     hits: [Hit; MAX_HITS],
     nhits: usize,
     frames: [Frame; MAX_SCRIPT_DEPTH],
@@ -148,12 +149,25 @@ fn draw_button(
     custom_bg: Option<Rgb>,
     custom_fg: Option<Rgb>,
     radius: i32,
+    hovered: bool,
+    pressed: bool,
 ) {
     let transparent_text = text_button && custom_bg.is_none() && !primary;
-    let fill = custom_bg.unwrap_or(if primary { ACCENT } else { BUTTON_BG });
+    let base_fill = custom_bg.unwrap_or(if primary { ACCENT } else { BUTTON_BG });
     let fg = custom_fg.unwrap_or(if primary || custom_bg.is_some() { WHITE } else { ACCENT });
-    if !transparent_text {
-        c.rrect(x, y, w, h, radius.min(h / 2), fill);
+    let overlay = if pressed { 34u16 } else if hovered { 18u16 } else { 0u16 };
+    let fill = if overlay == 0 { base_fill } else {
+        [
+            ((base_fill[0] as u16 * (255 - overlay)) / 255) as u8,
+            ((base_fill[1] as u16 * (255 - overlay)) / 255) as u8,
+            ((base_fill[2] as u16 * (255 - overlay)) / 255) as u8,
+        ]
+    };
+    if !transparent_text || hovered || pressed {
+        let state_fill = if transparent_text {
+            if pressed { [210, 226, 255] } else { [232, 240, 255] }
+        } else { fill };
+        c.rrect(x, y, w, h, radius.min(h / 2), state_fill);
     }
     let tw = c.measure(label, TextStyle::Button);
     c.set_clip(x + 8, y + 2, (w - 16).max(1), h - 4);
@@ -201,7 +215,9 @@ impl App {
             scroll: 0,
             max_scroll: 0,
             scroll_acc: 0.0,
-            selected_items: [-1; MAX_COMPS],
+            pointer_x: -1,
+            pointer_y: -1,
+            pointer_down: false,
             hits: [EMPTY_HIT; MAX_HITS],
             nhits: 0,
             frames: [EMPTY_FRAME; MAX_SCRIPT_DEPTH],
@@ -219,6 +235,36 @@ impl App {
             self.hits[self.nhits] = Hit { x, y, w, h, action };
             self.nhits += 1;
         }
+    }
+
+    fn button_state(&self, x: i32, y: i32, w: i32, h: i32) -> (bool, bool) {
+        let hovered = self.pointer_x >= x && self.pointer_x < x + w
+            && self.pointer_y >= y && self.pointer_y < y + h;
+        (hovered, hovered && self.pointer_down)
+    }
+
+    pub fn pointer_move(&mut self, x: f64, y: f64) -> bool {
+        if !x.is_finite() || !y.is_finite() { return false; }
+        let next_x = x as i32;
+        let next_y = y as i32;
+        if self.pointer_x == next_x && self.pointer_y == next_y { return false; }
+        self.pointer_x = next_x;
+        self.pointer_y = next_y;
+        true
+    }
+
+    pub fn pointer_press(&mut self, x: f64, y: f64) -> bool {
+        let moved = self.pointer_move(x, y);
+        let changed = !self.pointer_down;
+        self.pointer_down = true;
+        moved || changed
+    }
+
+    pub fn pointer_release(&mut self, x: f64, y: f64) -> bool {
+        let moved = self.pointer_move(x, y);
+        let changed = self.pointer_down;
+        self.pointer_down = false;
+        moved || changed
     }
 
     fn find_board(&self, name: &[u8]) -> Option<usize> {
@@ -461,7 +507,8 @@ impl App {
                 let bg = if comp.has_bg_color { Some(comp.bg_color) } else { None };
                 let fg = if comp.has_fg_color { Some(comp.fg_color) } else { None };
                 let radius = if comp.radius_custom { comp.radius } else { button_h / 2 };
-                draw_button(c, x, y, button_width, button_h, label, comp.primary, comp.text_button, bg, fg, radius);
+                let (hovered, pressed) = self.button_state(x, y, button_width, button_h);
+                draw_button(c, x, y, button_width, button_h, label, comp.primary, comp.text_button, bg, fg, radius, hovered, pressed);
                 let action = match self.find_board(comp.event.get()) {
                     Some(board) => Action::Goto(board),
                     None => Action::None,
@@ -480,9 +527,7 @@ impl App {
         let inner = width - CARD_PAD * 2;
         let content_h = self.card_content_height(c, idx, inner);
         let h = (content_h + CARD_PAD * 2).max(CARD_PAD * 2 + 8);
-        c.rrect(x, y + 3, width, h, radius, [232, 234, 237]);
-        c.rrect(x, y, width, h, radius, BORDER);
-        c.rrect(x + 1, y + 1, width - 2, h - 2, (radius - 1).max(0), WHITE);
+        c.rrect(x, y, width, h, radius, WHITE);
 
         let mut cy = y + CARD_PAD;
         let mut row_x = 0;
@@ -535,15 +580,18 @@ impl App {
         let head = text_block(c, true, x, y, width, comp.label1.get(), comp.label2.get());
         let mut cy = y + head;
         if head > 0 && comp.nitems > 0 { cy += 14; }
-        for item_i in 0..comp.nitems.min(MAX_ITEMS) {
+        let row_h = 44;
+        let row_count = comp.nitems.min(MAX_ITEMS);
+        if row_count > 0 {
+            // One continuous list surface: only the first top and last bottom corners are rounded.
+            c.rrect(x, cy, width, row_count as i32 * row_h, 12, WHITE);
+        }
+        for item_i in 0..row_count {
             let item = comp.items[item_i];
-            let row_h = 44;
-            // Warp3-style ListView rows: flat surfaces and separators, no enclosing card.
-            c.fill(x, cy, width, row_h - 1, WHITE);
-            if self.selected_items[idx] == item_i as i16 {
-                c.rrect(x, cy + 1, width, row_h - 2, 10, SELECTED);
+            // Keep rows flat; separators are inset so they do not cut through the rounded edge.
+            if item_i + 1 < row_count {
+                c.fill(x + 12, cy + row_h - 1, (width - 24).max(0), 1, [229, 229, 231]);
             }
-            c.fill(x, cy + row_h - 1, width, 1, BORDER);
             c.text(x + 14, cy + (row_h - line_h(TextStyle::ListItem)) / 2, item.text.get(), TextStyle::ListItem, INK);
             if !item.call.is_empty() {
                 let arrow_x = x + width - 16;
@@ -624,8 +672,15 @@ impl App {
         let button_w = c.measure(close_label, TextStyle::Button) + 48;
         let bx = dx + dialog_w - 28 - button_w;
         let by = dy + dialog_h - 28 - BTN_H;
-        draw_button(c, bx, by, button_w, BTN_H, close_label, true, false, None, None, BTN_H / 2);
-        self.push_hit(bx, by, button_w, BTN_H, Action::Close(idx));
+        let (hovered, pressed) = self.button_state(bx, by, button_w, BTN_H);
+        draw_button(c, bx, by, button_w, BTN_H, close_label, true, false, None, None, BTN_H / 2, hovered, pressed);
+        // The visual button remains compact, but the effective target is at least 64px high
+        // and has a 10px forgiving margin on every side.
+        let hit_left = (bx - 10).max(dx + 8);
+        let hit_top = (by - 10).max(dy + 8);
+        let hit_right = (bx + button_w + 10).min(dx + dialog_w - 8);
+        let hit_bottom = (by + BTN_H + 10).min(dy + dialog_h - 8);
+        self.push_hit(hit_left, hit_top, (hit_right - hit_left).max(button_w), (hit_bottom - hit_top).max(64), Action::Close(idx));
     }
 
     pub fn click(&mut self, x: f64, y: f64) -> bool {
@@ -651,7 +706,6 @@ impl App {
                     return true;
                 }
                 Action::SelectItem(comp_idx, item_idx) => {
-                    if comp_idx < MAX_COMPS { self.selected_items[comp_idx] = item_idx as i16; }
                     if comp_idx < self.proj.ncomps && item_idx < self.proj.comps[comp_idx].nitems {
                         let call = self.proj.comps[comp_idx].items[item_idx].call;
                         if !call.is_empty() { let _ = self.start_script(call.name.get(), call.arg.get()); }
