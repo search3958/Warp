@@ -1,7 +1,7 @@
 //! Mosaic Board 5 ランナー（no_std / GUIエンジンなし / GPUなし）
 //!
 //! 使い方:
-//!   mb5-runner [components_dir] [--ppm]
+//!   mb5-runner [components_dir] [--ppm] [--speed-mhz N]
 //!
 //!   components_dir : components/ のパス（省略時は ./components）
 //!   --ppm          : ウィンドウを開かず、描画結果を PPM (P6) として標準出力に書く
@@ -45,7 +45,7 @@ fn on_panic(_info: &PanicInfo) -> ! {
 }
 
 fn usage() {
-    sys::eprint(b"usage: mb5-runner [components_dir] [--ppm]\n");
+    sys::eprint(b"usage: mb5-runner [components_dir] [--ppm] [--speed-mhz N]\n");
 }
 
 /// `dir/rel` を読み込む。
@@ -66,6 +66,7 @@ pub extern "C" fn main(argc: i32, argv: *const *const c_char) -> i32 {
     let mut dir: &[u8] = &b"components"[..];
     let mut ppm = false;
     let mut help = false;
+    let mut speed_mhz: Option<u32> = None;
 
     let mut i = 1usize;
     while i < argc as usize {
@@ -74,6 +75,15 @@ pub extern "C" fn main(argc: i32, argv: *const *const c_char) -> i32 {
             ppm = true;
         } else if a == b"-h" || a == b"--help" {
             help = true;
+        } else if a == b"--speed-mhz" {
+            i += 1;
+            if i >= argc as usize { usage(); return 2; }
+            let value = unsafe { sys::cstr_arg(argv, i) };
+            let mut parsed = 0u32;
+            if value.is_empty() || value.iter().any(|b| !b.is_ascii_digit()) { usage(); return 2; }
+            for &digit in value { parsed = match parsed.checked_mul(10).and_then(|v| v.checked_add((digit - b'0') as u32)) { Some(v) => v, None => { usage(); return 2; } }; }
+            if parsed == 0 || parsed > 100_000 { usage(); return 2; }
+            speed_mhz = Some(parsed);
         } else {
             dir = a;
         }
@@ -117,16 +127,16 @@ pub extern "C" fn main(argc: i32, argv: *const *const c_char) -> i32 {
         return if canvas.write_ppm() { 0 } else { 1 };
     }
 
-    open_window(&mut app, pixels)
+    open_window(&mut app, pixels, speed_mhz)
 }
 
 #[cfg(target_os = "macos")]
-fn open_window(app: &mut App, pixels: *mut u8) -> i32 {
-    mac::run(app, pixels)
+fn open_window(app: &mut App, pixels: *mut u8, speed_mhz: Option<u32>) -> i32 {
+    mac::run(app, pixels, speed_mhz)
 }
 
 #[cfg(not(target_os = "macos"))]
-fn open_window(_app: &mut App, _pixels: *mut u8) -> i32 {
+fn open_window(_app: &mut App, _pixels: *mut u8, _speed_mhz: Option<u32>) -> i32 {
     sys::eprint("ウィンドウ表示は macOS のみ対応です。--ppm で画像を出力できます\n".as_bytes());
     2
 }

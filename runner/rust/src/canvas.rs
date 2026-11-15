@@ -19,35 +19,6 @@ pub enum TextStyle {
     Button,
 }
 
-#[inline]
-fn circle_edge_coverage(
-    px: i32,
-    py: i32,
-    center_x: f32,
-    center_y: f32,
-    radius: f32,
-    left_edge: bool,
-) -> u8 {
-    const SUB_ROWS: i32 = 4;
-    let radius_sq = radius * radius;
-    let mut coverage = 0.0f32;
-
-    for sub_y in 0..SUB_ROWS {
-        let sample_y = py as f32 + (sub_y as f32 + 0.5) / SUB_ROWS as f32;
-        let dy = sample_y - center_y;
-        let dx = stb_truetype_rust::c_runtime::sqrt((radius_sq - dy * dy).max(0.0));
-        let edge_x = if left_edge { center_x - dx } else { center_x + dx };
-        let overlap = if left_edge {
-            (px as f32 + 1.0 - edge_x).max(0.0).min(1.0)
-        } else {
-            (edge_x - px as f32).max(0.0).min(1.0)
-        };
-        coverage += overlap;
-    }
-
-    (coverage * (255.0 / SUB_ROWS as f32) + 0.5) as u8
-}
-
 pub struct Canvas {
     px: *mut u8,
     /// 1 論理ピクセルあたりのデバイス画素数（1 または 2）
@@ -148,69 +119,132 @@ impl Canvas {
         }
     }
 
-    /// Anti-aliased rounded rectangle using four vertical subpixel samples
-    /// and exact fractional horizontal coverage on each scanline.
-    ///
-    /// The axis-aligned interior is filled directly. Only the four corner
-    /// regions need coverage calculations, keeping the cost proportional to
-    /// the corner area rather than the full rectangle.
+    /// Figma-style smooth squircle rectangle using the same cubic control
+    /// points and radius clamping as the supplied SmoothCornerShape.
     pub fn rrect(&mut self, x: i32, y: i32, w: i32, h: i32, r: i32, c: Rgb) {
-        if w <= 0 || h <= 0 {
-            return;
-        }
-        let radius = r.min(w / 2).min(h / 2).max(0);
-        if radius == 0 {
-            self.fill(x, y, w, h, c);
-            return;
-        }
-
-        // Axis-aligned center regions are fully covered and need no AA.
-        self.fill(x + radius, y, w - radius * 2, h, c);
-        self.fill(x, y + radius, radius, h - radius * 2, c);
-        self.fill(x + w - radius, y + radius, radius, h - radius * 2, c);
-
+        if w <= 0 || h <= 0 { return; }
         let scale = self.s.max(1) as i32;
         let left = x.saturating_mul(scale);
         let top = y.saturating_mul(scale);
         let right = x.saturating_add(w).saturating_mul(scale);
         let bottom = y.saturating_add(h).saturating_mul(scale);
-        let radius_px = radius.saturating_mul(scale);
-        let radius_f = radius_px as f32;
-        let left_center = (left + radius_px) as f32;
-        let right_center = (right - radius_px) as f32;
-        let top_center = (top + radius_px) as f32;
-        let bottom_center = (bottom - radius_px) as f32;
+        let width = right.saturating_sub(left);
+        let height = bottom.saturating_sub(top);
+        let radius = (r.max(0) as f32 * scale as f32).min(width as f32 * 0.5).min(height as f32 * 0.5);
+        if radius <= 0.0 { self.fill(x, y, w, h, c); return; }
 
-        // Top-left / top-right corners.
-        for py in top..top + radius_px {
-            for px in left..left + radius_px {
-                let alpha = circle_edge_coverage(
-                    px, py, left_center, top_center, radius_f, true,
-                );
-                if alpha != 0 { self.blend_device(px, py, c, alpha); }
-            }
-            for px in right - radius_px..right {
-                let alpha = circle_edge_coverage(
-                    px, py, right_center, top_center, radius_f, false,
-                );
-                if alpha != 0 { self.blend_device(px, py, c, alpha); }
+        #[derive(Clone, Copy)]
+        struct Pt { x: f32, y: f32 }
+        impl Pt { const ZERO: Self = Self { x: 0.0, y: 0.0 }; }
+        let mut points = [Pt::ZERO; 160];
+        let mut count = 0usize;
+        let mut current = Pt { x: right as f32, y: (top + bottom) as f32 * 0.5 };
+        points[count] = current; count += 1;
+        let lx = (width as f32 * 0.5).min(1.528665 * radius);
+        let ly = (height as f32 * 0.5).min(1.528665 * radius);
+        let cx3 = 0.63148 * radius; let cx4 = 0.37282 * radius;
+        let cx5 = 0.16905 * radius; let cx6 = 0.07491 * radius;
+        let cy3 = cx3; let cy4 = cx4; let cy5 = cx5; let cy6 = cx6;
+        let d1x = 0.04 * radius + 0.75697 * (lx - radius);
+        let d2x = 0.18 * radius + 0.90847 * (lx - radius);
+        let d1y = 0.04 * radius + 0.75697 * (ly - radius);
+        let d2y = 0.18 * radius + 0.90847 * (ly - radius);
+        let ox = left as f32; let oy = top as f32; let w = width as f32; let h = height as f32;
+        #[inline]
+        fn add_line(points: &mut [Pt; 160], count: &mut usize, p: Pt) {
+            if *count < points.len() { points[*count] = p; *count += 1; }
+        }
+        #[inline]
+        fn add_cubic(points: &mut [Pt; 160], count: &mut usize, p0: Pt, p1: Pt, p2: Pt, p3: Pt) {
+            const STEPS: usize = 12;
+            let mut i = 1usize;
+            while i <= STEPS {
+                let t = i as f32 / STEPS as f32; let mt = 1.0 - t;
+                let a = mt * mt * mt; let b = 3.0 * mt * mt * t;
+                let cc = 3.0 * mt * t * t; let d = t * t * t;
+                add_line(points, count, Pt { x: a*p0.x + b*p1.x + cc*p2.x + d*p3.x, y: a*p0.y + b*p1.y + cc*p2.y + d*p3.y });
+                i += 1;
             }
         }
+        // Right -> bottom -> left -> top -> right, matching the Kotlin Path.
+        let p = Pt { x: ox + w, y: oy + h - ly }; add_line(&mut points, &mut count, p); current = p;
+        let p3 = Pt { x: ox + w - cx6, y: oy + h - cx3 };
+        add_cubic(&mut points, &mut count, current, Pt{x:ox+w,y:oy+h-ly+d1y}, Pt{x:ox+w,y:oy+h-ly+d2y}, p3); current=p3;
+        let p3 = Pt{x:ox+w-cx3,y:oy+h-cy6};
+        add_cubic(&mut points,&mut count,current,Pt{x:ox+w-cx5,y:oy+h-cy4},Pt{x:ox+w-cx4,y:oy+h-cy5},p3); current=p3;
+        let p3=Pt{x:ox+w-lx,y:oy+h};
+        add_cubic(&mut points,&mut count,current,Pt{x:ox+w-lx+d2x,y:oy+h},Pt{x:ox+w-lx+d1x,y:oy+h},p3); current=p3;
+        let p=Pt{x:ox+lx,y:oy+h}; add_line(&mut points,&mut count,p); current=p;
+        let p3=Pt{x:ox+cx3,y:oy+h-cy6};
+        add_cubic(&mut points,&mut count,current,Pt{x:ox+lx-d1x,y:oy+h},Pt{x:ox+lx-d2x,y:oy+h},p3); current=p3;
+        let p3=Pt{x:ox+cx6,y:oy+h-cy3};
+        add_cubic(&mut points,&mut count,current,Pt{x:ox+cx4,y:oy+h-cy5},Pt{x:ox+cx5,y:oy+h-cy4},p3); current=p3;
+        let p3=Pt{x:ox,y:oy+h-ly};
+        add_cubic(&mut points,&mut count,current,Pt{x:ox,y:oy+h-ly+d2y},Pt{x:ox,y:oy+h-ly+d1y},p3); current=p3;
+        let p=Pt{x:ox,y:oy+ly}; add_line(&mut points,&mut count,p); current=p;
+        let p3=Pt{x:ox+cx6,y:oy+cy3};
+        add_cubic(&mut points,&mut count,current,Pt{x:ox,y:oy+ly-d1y},Pt{x:ox,y:oy+ly-d2y},p3); current=p3;
+        let p3=Pt{x:ox+cx3,y:oy+cy6};
+        add_cubic(&mut points,&mut count,current,Pt{x:ox+cx5,y:oy+cy4},Pt{x:ox+cx4,y:oy+cy5},p3); current=p3;
+        let p3=Pt{x:ox+lx,y:oy};
+        add_cubic(&mut points,&mut count,current,Pt{x:ox+lx-d2x,y:oy},Pt{x:ox+lx-d1x,y:oy},p3); current=p3;
+        let p=Pt{x:ox+w-lx,y:oy}; add_line(&mut points,&mut count,p); current=p;
+        let p3=Pt{x:ox+w-cx3,y:oy+cy6};
+        add_cubic(&mut points,&mut count,current,Pt{x:ox+w-lx+d1x,y:oy},Pt{x:ox+w-lx+d2x,y:oy},p3); current=p3;
+        let p3=Pt{x:ox+w-cx6,y:oy+cy3};
+        add_cubic(&mut points,&mut count,current,Pt{x:ox+w-cx4,y:oy+cy5},Pt{x:ox+w-cx5,y:oy+cy4},p3); current=p3;
+        let p3=Pt{x:ox+w,y:oy+ly};
+        add_cubic(&mut points,&mut count,current,Pt{x:ox+w,y:oy+ly-d2y},Pt{x:ox+w,y:oy+ly-d1y},p3);
+        let start_point = points[0];
+        add_line(&mut points,&mut count,start_point);
 
-        // Bottom-left / bottom-right corners.
-        for py in bottom - radius_px..bottom {
-            for px in left..left + radius_px {
-                let alpha = circle_edge_coverage(
-                    px, py, left_center, bottom_center, radius_f, true,
-                );
-                if alpha != 0 { self.blend_device(px, py, c, alpha); }
+        let clip = self.clip;
+        let min_y = (top.max(clip.1.saturating_mul(scale))).max(0);
+        let max_y = (bottom.min(clip.3.saturating_mul(scale))).min(self.h.saturating_mul(scale));
+        let min_x = left.max(clip.0.saturating_mul(scale)).max(0);
+        let max_x = right.min(clip.2.saturating_mul(scale)).min(self.w.saturating_mul(scale));
+        let span = (max_x - min_x) as usize;
+        if span == 0 || max_y <= min_y || span > 2048 { return; }
+        let mut coverage = [0.0f32; 2048];
+        let mut intersections = [0.0f32; 160];
+        let mut py = min_y;
+        while py < max_y {
+            coverage[..span].fill(0.0);
+            let mut sub = 0usize;
+            while sub < 4 {
+                let sy = py as f32 + (sub as f32 + 0.5) * 0.25;
+                let mut n = 0usize;
+                let mut i = 0usize;
+                while i + 1 < count {
+                    let a = points[i]; let b = points[i+1];
+                    if (a.y <= sy && b.y > sy) || (b.y <= sy && a.y > sy) {
+                        if n < intersections.len() { intersections[n] = a.x + (sy-a.y) * (b.x-a.x) / (b.y-a.y); n += 1; }
+                    }
+                    i += 1;
+                }
+                // Insertion sort; polygon has a small, fixed number of edges.
+                let mut si=1usize;
+                while si<n { let v=intersections[si]; let mut sj=si; while sj>0 && intersections[sj-1]>v { intersections[sj]=intersections[sj-1]; sj-=1; } intersections[sj]=v; si+=1; }
+                let mut pair=0usize;
+                while pair+1<n {
+                    let a=intersections[pair].max(min_x as f32); let b=intersections[pair+1].min(max_x as f32);
+                    if b>a {
+                        // a/b are clipped to non-negative framebuffer coordinates, so
+                        // truncation is equivalent to floor and ceil can be derived
+                        // without libm (this crate is built with no_std).
+                        let first=(a as i32).max(min_x);
+                        let b_truncated=b as i32;
+                        let last=(if b > b_truncated as f32 { b_truncated.saturating_add(1) } else { b_truncated }).min(max_x);
+                        let mut px=first;
+                        while px<last { let overlap=(b.min(px as f32+1.0)-a.max(px as f32)).max(0.0); coverage[(px-min_x) as usize]+=overlap; px+=1; }
+                    }
+                    pair+=2;
+                }
+                sub+=1;
             }
-            for px in right - radius_px..right {
-                let alpha = circle_edge_coverage(
-                    px, py, right_center, bottom_center, radius_f, false,
-                );
-                if alpha != 0 { self.blend_device(px, py, c, alpha); }
-            }
+            let mut px=0usize;
+            while px<span { let alpha=(coverage[px]*(255.0/4.0)+0.5).min(255.0) as u8; if alpha>0 { self.blend_device(min_x+px as i32,py,c,alpha); } px+=1; }
+            py+=1;
         }
     }
 

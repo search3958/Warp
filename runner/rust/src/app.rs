@@ -302,13 +302,23 @@ impl App {
 
     /// Run scheduled script commands until a wait or the execution budget is reached.
     pub fn tick(&mut self, now_ms: u64) -> bool {
+        self.tick_with_budget(now_ms, 64)
+    }
+
+    /// Run scheduled commands with a caller-controlled per-tick budget.
+    pub fn tick_with_budget(&mut self, now_ms: u64, execution_budget: usize) -> bool {
+        self.tick_with_profile(now_ms, execution_budget, 1000)
+    }
+
+    /// Apply a relative time scale in permille (1000 = normal speed).
+    pub fn tick_with_profile(&mut self, now_ms: u64, execution_budget: usize, time_scale_permille: u32) -> bool {
         if self.wait_until_ms != 0 {
             if now_ms < self.wait_until_ms { return false; }
             self.wait_until_ms = 0;
         }
 
         let mut changed = false;
-        let mut budget = 64usize;
+        let mut budget = execution_budget.max(1);
         while budget > 0 && self.nframes > 0 {
             budget -= 1;
             let frame_index = self.nframes - 1;
@@ -326,7 +336,9 @@ impl App {
             self.frames[frame_index].pc += 1;
             match cmd.kind {
                 CMD_WAIT => {
-                    self.wait_until_ms = now_ms.saturating_add(cmd.millis);
+                    let scale = time_scale_permille.max(1) as u64;
+                    let scaled_wait = cmd.millis.saturating_mul(scale).saturating_add(999) / 1000;
+                    self.wait_until_ms = now_ms.saturating_add(scaled_wait);
                     if cmd.millis > 0 { return changed; }
                 }
                 CMD_SET_DISPLAY => {

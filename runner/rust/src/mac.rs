@@ -184,7 +184,7 @@ unsafe fn present(view: Id, ctx: *mut c_void) {
 
 /// Open the window and run until it is closed.
 /// buf must hold up to 2x the logical W x H pixels (for Retina).
-pub fn run(app: &mut App, buf: *mut u8) -> i32 {
+pub fn run(app: &mut App, buf: *mut u8, speed_mhz: Option<u32>) -> i32 {
     unsafe {
         let nsapp_class = cls(b"NSApplication\0");
         if nsapp_class.is_null() {
@@ -283,12 +283,34 @@ pub fn run(app: &mut App, buf: *mut u8) -> i32 {
 
         let start_ms = monotonic_ms();
         let mut shown = false;
+        let mut pending_dirty = true;
+        let mut last_render_ms = 0u64;
+        // 1000MHz相当を基準に60FPS・64命令/ tick。MHz値は実クロックではなく
+        // エンジンの相対的な処理予算として扱う。
+        let (frame_interval_ms, script_budget, time_scale_permille) = match speed_mhz {
+            Some(mhz) => {
+                let normalized_mhz = mhz.min(1000);
+                let fps = (normalized_mhz / 16).max(1).min(60);
+                let budget = ((64u64 * normalized_mhz as u64) / 1000).max(1).min(64) as usize;
+                let time_scale = (1_000_000u64 / normalized_mhz as u64).min(u32::MAX as u64) as u32;
+                ((1000u64 + fps as u64 - 1) / fps as u64, budget, time_scale)
+            }
+            None => (0, 64, 1000),
+        };
+        if let Some(mhz) = speed_mhz {
+            eprint(b"mb5-runner: software speed limit enabled (MHz-equivalent): ");
+            let mut digits = [0u8; 10]; let mut value = mhz; let mut len = 0usize;
+            while value > 0 { digits[len] = b'0' + (value % 10) as u8; value /= 10; len += 1; }
+            while len > 0 { len -= 1; crate::sys::write_all(crate::sys::STDERR, &digits[len..len + 1]); }
+            eprint(b"MHz\n");
+        }
 
         loop {
             let pool = m_id(m_id(cls(b"NSAutoreleasePool\0"), pool_alloc), pool_init);
 
             let ev = m_event(nsapp, next_event, u64::MAX, distant_past, mode, 1);
-            let mut dirty = app.tick(monotonic_ms());
+            let now_ms = monotonic_ms();
+            let mut dirty = app.tick_with_profile(now_ms, script_budget, time_scale_permille);
             if !ev.is_null() {
                 let t = m_u64(ev, ev_type);
                 if t == EV_LEFT_MOUSE_DOWN {
@@ -306,9 +328,13 @@ pub fn run(app: &mut App, buf: *mut u8) -> i32 {
                 }
                 m_id1(nsapp, send_event, ev);
             }
-            if dirty {
+            pending_dirty |= dirty;
+            let render_due = frame_interval_ms == 0 || now_ms.saturating_sub(last_render_ms) >= frame_interval_ms;
+            if pending_dirty && render_due {
                 app.render(&mut canvas);
                 present(view, ctx);
+                last_render_ms = now_ms;
+                pending_dirty = false;
             }
             m_void(nsapp, update_windows);
             m_void(pool, pool_drain);
@@ -326,6 +352,9 @@ pub fn run(app: &mut App, buf: *mut u8) -> i32 {
 
             if ev.is_null() {
                 sleep_us(4_000);
+            } else if frame_interval_ms > 0 {
+                // Avoid a busy event-poll loop while a speed profile is active.
+                sleep_us(1_000);
             }
         }
         0
