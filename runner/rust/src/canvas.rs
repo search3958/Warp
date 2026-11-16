@@ -27,6 +27,8 @@ pub struct Canvas {
     pub h: i32,
     /// 描画を許可する領域 (x0, y0, x1, y1)、論理座標
     clip: (i32, i32, i32, i32),
+    /// Current compositing alpha for a component subtree.
+    alpha: u8,
 }
 
 impl Canvas {
@@ -35,19 +37,45 @@ impl Canvas {
     /// # Safety
     /// 呼び出し元が上記の大きさと有効性を保証すること。
     pub unsafe fn new(px: *mut u8, s: usize, w: i32, h: i32) -> Self {
-        Canvas { px, s, w, h, clip: (0, 0, w, h) }
+        Canvas { px, s, w, h, clip: (0, 0, w, h), alpha: 255 }
     }
 
     pub fn set_clip(&mut self, x: i32, y: i32, w: i32, h: i32) {
-        let x0 = x.max(0);
-        let y0 = y.max(0);
-        let x1 = (x + w).min(self.w);
-        let y1 = (y + h).min(self.h);
-        self.clip = (x0, y0, x1, y1);
+        let (old_x0, old_y0, old_x1, old_y1) = self.clip;
+        let x0 = x.max(0).max(old_x0);
+        let y0 = y.max(0).max(old_y0);
+        let x1 = x.saturating_add(w).min(self.w).min(old_x1);
+        let y1 = y.saturating_add(h).min(self.h).min(old_y1);
+        self.clip = (x0.min(x1), y0.min(y1), x1.max(x0), y1.max(y0));
     }
 
     pub fn clear_clip(&mut self) {
         self.clip = (0, 0, self.w, self.h);
+    }
+
+    pub fn clip_rect(&self) -> (i32, i32, i32, i32) { self.clip }
+
+    /// Restore a previously captured clip, including its parent extent.
+    pub fn restore_clip(&mut self, clip: (i32, i32, i32, i32)) { self.clip = clip; }
+
+    pub fn alpha(&self) -> u8 { self.alpha }
+
+    pub fn set_alpha(&mut self, alpha: u8) { self.alpha = alpha; }
+
+    /// Horizontal linear gradient in the current clipped region.
+    pub fn gradient(&mut self, x: i32, y: i32, w: i32, h: i32, start: Rgb, end: Rgb) {
+        if w <= 0 || h <= 0 { return; }
+        let mut offset = 0i32;
+        while offset < w {
+            let t = if w <= 1 { 0.0 } else { offset as f32 / (w - 1) as f32 };
+            let color = [
+                (start[0] as f32 + (end[0] as f32 - start[0] as f32) * t).clamp(0.0, 255.0) as u8,
+                (start[1] as f32 + (end[1] as f32 - start[1] as f32) * t).clamp(0.0, 255.0) as u8,
+                (start[2] as f32 + (end[2] as f32 - start[2] as f32) * t).clamp(0.0, 255.0) as u8,
+            ];
+            self.fill(x + offset, y, 1, h, color);
+            offset += 1;
+        }
     }
 
     /// 1 論理ピクセルを描く（クリップ内のみ）。
@@ -66,10 +94,50 @@ impl Canvas {
                 let i = (px_y * dw + px_x) * 4;
                 // SAFETY: new() で保証された範囲内の画素のみを書く
                 unsafe {
-                    *self.px.add(i) = c[0];
-                    *self.px.add(i + 1) = c[1];
-                    *self.px.add(i + 2) = c[2];
+                    if self.alpha == 255 {
+                        *self.px.add(i) = c[0];
+                        *self.px.add(i + 1) = c[1];
+                        *self.px.add(i + 2) = c[2];
+                    } else {
+                        let a = self.alpha as u32;
+                        let inv = 255 - a;
+                        for channel in 0..3 {
+                            let old = *self.px.add(i + channel) as u32;
+                            *self.px.add(i + channel) = ((old * inv + c[channel] as u32 * a + 127) / 255) as u8;
+                        }
+                    }
                     *self.px.add(i + 3) = 0;
+                }
+            }
+        }
+    }
+
+    /// Draw a one-pixel logical line using integer Bresenham stepping.
+    pub fn line(&mut self, mut x0: i32, mut y0: i32, x1: i32, y1: i32, color: Rgb) {
+        let dx = (x1 - x0).abs();
+        let sx = if x0 < x1 { 1 } else { -1 };
+        let dy = -(y1 - y0).abs();
+        let sy = if y0 < y1 { 1 } else { -1 };
+        let mut error = dx + dy;
+        loop {
+            self.put(x0, y0, color);
+            if x0 == x1 && y0 == y1 { break; }
+            let twice = error.saturating_mul(2);
+            if twice >= dy { error += dy; x0 += sx; }
+            if twice <= dx { error += dx; y0 += sy; }
+        }
+    }
+
+    /// Draw a filled or outlined circle in logical pixels.
+    pub fn circle(&mut self, cx: i32, cy: i32, radius: i32, color: Rgb, filled: bool) {
+        let r = radius.max(0);
+        let rr = (r as i64) * (r as i64);
+        let inner = (r.saturating_sub(1) as i64) * (r.saturating_sub(1) as i64);
+        for y in -r..=r {
+            for x in -r..=r {
+                let distance = (x as i64) * (x as i64) + (y as i64) * (y as i64);
+                if if filled { distance <= rr } else { distance <= rr && distance >= inner } {
+                    self.put(cx + x, cy + y, color);
                 }
             }
         }
@@ -95,7 +163,7 @@ impl Canvas {
         let ya = y.max(y0);
         let xb = (x + w).min(x1);
         let yb = (y + h).min(y1);
-        let a = alpha as u32;
+        let a = (alpha as u32 * self.alpha as u32 + 127) / 255;
         let inv = 255 - a;
         let dw = self.w as usize * self.s;
         for yy in ya..yb {
@@ -122,6 +190,15 @@ impl Canvas {
     /// Figma-style smooth squircle rectangle using the same cubic control
     /// points and radius clamping as the supplied SmoothCornerShape.
     pub fn rrect(&mut self, x: i32, y: i32, w: i32, h: i32, r: i32, c: Rgb) {
+        self.rounded_fill(x, y, w, h, r, c, None);
+    }
+
+    /// Rounded horizontal gradient using the same squircle coverage as rrect.
+    pub fn gradient_rrect(&mut self, x: i32, y: i32, w: i32, h: i32, r: i32, start: Rgb, end: Rgb) {
+        self.rounded_fill(x, y, w, h, r, start, Some(end));
+    }
+
+    fn rounded_fill(&mut self, x: i32, y: i32, w: i32, h: i32, r: i32, c: Rgb, gradient_end: Option<Rgb>) {
         if w <= 0 || h <= 0 { return; }
         let scale = self.s.max(1) as i32;
         let left = x.saturating_mul(scale);
@@ -131,7 +208,11 @@ impl Canvas {
         let width = right.saturating_sub(left);
         let height = bottom.saturating_sub(top);
         let radius = (r.max(0) as f32 * scale as f32).min(width as f32 * 0.5).min(height as f32 * 0.5);
-        if radius <= 0.0 { self.fill(x, y, w, h, c); return; }
+        if radius <= 0.0 {
+            if let Some(end) = gradient_end { self.gradient(x, y, w, h, c, end); }
+            else { self.fill(x, y, w, h, c); }
+            return;
+        }
 
         #[derive(Clone, Copy)]
         struct Pt { x: f32, y: f32 }
@@ -243,7 +324,23 @@ impl Canvas {
                 sub+=1;
             }
             let mut px=0usize;
-            while px<span { let alpha=(coverage[px]*(255.0/4.0)+0.5).min(255.0) as u8; if alpha>0 { self.blend_device(min_x+px as i32,py,c,alpha); } px+=1; }
+            while px<span {
+                let alpha=(coverage[px]*(255.0/4.0)+0.5).min(255.0) as u8;
+                if alpha>0 {
+                    let color = if let Some(end) = gradient_end {
+                        let logical_x = (min_x + px as i32) / scale;
+                        let step = ((logical_x - x) as f32).clamp(0.0, w - 1.0);
+                        let t = if w <= 1.0 { 0.0 } else { step / (w - 1.0) };
+                        [
+                            (c[0] as f32 + (end[0] as f32 - c[0] as f32) * t).clamp(0.0, 255.0) as u8,
+                            (c[1] as f32 + (end[1] as f32 - c[1] as f32) * t).clamp(0.0, 255.0) as u8,
+                            (c[2] as f32 + (end[2] as f32 - c[2] as f32) * t).clamp(0.0, 255.0) as u8,
+                        ]
+                    } else { c };
+                    self.blend_device(min_x+px as i32,py,color,alpha);
+                }
+                px+=1;
+            }
             py+=1;
         }
     }
@@ -267,7 +364,7 @@ impl Canvas {
             return;
         }
         let offset = (py as usize * dw + px as usize) * 4;
-        let a = alpha as u32;
+        let a = (alpha as u32 * self.alpha as u32 + 127) / 255;
         let inv = 255 - a;
         unsafe {
             for channel in 0..3 {

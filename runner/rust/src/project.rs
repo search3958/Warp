@@ -2,10 +2,10 @@
 //! Fixed-capacity data structures are used to keep the runner no_std-friendly.
 
 pub const MAX_BOARDS: usize = 8;
-pub const MAX_COMPS: usize = 48;
-pub const MAX_ITEMS: usize = 16;
+pub const MAX_COMPS: usize = 128;
+pub const MAX_ITEMS: usize = 32;
 pub const MAX_SCRIPTS: usize = 24;
-pub const MAX_COMMANDS: usize = 32;
+pub const MAX_COMMANDS: usize = 64;
 pub const MAX_STRUCTS: usize = 16;
 pub const MAX_STRUCT_COMPS: usize = 8;
 pub const NO_PARENT: usize = usize::MAX;
@@ -82,6 +82,32 @@ pub struct Comp {
     pub event: Text<48>,
     pub close_event: ScriptCall,
     pub close_label: Text<48>,
+    /// Script callback for click/change/select events.
+    pub on_event: ScriptCall,
+    /// Optional value / placeholder used by interactive controls.
+    pub value: Text<192>,
+    pub placeholder: Text<96>,
+    pub min_value: i32,
+    pub max_value: i32,
+    pub selected: usize,
+    pub checked: bool,
+    pub expanded: bool,
+    pub columns: u8,
+    pub spacing: i32,
+    pub opacity: u8,
+    pub opacity_from: u8,
+    pub opacity_target: u8,
+    pub opacity_transition: bool,
+    pub gradient_end: [u8; 3],
+    pub has_gradient: bool,
+    pub bg_from_color: [u8; 3],
+    pub bg_target_color: [u8; 3],
+    pub bg_transition: bool,
+    pub transition_started_ms: u64,
+    pub transition_ms: u16,
+    pub height: i32,
+    /// Independent vertical offset for a scrollbox.
+    pub scroll_offset: i32,
     pub hidden: bool,
     pub primary: bool,
     /// `.type(text)` renders as a transparent text button.
@@ -91,6 +117,12 @@ pub struct Comp {
     pub size: Text<16>,
     pub bg_color: [u8; 3],
     pub fg_color: [u8; 3],
+    pub fg_from_color: [u8; 3],
+    pub fg_target_color: [u8; 3],
+    pub fg_transition: bool,
+    pub gradient_end_from: [u8; 3],
+    pub gradient_end_target: [u8; 3],
+    pub gradient_end_transition: bool,
     pub has_bg_color: bool,
     pub has_fg_color: bool,
     pub radius: i32,
@@ -112,6 +144,29 @@ const EMPTY_COMP: Comp = Comp {
     event: Text::new(),
     close_event: ScriptCall::new(),
     close_label: Text::new(),
+    on_event: ScriptCall::new(),
+    value: Text::new(),
+    placeholder: Text::new(),
+    min_value: 0,
+    max_value: 100,
+    selected: 0,
+    checked: false,
+    expanded: false,
+    columns: 2,
+    spacing: 12,
+    opacity: 255,
+    opacity_from: 255,
+    opacity_target: 255,
+    opacity_transition: false,
+    gradient_end: [255, 255, 255],
+    has_gradient: false,
+    bg_from_color: [0, 106, 255],
+    bg_target_color: [0, 106, 255],
+    bg_transition: false,
+    transition_started_ms: 0,
+    transition_ms: 180,
+    height: 0,
+    scroll_offset: 0,
     hidden: false,
     primary: false,
     text_button: false,
@@ -120,6 +175,12 @@ const EMPTY_COMP: Comp = Comp {
     size: Text::new(),
     bg_color: [0, 106, 255],
     fg_color: [26, 26, 26],
+    fg_from_color: [26, 26, 26],
+    fg_target_color: [26, 26, 26],
+    fg_transition: false,
+    gradient_end_from: [255, 255, 255],
+    gradient_end_target: [255, 255, 255],
+    gradient_end_transition: false,
     has_bg_color: false,
     has_fg_color: false,
     radius: 16,
@@ -182,8 +243,35 @@ const EMPTY_STRUCT: StructDef = StructDef {
     ncomps: 0,
 };
 
+pub struct ScriptSource {
+    pub bytes: [u8; 32768],
+    pub len: usize,
+    /// True when loaded from scripts/main.mb5. External scripts use the full
+    /// command language, including top-level initialization statements.
+    pub external: bool,
+}
+
+impl ScriptSource {
+    pub const fn new() -> Self { Self { bytes: [0; 32768], len: 0, external: false } }
+    pub fn get(&self) -> &[u8] { &self.bytes[..self.len] }
+    pub fn set(&mut self, src: &[u8]) { self.set_with_origin(src, false); }
+    pub fn set_external(&mut self, src: &[u8]) { self.set_with_origin(src, true); }
+    fn set_with_origin(&mut self, src: &[u8], external: bool) {
+        let n = core::cmp::min(src.len(), self.bytes.len() - 1);
+        self.bytes[..n].copy_from_slice(&src[..n]);
+        self.bytes[n] = 0;
+        self.len = n;
+        self.external = external;
+    }
+}
+
 pub struct Project {
     pub title: Text<96>,
+    pub primary_color: [u8; 3],
+    pub script_source: ScriptSource,
+    pub has_topbar: [bool; MAX_BOARDS],
+    pub diagnostics: [Text<160>; 32],
+    pub ndiagnostics: usize,
     pub boards: [Text<48>; MAX_BOARDS],
     pub nboards: usize,
     pub main_board: Text<48>,
@@ -200,6 +288,11 @@ impl Project {
     pub const fn new() -> Self {
         Self {
             title: Text::new(),
+            primary_color: [0, 106, 255],
+            script_source: ScriptSource::new(),
+            has_topbar: [false; MAX_BOARDS],
+            diagnostics: [Text::new(); 32],
+            ndiagnostics: 0,
             boards: [Text::new(); MAX_BOARDS],
             nboards: 0,
             main_board: Text::new(),
@@ -212,6 +305,22 @@ impl Project {
             main_script: Text::new(),
         }
     }
+}
+
+fn brace_delta(line: &[u8]) -> i32 {
+    let mut delta = 0i32;
+    let mut quoted = false;
+    let mut escaped = false;
+    for &byte in line {
+        if quoted {
+            if escaped { escaped = false; }
+            else if byte == b'\\' { escaped = true; }
+            else if byte == b'"' { quoted = false; }
+        } else if byte == b'"' { quoted = true; }
+        else if byte == b'{' { delta += 1; }
+        else if byte == b'}' { delta -= 1; }
+    }
+    delta
 }
 
 fn is_space(c: u8) -> bool { c == b' ' || c == b'\t' || c == b'\r' }
@@ -398,6 +507,23 @@ fn parse_u64(src: &[u8]) -> u64 {
     n
 }
 
+fn parse_i32(src: &[u8]) -> i32 {
+    let s = trim(src);
+    if s.is_empty() { return 0; }
+    let negative = s[0] == b'-';
+    let digits = if negative || s[0] == b'+' { &s[1..] } else { s };
+    let mut value = 0i64;
+    let mut found = false;
+    for &byte in digits {
+        if !byte.is_ascii_digit() { break; }
+        found = true;
+        value = value.saturating_mul(10).saturating_add((byte - b'0') as i64);
+    }
+    if !found { return 0; }
+    if negative { value = -value; }
+    value.clamp(i32::MIN as i64, i32::MAX as i64) as i32
+}
+
 fn parse_hex_color(src: &[u8]) -> Option<[u8; 3]> {
     let s = trim(src);
     let hex = if s.first() == Some(&b'#') { &s[1..] } else { s };
@@ -422,6 +548,16 @@ fn hex_digit(c: u8) -> Option<u8> {
 
 fn is_component_kind(k: &[u8]) -> bool {
     k == b"alert" || k == b"text" || k == b"list" || k == b"button" || k == b"card"
+        || k == b"icon" || k == b"input" || k == b"checkbox" || k == b"switch" || k == b"slider"
+        || k == b"progress" || k == b"divider" || k == b"scrollbox" || k == b"topbar"
+        || k == b"navigation" || k == b"dropdown" || k == b"tab" || k == b"spacing"
+        || k == b"horizontal" || k == b"vertical" || k == b"grid" || k == b"snackbar"
+        || k == b"gradient" || k == b"opacity"
+}
+
+fn is_container_kind(k: &[u8]) -> bool {
+    k == b"card" || k == b"scrollbox" || k == b"horizontal" || k == b"vertical"
+        || k == b"grid" || k == b"topbar" || k == b"gradient" || k == b"opacity"
 }
 
 fn add_comp(p: &mut Project, board: usize, parent: usize, kind: &[u8], name: &[u8]) -> Option<usize> {
@@ -450,7 +586,7 @@ fn add_item(c: &mut Comp, id: &[u8], label: &[u8]) -> Option<usize> {
 fn component_start(t: &[u8]) -> Option<(&[u8], &[u8])> {
     let open = t.iter().position(|&c| c == b'(')?;
     let kind = trim(&t[..open]);
-    if !is_component_kind(kind) || kind == b"card" { return None; }
+    if !is_component_kind(kind) || is_container_kind(kind) { return None; }
     let args = trim(&t[open + 1..]);
     let first = ident(args);
     let after = args.get(first.len()).copied();
@@ -461,20 +597,42 @@ fn component_start(t: &[u8]) -> Option<(&[u8], &[u8])> {
 }
 
 fn parse_inline_component_props(c: &mut Comp, t: &[u8]) {
+    if c.kind.get() == b"spacing" {
+        if let Some((_, argument)) = call_parts(t) { c.spacing = parse_i32(argument).clamp(0, 4096); }
+    }
     if let Some(v) = value_after(t, b"config:title:") { c.label1.set(v); }
     if let Some(v) = value_after(t, b"config:text:") {
         if c.kind.get() == b"button" { c.label1.set(v); } else { c.label2.set(v); }
     }
     if let Some(v) = value_after(t, b"config:message:") { c.label2.set(v); }
     if let Some(v) = value_after(t, b".bgColor(") {
-        if let Some(rgb) = parse_hex_color(v) { c.bg_color = rgb; c.has_bg_color = true; }
+        if let Some(rgb) = parse_hex_color(v) { c.bg_color = rgb; c.bg_from_color = rgb; c.bg_target_color = rgb; c.has_bg_color = true; }
     }
     if let Some(v) = value_after(t, b".fgColor(") {
-        if let Some(rgb) = parse_hex_color(v) { c.fg_color = rgb; c.has_fg_color = true; }
+        if let Some(rgb) = parse_hex_color(v) { c.fg_color = rgb; c.fg_from_color = rgb; c.fg_target_color = rgb; c.has_fg_color = true; }
     }
     if let Some(v) = raw_after(t, b"event:") {
         if let Some((name, arg)) = call_parts(v) {
             if name == b"moveboard" { c.event.set(arg); }
+            else { c.on_event.name.set(name); c.on_event.arg.set(arg); }
+        } else {
+            c.on_event.name.set(trim(v));
+        }
+    }
+    if let Some(v) = value_after(t, b".placeholder(") { c.placeholder.set(v); }
+    if let Some(v) = value_after(t, b".value(") { c.value.set(v); c.checked = v == b"true" || v == b"1" || v == b"on"; }
+    if let Some(v) = value_after(t, b".min(") { c.min_value = parse_i32(v); }
+    if let Some(v) = value_after(t, b".max(") { c.max_value = parse_i32(v); }
+    if let Some(v) = value_after(t, b".columns(") { c.columns = parse_u64(v).clamp(1, 8) as u8; }
+    if let Some(v) = value_after(t, b".spacing(") { c.spacing = parse_u64(v).min(64) as i32; }
+    if let Some(v) = value_after(t, b".opacity(") { c.opacity = (parse_u64(v).min(100) * 255 / 100) as u8; c.opacity_from = c.opacity; c.opacity_target = c.opacity; }
+    if let Some(v) = value_after(t, b".transition(") { c.transition_ms = parse_u64(v).min(u16::MAX as u64) as u16; }
+    if let Some(v) = value_after(t, b".height(") { c.height = parse_i32(v).max(0); }
+    if let Some(v) = value_after(t, b".gradient(") {
+        if let Some(comma) = v.iter().position(|&ch| ch == b',') {
+            if let (Some(a), Some(b)) = (parse_hex_color(trim(&v[..comma])), parse_hex_color(trim(&v[comma + 1..]))) {
+                c.bg_color = a; c.bg_from_color = a; c.bg_target_color = a; c.gradient_end = b; c.gradient_end_from = b; c.gradient_end_target = b; c.has_bg_color = true; c.has_gradient = true;
+            }
         }
     }
 }
@@ -483,23 +641,31 @@ pub fn parse_config(p: &mut Project, src: &[u8]) {
     for raw in src.split(|&c| c == b'\n') {
         let line = trim(strip_cr(raw));
         if let Some(v) = line.strip_prefix(b"name=") { p.title.set(trim(v)); }
+        else if let Some(v) = line.strip_prefix(b"primaryColor=") {
+            if let Some(rgb) = parse_hex_color(trim(v)) { p.primary_color = rgb; }
+        }
     }
 }
 
 /// Parse board/component declarations and the documented one-line / bracketed model syntax.
 pub fn parse_mb5(p: &mut Project, src: &[u8]) {
     let mut board: Option<usize> = None;
-    let mut card_stack = [NO_PARENT; 8];
-    let mut card_depth = 0usize;
+    let mut container_stack = [NO_PARENT; 16];
+    let mut container_depth = 0usize;
     let mut last_component = NO_PARENT;
     let mut inline_model = false;
     let mut in_model = false;
+    let mut skipped_block_depth = 0i32;
 
     for raw in src.split(|&c| c == b'\n') {
         let t = strip_comment(strip_cr(raw));
+        if skipped_block_depth > 0 {
+            skipped_block_depth = (skipped_block_depth + brace_delta(t)).max(0);
+            continue;
+        }
         if t.is_empty() { continue; }
-        if t.starts_with(b"@mainScript") || t.starts_with(b"@struct") { board = None; card_depth = 0; continue; }
-        if t.starts_with(b"@mainBoard") { continue; }
+        if t.starts_with(b"@mainScript") || t.starts_with(b"@struct") { board = None; container_depth = 0; continue; }
+        if t.starts_with(b"@mainBoard") || t.starts_with(b"@theme") { continue; }
 
         if t.starts_with(b"board ") && t.contains(&b'{') {
             let n = ident(trim(&t[6..]));
@@ -510,22 +676,14 @@ pub fn parse_mb5(p: &mut Project, src: &[u8]) {
                 board = Some(idx);
                 if p.main_board.is_empty() { p.main_board.set(n); }
             }
-            card_depth = 0;
+            container_depth = 0;
             last_component = NO_PARENT;
             continue;
         }
         let b = match board { Some(v) => v, None => continue };
 
-        if t.starts_with(b"card") && t.contains(&b'{') {
-            let parent = if card_depth > 0 { card_stack[card_depth - 1] } else { NO_PARENT };
-            if let Some(idx) = add_comp(p, b, parent, b"card", b"") {
-                if card_depth < card_stack.len() { card_stack[card_depth] = idx; card_depth += 1; }
-                last_component = idx;
-            }
-            continue;
-        }
-        if t == b"}" || t.starts_with(b"}") {
-            if card_depth > 0 { card_depth -= 1; }
+        if t.starts_with(b"}") {
+            if container_depth > 0 { container_depth -= 1; }
             else { board = None; }
             last_component = NO_PARENT;
             inline_model = false;
@@ -533,8 +691,44 @@ pub fn parse_mb5(p: &mut Project, src: &[u8]) {
             continue;
         }
 
+        // Container declarations use the same parent/child model as card.
+        let kind = [b"card".as_slice(), b"horizontal", b"vertical", b"grid", b"scrollbox", b"topbar", b"gradient", b"opacity"]
+            .iter().copied().find(|k| t.starts_with(k) && (t.get(k.len()) == Some(&b'{') || t.get(k.len()) == Some(&b' ') || t.get(k.len()) == Some(&b'(')));
+        if let Some(kind) = kind {
+            if !t.contains(&b'{') { continue; }
+            let parent = if container_depth > 0 { container_stack[container_depth - 1] } else { NO_PARENT };
+            if kind == b"topbar" {
+                if parent != NO_PARENT {
+                    if p.ndiagnostics < p.diagnostics.len() {
+                        p.diagnostics[p.ndiagnostics].set(b"topbar must be declared at board root; nested declaration ignored");
+                        p.ndiagnostics += 1;
+                    }
+                    skipped_block_depth = brace_delta(t).max(1);
+                    continue;
+                }
+                if p.has_topbar[b] {
+                    if p.ndiagnostics < p.diagnostics.len() {
+                        p.diagnostics[p.ndiagnostics].set(b"topbar is unique per board; duplicate ignored");
+                        p.ndiagnostics += 1;
+                    }
+                    skipped_block_depth = brace_delta(t).max(1);
+                    continue;
+                }
+                p.has_topbar[b] = true;
+            }
+            if let Some(idx) = add_comp(p, b, parent, kind, b"") {
+                parse_inline_component_props(&mut p.comps[idx], t);
+                if container_depth < container_stack.len() {
+                    container_stack[container_depth] = idx;
+                    container_depth += 1;
+                }
+                last_component = idx;
+            }
+            continue;
+        }
+
+        let parent = if container_depth > 0 { container_stack[container_depth - 1] } else { NO_PARENT };
         if let Some((kind, name)) = component_start(t) {
-            let parent = if card_depth > 0 { card_stack[card_depth - 1] } else { NO_PARENT };
             if let Some(idx) = add_comp(p, b, parent, kind, name) {
                 last_component = idx;
                 parse_inline_component_props(&mut p.comps[idx], t);
@@ -565,9 +759,25 @@ pub fn parse_mb5(p: &mut Project, src: &[u8]) {
                     c.radius_custom = true;
                 }
             } else if t.starts_with(b".bgColor(") {
-                if let Some(v) = value_after(t, b".bgColor(") { if let Some(rgb) = parse_hex_color(v) { c.bg_color = rgb; c.has_bg_color = true; } }
+                if let Some(v) = value_after(t, b".bgColor(") { if let Some(rgb) = parse_hex_color(v) { c.bg_color = rgb; c.bg_from_color = rgb; c.bg_target_color = rgb; c.has_bg_color = true; } }
             } else if t.starts_with(b".fgColor(") {
-                if let Some(v) = value_after(t, b".fgColor(") { if let Some(rgb) = parse_hex_color(v) { c.fg_color = rgb; c.has_fg_color = true; } }
+                if let Some(v) = value_after(t, b".fgColor(") { if let Some(rgb) = parse_hex_color(v) { c.fg_color = rgb; c.fg_from_color = rgb; c.fg_target_color = rgb; c.has_fg_color = true; } }
+            } else if t.starts_with(b".placeholder(") { if let Some(v) = value_after(t, b".placeholder(") { c.placeholder.set(v); } }
+            else if t.starts_with(b".value(") { if let Some(v) = value_after(t, b".value(") { c.value.set(v); c.checked = v == b"true" || v == b"1" || v == b"on"; } }
+            else if t.starts_with(b".min(") { if let Some(v) = value_after(t, b".min(") { c.min_value = parse_i32(v); } }
+            else if t.starts_with(b".max(") { if let Some(v) = value_after(t, b".max(") { c.max_value = parse_i32(v); } }
+            else if t.starts_with(b".columns(") { if let Some(v) = value_after(t, b".columns(") { c.columns = parse_u64(v).clamp(1, 8) as u8; } }
+            else if t.starts_with(b".spacing(") { if let Some(v) = value_after(t, b".spacing(") { c.spacing = parse_u64(v).min(64) as i32; } }
+            else if t.starts_with(b".opacity(") { if let Some(v) = value_after(t, b".opacity(") { c.opacity = (parse_u64(v).min(100) * 255 / 100) as u8; } }
+            else if t.starts_with(b".transition(") { if let Some(v) = value_after(t, b".transition(") { c.transition_ms = parse_u64(v).min(u16::MAX as u64) as u16; } }
+            else if t.starts_with(b".gradient(") {
+                if let Some(v) = value_after(t, b".gradient(") {
+                    if let Some(comma) = v.iter().position(|&ch| ch == b',') {
+                        if let (Some(a), Some(z)) = (parse_hex_color(trim(&v[..comma])), parse_hex_color(trim(&v[comma + 1..]))) {
+                            c.bg_color = a; c.bg_from_color = a; c.bg_target_color = a; c.gradient_end = z; c.gradient_end_from = z; c.gradient_end_target = z; c.has_bg_color = true; c.has_gradient = true;
+                        }
+                    }
+                }
             } else if t.starts_with(b"config:title:") {
                 if let Some(v) = value_after(t, b"config:title:") { c.label1.set(v); }
             } else if t.starts_with(b"config:text:") {
@@ -580,6 +790,7 @@ pub fn parse_mb5(p: &mut Project, src: &[u8]) {
                 if let Some(v) = raw_after(t, b"event:") {
                     let call = parse_script_call(v);
                     if call.name.get() == b"moveboard" { c.event.set(call.arg.get()); }
+                    else { c.on_event = call; }
                 }
             } else if t == b"[" || t.starts_with(b"[") {
                 inline_model = true;
@@ -593,7 +804,7 @@ pub fn parse_mb5(p: &mut Project, src: &[u8]) {
                 if let Some(colon) = t.iter().position(|&ch| ch == b':') {
                     let key = trim(&t[..colon]);
                     let value = quoted_or_raw(&t[colon + 1..]);
-                    if !key.is_empty() && key.iter().all(|ch| ch.is_ascii_digit()) {
+                    if !key.is_empty() && c.nitems < MAX_ITEMS {
                         let _ = add_item(c, key, value);
                     }
                 }
@@ -602,6 +813,28 @@ pub fn parse_mb5(p: &mut Project, src: &[u8]) {
     }
     parse_structs(p, src);
     parse_scripts(p, src);
+    extract_script_source(p, src);
+}
+
+fn extract_script_source(p: &mut Project, src: &[u8]) {
+    let mut in_script = false;
+    let mut out = [0u8; 32768];
+    let mut len = 0usize;
+    for raw in src.split(|&c| c == b'\n') {
+        let line = strip_cr(raw);
+        let t = trim(line);
+        if t.starts_with(b"@mainScript") {
+            in_script = true;
+            continue;
+        }
+        if !in_script { continue; }
+        if len + line.len() + 1 >= out.len() { break; }
+        out[len..len + line.len()].copy_from_slice(line);
+        len += line.len();
+        out[len] = b'\n';
+        len += 1;
+    }
+    p.script_source.set(&out[..len]);
 }
 
 fn parse_structs(p: &mut Project, src: &[u8]) {
@@ -660,8 +893,8 @@ fn parse_structs(p: &mut Project, src: &[u8]) {
                     comp.radius_custom = true;
                 }
             }
-            else if t.starts_with(b".bgColor(") { if let Some(v) = value_after(t, b".bgColor(") { if let Some(rgb) = parse_hex_color(v) { comp.bg_color = rgb; comp.has_bg_color = true; } } }
-            else if t.starts_with(b".fgColor(") { if let Some(v) = value_after(t, b".fgColor(") { if let Some(rgb) = parse_hex_color(v) { comp.fg_color = rgb; comp.has_fg_color = true; } } }
+            else if t.starts_with(b".bgColor(") { if let Some(v) = value_after(t, b".bgColor(") { if let Some(rgb) = parse_hex_color(v) { comp.bg_color = rgb; comp.bg_from_color = rgb; comp.bg_target_color = rgb; comp.has_bg_color = true; } } }
+            else if t.starts_with(b".fgColor(") { if let Some(v) = value_after(t, b".fgColor(") { if let Some(rgb) = parse_hex_color(v) { comp.fg_color = rgb; comp.fg_from_color = rgb; comp.fg_target_color = rgb; comp.has_fg_color = true; } } }
             else if t.starts_with(b"config:title:") { if let Some(v) = value_after(t, b"config:title:") { comp.label1.set(v); } }
             else if t.starts_with(b"config:text:") { if let Some(v) = value_after(t, b"config:text:") { if comp.kind.get() == b"button" { comp.label1.set(v); } else { comp.label2.set(v); } } }
             else if t.starts_with(b"config:message:") { if let Some(v) = value_after(t, b"config:message:") { comp.label2.set(v); } }
@@ -842,7 +1075,7 @@ fn resolve_component_yaml(comp: &mut Comp, src: &[u8]) {
                     continue;
                 }
                 close_is_object = false;
-                if comp.kind.get() == b"list" {
+                if comp.kind.get() == b"list" || comp.kind.get() == b"navigation" || comp.kind.get() == b"dropdown" || comp.kind.get() == b"tab" {
                     if !v.is_empty() {
                         current_item = add_item(comp, item_key, quoted_or_raw(v));
                         item_is_object = false;
@@ -858,7 +1091,7 @@ fn resolve_component_yaml(comp: &mut Comp, src: &[u8]) {
                 if close_is_object {
                     if let Some(v) = t.strip_prefix(b"text:") { comp.close_label.set(quoted_or_raw(v)); }
                     else if let Some(v) = t.strip_prefix(b"event:") { comp.close_event = parse_script_call(v); }
-                } else if item_is_object && comp.kind.get() == b"list" {
+                } else if item_is_object && (comp.kind.get() == b"list" || comp.kind.get() == b"navigation" || comp.kind.get() == b"dropdown" || comp.kind.get() == b"tab") {
                     if let Some(item_idx) = current_item {
                         if let Some(v) = t.strip_prefix(b"text:") { comp.items[item_idx].text.set(quoted_or_raw(v)); }
                         else if let Some(v) = t.strip_prefix(b"event:") { comp.items[item_idx].call = parse_script_call(v); }

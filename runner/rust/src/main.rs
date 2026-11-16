@@ -18,6 +18,7 @@ mod app;
 mod canvas;
 mod font;
 mod project;
+mod script;
 mod sys;
 
 #[cfg(target_os = "macos")]
@@ -38,6 +39,9 @@ static mut SRC: [u8; 256 * 1024] = [0; 256 * 1024];
 const MAX_DEV_W: usize = W as usize * 2;
 const MAX_DEV_H: usize = H as usize * 2;
 static mut PIXELS: [u8; MAX_DEV_W * MAX_DEV_H * 4] = [0; MAX_DEV_W * MAX_DEV_H * 4];
+/// Large fixed-capacity project state lives in static storage, not the 8 MiB
+/// macOS main-thread stack. Project is exclusively borrowed by App after parsing.
+static mut PROJECT: Project = Project::new();
 
 #[panic_handler]
 fn on_panic(_info: &PanicInfo) -> ! {
@@ -96,10 +100,13 @@ pub extern "C" fn main(argc: i32, argv: *const *const c_char) -> i32 {
     }
 
     let buf = unsafe { &mut *addr_of_mut!(SRC) };
-    let mut proj = Project::new();
+    // Project contains large fixed-capacity component/script tables. Keeping it
+    // in static storage avoids copying several MiB through the macOS main stack.
+    let proj_ptr = addr_of_mut!(PROJECT);
+    let proj: &'static mut Project = unsafe { &mut *proj_ptr };
 
     if let Some(n) = load(dir, b"config.ini", buf) {
-        project::parse_config(&mut proj, &buf[..n]);
+        project::parse_config(proj, &buf[..n]);
     }
 
     let n = match load(dir, b"app/main.mb5", buf) {
@@ -109,10 +116,22 @@ pub extern "C" fn main(argc: i32, argv: *const *const c_char) -> i32 {
             return 1;
         }
     };
-    project::parse_mb5(&mut proj, &buf[..n]);
+    project::parse_mb5(proj, &buf[..n]);
 
     if let Some(n) = load(dir, b"models/main.yaml", buf) {
-        project::resolve_labels(&mut proj, &buf[..n]);
+        project::resolve_labels(proj, &buf[..n]);
+    }
+
+    // A separate scripts/main.mb5 is preferred. The inline @mainScript
+    // section remains supported as a backwards-compatible fallback.
+    if let Some(n) = load(dir, b"scripts/main.mb5", buf) {
+        proj.script_source.set_external(&buf[..n]);
+    }
+
+    for diagnostic in proj.diagnostics.iter().take(proj.ndiagnostics) {
+        sys::eprint(b"MB5 warning: ");
+        sys::eprint(diagnostic.get());
+        sys::eprint(b"\n");
     }
 
     if !font::init() {

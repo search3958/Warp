@@ -1,51 +1,35 @@
-components:
+demo-navigation:
   config:
-    title: "要素一覧"
-    target: list
+    target: navigation
+  model:
+    overview: "Overview"
+    controls: "Controls"
+    network: "Network"
   events:
-    easteregg: luckyalert(show)
-  model:
-    list: "リスト"
-    button: "ボタン"
-    easteregg: "Lucky board" #書き方1
-    easteregg2: #書き方2
-      text: "Lucky board"
-      event: luckyalert(show)
-      icon: test/happyegg.svg
+    overview: showOverview()
+    controls: showControls()
+    network: showNetwork()
 
-luckyalert-text:
+demo-options:
   config:
-    target: alert
-    title: "幸福を感じています"
-    message: "開発を楽しんで！"
+    target: dropdown
   model:
-    close: #書き方2
-      text: "Close now"
-      event: luckyalert(close)
-
-welcome-text:
-  config:
-    target: alert
-    title: "Hello, Developer!"
-    message: "Mosaic Board 5 へようこそ"
+    compact: "Compact"
+    comfortable: "Comfortable"
+    spacious: "Spacious"
   events:
-    close: closewelcome()
+    compact: chooseCompact()
+    comfortable: chooseComfortable()
+    spacious: chooseSpacious()
+
+demo-tabs:
+  config:
+    target: tab
   model:
-    close: "Close now" #書き方1
-
-about-button:
-  config:
-    target: text
-    title: "ボタン"
-    text: "Button"
-
-about-list:
-  config:
-    target: text
-    title: "リスト"
-    text: "list"
-
-button-text:
-  config:
-    target: button
-    text: "フルカスタマイズ"
+    design: "Design"
+    logic: "Logic"
+    runtime: "Runtime"
+  events:
+    design: showDesign()
+    logic: showLogic()
+    runtime: showRuntime()

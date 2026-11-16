@@ -1,0 +1,123 @@
+# MB5 Script: Picol-inspired command language with selected Mu-like features.
+# Startup is optional. `after` schedules work without blocking the UI loop.
+
+proc main {} {
+    ui.set request-status text "Script runtime ready"
+    after 250 showWelcome
+}
+
+proc showWelcome {} {
+    ui.set request-status text "Ready · fetch is user initiated"
+}
+
+proc searchChanged {} {
+    set query [ui.get search-field value]
+    set queryLength [string length $query]
+    if {$queryLength > 0} {
+        ui.set request-status text "Input updated"
+    } else {
+        ui.set request-status text "Enter a search term"
+    }
+}
+
+proc toggleDetails {} {
+    set checked [ui.get show-details checked]
+    set enabled [string equal $checked true]
+    if {$enabled} {
+        ui.set request-status text "Details enabled"
+    } else {
+        ui.set request-status text "Details disabled"
+    }
+}
+
+proc toggleQuietMode {} {
+    set checked [ui.get quiet-mode checked]
+    set enabled [string equal $checked true]
+    if {$enabled} {
+        ui.set request-status text "Quiet mode enabled"
+    } else {
+        ui.set request-status text "Quiet mode disabled"
+    }
+}
+
+proc scaleChanged {} {
+    set value [ui.get scale-control value]
+    ui.set load-progress value $value
+    ui.set request-status text "Scale: $value%"
+}
+
+proc loadRemote {} {
+    ui.set request-status text "Requesting JSON…"
+    ui.set remote-title text "Loading…"
+    set code [catch {fetch "https://jsonplaceholder.typicode.com/todos/1"} response]
+    if {$code != 0} {
+        ui.set remote-title text "Request failed"
+        ui.set request-status text $response
+        return
+    }
+    set title [json.get $response title]
+    ui.set remote-title text $title
+    ui.set request-status text "HTTP $HTTP_STATUS · response parsed"
+    ui.set status-snackbar text "JSON response loaded"
+    ui.set status-snackbar display show
+    after 2400 hideNotice
+}
+
+proc sendSamplePost {} {
+    set payload "{\"title\":\"MosaicBoard request\",\"completed\":false,\"userId\":1}"
+    set code [catch {fetch POST "https://httpbin.org/post" $payload "application/json"} response]
+    if {$code != 0} {
+        ui.set request-status text $response
+        return
+    }
+    ui.set request-status text "POST completed · HTTP $HTTP_STATUS"
+    ui.set status-snackbar text "POST request completed"
+    ui.set status-snackbar display show
+    after 2400 hideNotice
+}
+
+proc showNotice {} {
+    ui.set status-snackbar text "MosaicBoard notification"
+    ui.set status-snackbar display show
+    after 2400 hideNotice
+}
+
+proc hideNotice {} {
+    ui.set status-snackbar display hide
+}
+
+proc changeSurface {} {
+    set current [ui.get transition-surface bgColor]
+    set isDefault [string equal $current "#E8F1FF"]
+    if {$isDefault} {
+        ui.set transition-surface bgColor "#D9F7E8"
+        ui.set transition-surface fgColor "#14532D"
+    } else {
+        ui.set transition-surface bgColor "#E8F1FF"
+        ui.set transition-surface fgColor "#1A1A1A"
+    }
+}
+
+proc resetDemo {} {
+    ui.set search-field value "MosaicBoard"
+    ui.set show-details checked true
+    ui.set quiet-mode checked false
+    ui.set scale-control value 68
+    ui.set load-progress value 68
+    ui.set remote-title text "Not loaded"
+    ui.set request-status text "Demo reset"
+    ui.set status-snackbar display hide
+    ui.set transition-surface bgColor "#E8F1FF"
+    ui.set transition-surface fgColor "#1A1A1A"
+}
+
+# Navigation and selection callbacks
+proc showOverview {} { ui.set request-status text "Overview selected" }
+proc showControls {} { ui.set request-status text "Controls selected" }
+proc showNetwork {} { ui.set request-status text "Network selected" }
+proc chooseCompact {} { ui.set request-status text "Compact density selected" }
+proc chooseComfortable {} { ui.set request-status text "Comfortable density selected" }
+proc chooseSpacious {} { ui.set request-status text "Spacious density selected" }
+proc showDesign {} { ui.set request-status text "Design tab selected" }
+proc showLogic {} { ui.set request-status text "Logic tab selected" }
+proc showRuntime {} { ui.set request-status text "Runtime tab selected" }

@@ -1,77 +1,143 @@
 @mainBoard
-board home{
-    alert(welcome-text)
-    .id("welcome-alert")
-    .display(show)
-    list(components)
-
-    text(about-list)
-    card{
-        list(
-            config:title: "タイトル" 
-            config:text: "本文を追加できます" // []によって囲まれていない場合は1行ずつ個別になる
-            [
-                model:
-                    1: "項目1"
-                    2: "項目2"
-                    3: "項目3"
-            ] // []によって囲まれる場合はインラインyamlのようにできる
-        )
+board home {
+    topbar {
+        horizontal {
+            icon(home)
+            text(config:text:"MosaicBoard")
+            icon(settings)
+        }
+        .spacing(8)
     }
 
-    text(about-button)
-    card{
-        button(config:text:"別画面へ移動する",event: moveboard(board1))
-        button(config:text:"Primary")
-        .type(primary)
-        button(config:text:"Text")
+    vertical {
+        text(config:title:"MosaicBoard 5")
+        text(config:text:"A small declarative UI with a Picol-inspired script runtime.")
+
+        card {
+            text(config:title:"Controls")
+            text(config:text:"Built-in controls use the standard theme. Keep customization intentional.")
+            input(search-field)
+            .id("search-field")
+            .placeholder("Search or enter a value")
+            .value("MosaicBoard")
+            .event: searchChanged()
+
+            checkbox(show-details)
+            .id("show-details")
+            .placeholder("Show details")
+            .value(true)
+            .event: toggleDetails()
+
+            switch(quiet-mode)
+            .id("quiet-mode")
+            .placeholder("Quiet mode")
+            .value(false)
+            .event: toggleQuietMode()
+
+            slider(scale-control)
+            .id("scale-control")
+            .min(0)
+            .max(100)
+            .value(68)
+            .event: scaleChanged()
+
+            progress(load-progress)
+            .id("load-progress")
+            .value(68)
+        }
+
+        card {
+            text(config:title:"Navigation and selection")
+            navigation(demo-navigation)
+            .id("demo-navigation")
+
+            dropdown(demo-options)
+            .id("demo-options")
+
+            tab(demo-tabs)
+            .id("demo-tabs")
+        }
+
+        card {
+            text(config:title:"Layout and surfaces")
+            horizontal {
+                icon(search)
+                text(config:text:"Horizontal layout")
+                icon(check)
+            }
+            grid {
+                .columns(2)
+                .spacing(12)
+                text(config:text:"Grid cell A")
+                text(config:text:"Grid cell B")
+                text(config:text:"Grid cell C")
+                text(config:text:"Grid cell D")
+            }
+            divider()
+            spacing(12)
+            gradient {
+                .gradient(#006AFF,#69A9FF)
+                .radius(14)
+                .height(52)
+                text(config:text:"Gradient surface")
+            }
+            opacity {
+                .opacity(82)
+                .bgColor(#20242B)
+                .radius(14)
+                .height(44)
+                text(config:text:"Opacity container")
+            }
+        }
+
+        card {
+            text(config:title:"Scrollbox")
+            scrollbox {
+                .id("sample-scrollbox")
+                .height(132)
+                vertical {
+                    text(config:text:"Scrollbox item 01")
+                    divider()
+                    text(config:text:"Scrollbox item 02")
+                    divider()
+                    text(config:text:"Scrollbox item 03")
+                    divider()
+                    text(config:text:"Scrollbox item 04")
+                    divider()
+                    text(config:text:"Scrollbox item 05")
+                }
+            }
+        }
+
+        card {
+            text(config:title:"Script and network")
+            text(config:text:"The request is sent only when you press the button.")
+            text(remote-title)
+            .id("remote-title")
+            config:text: "Not loaded"
+            text(request-status)
+            .id("request-status")
+            config:text: "Ready"
+            button(config:text:"Fetch sample JSON",event: loadRemote())
+            .type(primary)
+            button(config:text:"Send sample POST",event: sendSamplePost())
+            button(config:text:"Show snackbar",event: showNotice())
+        }
+
+        snackbar(status-snackbar)
+        .id("status-snackbar")
+        .display(hide)
+
+        card {
+            text(config:title:"Transitions")
+            text(config:text:"Only color, gradient stops and opacity are interpolated. Geometry and layout are not animated.")
+            button(config:text:"Change surface",event: changeSurface())
+            .id("transition-surface")
+            .bgColor(#E8F1FF)
+            .transition(420)
+        }
+
+        button(config:text:"Reset demo",event: resetDemo())
         .type(text)
-        button(button-text)
-        .type(primary)
-        .bgColor(#cc0000)
-        .fgColor(#eeddcc)
-        .size(large)
-        .radius(24)
-        .width(50px)
-        .display(show)
-    }
-}
-
-board board1{
-    text(
-        config:text: "こんにちは"
-        button(
-            config:text: "メインに戻る"
-            event: moveboard(home) //直接のイベント指定もできる
-        )
-    )
-}
-
-@struct
-components luckyalert{
-    alert(luckyalert-text)
-}
-
-
-@mainScript
-script hello{
-        wait(1000)
-        closewelcome()
-}
-
-script closewelcome{
-    setComponentConfig(welcome-alert,display:hide)
-}
-
-script luckyalert{
-    message(show){
-        addComponent(luckyalert)
-        .target(home) //書かなかったら自動で今のボードになる。 
-        wait(5000)
-        deleteComponent(luckyalert)
-    }
-    message(close){
-        deleteComponent(luckyalert)
-        .target(home)
     }
 }

@@ -1,344 +1,66 @@
-# Mosaic Board 5
+# MosaicBoard 5 — MB5-NX Foundation
 
-Mosaic Board 5 は、ボード単位でUIを構築し、独自DSLによって画面構成や処理を記述する言語・実行環境です。
+MB5の宣言的UIとPicol/Tcl風スクリプトを組み合わせた、Rust製ソフトウェア描画ランナーの開発基盤です。UIとロジックを分離し、標準テーマを優先するSwiftUI風の宣言的設計を目指しています。
 
-この文書では、現在確定している仕様を記載します。まだ定義されていない機能や挙動については、独自の解釈で補完せず「未規定」としています。
+## Quick start
 
-## 1. プロジェクト構成
+RustツールチェーンとCコンパイラを用意し、macOSでプロジェクトルートから実行します。
+
+```sh
+sh ./runner/rust/run.sh
+sh ./runner/rust/run.sh 50%
+sh ./runner/rust/run.sh ./example/components
+```
+
+`50%` はCPUクロックの変更ではなく、描画頻度と旧式インラインスクリプトの実行予算・待機時間を調整するソフトウェアプロファイルです。`100%` は最大60FPS設定です。新しいC VMの手続きや `fetch` の実行時間をCPUクロックのように制限するものではありません。
+
+## Project layout
 
 ```text
-project/
-├── app/
-│   └── main.mb5
-├── models/
-│   └── main.yaml
-├── resources/
-│   ├── icon.svg
-│   └── ...
-├── config.ini
-└── README.md
+example/components/
+  config.ini
+  app/main.mb5       # UI tree
+  models/main.yaml   # navigation / dropdown / tab data
+  scripts/main.mb5   # procedures / events / fetch
+  resources/         # assets
+docs/
+  MB5_SPEC.md        # language and runtime specification
+  DEVELOPMENT.md    # development guide
+runner/rust/         # no_std runner + embedded C99 script VM
+tools/mb5/           # lint and validation tools
+tools/vscode/        # MB5 syntax highlighting / snippets
 ```
 
-| ファイル・ディレクトリ | 役割 |
-|---|---|
-| `app/*.mb5` | UI構成、ボード、struct、スクリプトなど |
-| `models/*.yaml` | UIで使用するモデル・設定・テキスト・イベントなど |
-| `resources/` | アイコンなどのアセット |
-| `config.ini` | プロジェクト設定 |
-| `README.md` | 仕様・プロジェクト説明 |
+## Verify
 
-### アセットの参照
-
-アセットの相対パスは、常にプロジェクト内の `resources/` を基準に解決します。
-
-例えば、次の指定は `resources/test/happyegg.svg` を参照します。
-
-```yaml
-icon: test/happyegg.svg
+```sh
+sh ./tools/mb5/check.sh
 ```
 
-アセットは `resources/` の外に配置しないことを前提とします。
+この検査はMB5構造チェック、C VM単体テスト、サンプルスクリプトの構文・コールバック検査を実行します。Cargoが利用可能なら `cargo check` も実行します。
 
-## 2. MB5の基本構造
+## Read next
 
-### メインボード
+- [MB5 language and runtime specification](docs/MB5_SPEC.md)
+- [Development guide](docs/DEVELOPMENT.md)
+- [Runner README](runner/rust/README.md)
+- [VS Code language support](tools/vscode/README.md)
 
-`@mainBoard` はメインボードの定義を示します。
+## Important limits
 
-```text
-@mainBoard
+- インタラクティブウィンドウは現在macOS対応です。
+- `fetch` はシステムの `curl` を使う同期通信で、通信中はUIイベントループが停止します。
+- プロジェクトのスクリプトは任意のHTTP(S)ホストへアクセスできるため、信頼できないプロジェクトは実行しないでください。
+- この基盤は完成した本番用コンパイラではありません。未実装項目と上限は仕様書を参照してください。
 
-board home{
-    text(about-list)
-}
+## 起動時にクラッシュする場合
+
+今回のランタイムでは、固定容量のProjectデータ（約2.9 MiB）をスタック上に作成してAppへ値渡ししていたため、macOSのメインスレッドスタックを圧迫する可能性がありました。Projectは静的領域に置き、Appから排他的に参照する方式へ変更しています。スクリプトVMの大きな一時領域もヒープへ移動しています。
+
+通常起動で問題が残る場合は、AppKitを使わない描画テストで切り分けできます。
+
+```sh
+sh ./runner/rust/run.sh --ppm > /tmp/mb5-preview.ppm
 ```
 
-`board` は画面・表示領域の単位です。ボード間の移動には `moveboard()` を使用します。
-
-```text
-button(
-    config:text: "別画面へ移動する",
-    event: moveboard(board1)
-)
-```
-
-### メインスクリプト
-
-`@mainScript` はメインスクリプトの定義を示します。
-
-```text
-@mainScript
-
-script hello{
-    wait(1000)
-    closewelcome()
-}
-```
-
-UIの定義とスクリプトの定義は明確に分離します。UI記述とスクリプト記述を同一のものとして扱いません。
-
-## 3. コンポーネント
-
-コンポーネントは、`alert()`、`text()`、`list()`、`button()` などの命令で配置します。
-
-```text
-board home{
-    alert(welcome-text)
-    .id("welcome-alert")
-    .display(show)
-
-    button(config:text:"Primary")
-    .type(primary)
-}
-```
-
-コンポーネントに対する追加設定は、Swiftのようなチェーン形式で記述します。
-
-```text
-button(button-text)
-.type(primary)
-.bgColor(#cc0000)
-.fgColor(#eeddcc)
-.size(large)
-.radius(24)
-.width(50px)
-.display(show)
-```
-
-各修飾子は直前の対象に対する設定として記述します。修飾子の具体的な引数・型・対応範囲は、各命令の仕様に従います。
-
-### コンポーネントの追加・削除
-
-`@struct` で定義したコンポーネントは `addComponent()` で追加できます。
-
-同じstructを複数回追加することができます。これはコンポーネント定義の再利用を想定した仕様です。
-
-追加したコンポーネントと、最初から配置されていたコンポーネントは区別しません。同名のコンポーネントを追加した場合も、通常どおり追加されます。
-
-`deleteComponent()` は、対象ボード内にある該当コンポーネントをすべて削除します。
-
-```text
-deleteComponent(luckyalert)
-.target(home)
-```
-
-`.target()` を指定しない場合は、実行時点で現在のボードが対象です。
-
-## 4. struct
-
-`@struct` は、再利用するコンポーネント構成を定義します。
-
-```text
-@struct
-
-components luckyalert{
-    alert(luckyalert-text)
-}
-```
-
-定義したstructは、次のように追加できます。
-
-```text
-addComponent(luckyalert)
-```
-
-同じstructを複数回追加でき、追加された各要素を個別のインスタンスとして識別・管理する仕様ではありません。
-
-## 5. スクリプトとmessage
-
-スクリプトはUIとは独立した処理として定義します。
-
-```text
-script luckyalert{
-    message(show){
-        addComponent(luckyalert)
-        .target(home)
-
-        wait(5000)
-
-        deleteComponent(luckyalert)
-    }
-
-    message(close){
-        deleteComponent(luckyalert)
-        .target(home)
-    }
-}
-```
-
-`message()` は処理の分岐を表します。`case` / `switch` に近い役割を持ち、括弧内の値は分岐に渡される引数として扱います。
-
-YAMLやDSLから、次のように呼び出します。
-
-```text
-luckyalert(show)
-```
-
-### 非同期処理とボードの対象
-
-`wait()` などの待機を含む処理では、`.target()` を指定しない限り、処理が実行される時点の現在のボードを基準にします。
-
-待機中にユーザーが別のボードへ移動した場合、後続処理もその時点の現在のボードを対象とします。
-
-特定のボードを対象にしたい場合は、`.target(boardName)` を明示的に指定することを推奨します。
-
-## 6. YAMLモデル
-
-YAMLは、UIで使用するテキスト・設定・モデルデータ・イベントなどを定義します。
-
-```yaml
-welcome-text:
-  config:
-    target: alert
-    title: "Hello, Developer!"
-    message: "Mosaic Board 5 へようこそ"
-  events:
-    close: closewelcome()
-  model:
-    close: "Close now"
-```
-
-モデルは名前をキーとして定義し、DSLから参照します。
-
-```text
-alert(welcome-text)
-```
-
-### config / model / event(s)
-
-| キー | 役割 |
-|---|---|
-| `config` | 対象コンポーネントの設定 |
-| `model` | コンポーネント内で参照するデータ |
-| `event` | 単一のイベント |
-| `events` | 複数のイベント |
-
-`event` と `events` は明確に区別します。単一イベントには `event`、複数イベントの定義には `events` を使用します。
-
-### model内の識別子
-
-例えば、次の定義では `list` と `button` は `model` 内のデータを識別するためのIDです。
-
-```yaml
-components:
-  config:
-    title: "要素一覧"
-    target: list
-  model:
-    list: "リスト"
-    button: "ボタン"
-```
-
-`list` や `button` という名前だけでUIコンポーネントそのものを意味するわけではありません。所属する `model` の中でデータを識別するキーです。
-
-## 7. インラインYAML
-
-DSL内には、YAML形式に近いデータを直接記述できます。
-
-### `[]` で囲まない場合
-
-`[]` で囲まない記述は、1行につき1つの指定として扱います。
-
-```text
-list(
-    config:title: "タイトル"
-    config:text: "本文を追加できます"
-)
-```
-
-この形式では、複数行にまたがる値や複数行のオブジェクトを1つの指定として記述できません。
-
-### `[]` で囲む場合
-
-複数行のデータをインラインYAML形式で記述する場合は、角括弧 `[]` で囲みます。
-
-```text
-list(
-    [
-        model:
-            1: "項目1"
-            2: "項目2"
-            3: "項目3"
-    ]
-)
-```
-
-### コンパイル時のエラー
-
-次のような、値や内容を持たない定義はコンパイルエラーです。
-
-```text
-model:
-```
-
-また、`[]` で囲まれていない状態で複数行のデータを記述した場合も、1行のみという文法に反するためコンパイルエラーです。
-
-## 8. 設定の競合
-
-YAML側の設定とDSL側の設定が競合する場合、どちらかを優先して上書きすることはしません。競合エラーとして扱います。
-
-設定を両方に重複して定義しないようにしてください。
-
-## 9. コンパイル時の検証
-
-少なくとも、次のような不正な記述はコンパイル段階でエラーとして扱います。
-
-- 内容のない `model:` などの定義
-- `[]` で囲まれていない複数行のインラインデータ
-- YAMLとDSLの設定の競合
-
-未定義のモデル参照など、その他の検証項目・エラー形式の詳細は、今後の仕様で定義します。
-
-## 10. プロジェクト設定
-
-`config.ini` ではプロジェクト全体の設定を定義します。
-
-```ini
-version=5
-name=Mosaic Board 5 Tester
-icon=icon.svg
-```
-
-`icon` などのアセットパスは `resources/` を基準に解決します。
-
-## 11. 今後定義する項目
-
-以下は現時点で仕様が確定していないため、実装時に明確な定義が必要です。
-
-- 各命令・修飾子が受け付ける引数と型
-- 文字列、数値、真偽値、配列、オブジェクトの型規則
-- 未定義のモデル・イベント・structを参照した場合のエラー
-- 同時に複数のイベントが発生した場合の実行順序
-- スクリプトの戻り値・終了条件
-- `wait()` 中の処理中断やエラー発生時の扱い
-- コンポーネントの表示・非表示・削除に関するライフサイクル
-
-これらは現時点で機能が不足しているという意味ではなく、今後の拡張に向けて仕様を確定させる項目です。
-
-
-## 12. プレビューUIのデザイン基準
-
-RustランナーのUIは `baram-warp4` の通常（ライト）プロファイルを参考にします。画面背景は `#FAFAFC`、面は `#FBFBFB`、本文は `#1A1A1A`、補助テキストは `#5D5D5D`、境界線は `#D3D3D3`、アクセントは `#006AFF` を基準とします。
-
-ボタンは通常・Primary・Textの3種類を区別します。通常ボタンは薄いグレー面に青文字、Primaryは青面に白文字、Textは背景なしの青文字です。既定のボタン形状はカプセル形状で、`.radius(...)` が指定された場合は個別の角丸値を使用します。
-
-`list()` はカードではなくフラットな行リストとして表示します。行はクリック可能で、選択状態と区切り線を持ちます。`alert()` はカードではなくモーダルダイアログとして表示します。
-
-同梱の `runner/rust/assets/HarmonyOS_Sans_SC_Regular.ttf`（HarmonyOS Sans SC）を使用します。フォントの読み込み・文字幅計測・グリフ描画はOSのフォントAPIに依存せず、macOS・Windows・Linuxで同じフォントデータとメトリクスを使用します。文字サイズは見出し24px相当、説明文13px、リスト項目14px、ボタン18pxを基準にし、参照実装に合わせて通常ウェイトを使用します。
-
-
-## 13. 描画・アンチエイリアス・スクロールの実装
-
-Rustランナーでは、図形・角丸・文字をソフトウェアでフレームバッファへ描画します。macOSのAppKit／CoreText、WindowsのDirectWrite、LinuxのフォントサービスやネイティブScrollViewは、これらの描画処理に使用しません。
-
-### テキスト
-`stb_truetype_rust` をRustコード内にvendoringし、TTFグリフをグレースケールのカバレッジ画像としてラスター化します。描画と幅計測は同じフォントメトリクスを使います。グリフのビットマップは固定サイズの64KiBキャッシュ領域に保持し、領域が満杯になったらキャッシュをまとめて再利用します。グリフ1つにつき64×64ピクセルを超える場合はフォールバック描画へ切り替えます。
-
-### 角丸とアンチエイリアス
-角丸矩形は、角の円弧部分だけを4段の垂直サブピクセルでサンプリングし、水平エッジのピクセル被覆率を連続値で計算して8bitアルファ合成します。直線部分は通常の矩形塗りつぶしで処理するため、形状全体を高倍率で描画する必要がありません。
-
-### スクロール
-スクロール位置、端でのクランプ、描画クリップ、スクロールバーは `App` と `Canvas` が管理します。ウィンドウバックエンドはホイール／トラックパッドの移動量を論理ピクセルへ正規化して `App::scroll()` に通知するだけで、OSのネイティブスクロールビューは使用しません。スクロール位置・端での制限・描画クリップ・スクロールバーは共通コードが管理します。スクロールロジック・描画はOS非依存ですが、現在の対話型ウィンドウイベントアダプターはmacOS用です。macOS以外では `--ppm` による同じソフトウェア描画結果の画像出力を利用できます。
-
-
-`stb_truetype_rust` は参照アーカイブに含まれていた1.26.1を `runner/rust/vendor/` に配置したものです。上流のCargoマニフェストに記載されたライセンスはUnlicenseです。
+PPM出力もクラッシュする場合はプロジェクト読み込み・VM・フォント・ソフトウェア描画側、PPMは成功してウィンドウ起動だけ失敗する場合はmacOSのAppKit/CoreGraphics側を調査してください。

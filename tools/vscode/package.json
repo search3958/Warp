@@ -1,0 +1,14 @@
+{
+  "name": "mosaicboard-mb5",
+  "displayName": "MosaicBoard MB5",
+  "description": "Syntax highlighting and snippets for MosaicBoard 5 UI and script files.",
+  "version": "0.1.0",
+  "publisher": "sentaro",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [{ "id": "mb5", "aliases": ["MosaicBoard 5", "MB5"], "extensions": [".mb5"], "configuration": "./language-configuration.json" }],
+    "grammars": [{ "language": "mb5", "scopeName": "source.mb5", "path": "./syntaxes/mb5.tmLanguage.json" }],
+    "snippets": [{ "language": "mb5", "path": "./snippets/mb5.json" }]
+  }
+}

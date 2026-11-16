@@ -10,6 +10,10 @@ use crate::app::{App, H, W};
 use crate::canvas::Canvas;
 use crate::sys::{eprint, monotonic_ms, sleep_us};
 
+static mut ACTIVE_APP: *mut App = core::ptr::null_mut();
+static mut INPUT_DIRTY: bool = false;
+static mut INPUT_VIEW_CLASS: Id = core::ptr::null_mut();
+
 type Id = *mut c_void;
 type Sel = *mut c_void;
 
@@ -41,6 +45,9 @@ extern "C" {
     fn objc_getClass(name: *const c_char) -> Id;
     fn sel_registerName(name: *const c_char) -> Sel;
     fn objc_msgSend();
+    fn objc_allocateClassPair(superclass: Id, name: *const c_char, extra_bytes: usize) -> Id;
+    fn objc_registerClassPair(cls: Id);
+    fn class_addMethod(cls: Id, name: Sel, imp: *const c_void, types: *const c_char) -> i8;
 }
 
 // AppKit must be linked, otherwise NSApplication / NSWindow / NSImageView
@@ -128,19 +135,69 @@ unsafe fn m_id1(o: Id, s: Sel, a: Id) {
     f(o, s, a)
 }
 
-unsafe fn m_bool1(o: Id, s: Sel, a: i8) {
+unsafe fn m_void_bool1(o: Id, s: Sel, a: i8) {
     let f: unsafe extern "C" fn(Id, Sel, i8) = msg();
     f(o, s, a)
 }
 
-unsafe fn m_isize1(o: Id, s: Sel, a: isize) {
-    let f: unsafe extern "C" fn(Id, Sel, isize) = msg();
+unsafe fn m_bool_isize1(o: Id, s: Sel, a: isize) -> i8 {
+    let f: unsafe extern "C" fn(Id, Sel, isize) -> i8 = msg();
     f(o, s, a)
 }
 
 unsafe fn m_cstr(o: Id, s: Sel, p: *const c_char) -> Id {
     let f: unsafe extern "C" fn(Id, Sel, *const c_char) -> Id = msg();
     f(o, s, p)
+}
+
+unsafe fn m_cstr_ret(o: Id, s: Sel) -> *const c_char {
+    let f: unsafe extern "C" fn(Id, Sel) -> *const c_char = msg();
+    f(o, s)
+}
+
+extern "C" fn mb5_accepts_first_responder(_this: Id, _cmd: Sel) -> i8 { 1 }
+
+extern "C" fn mb5_key_down(_this: Id, _cmd: Sel, event: Id) {
+    unsafe {
+        if ACTIVE_APP.is_null() || event.is_null() { return; }
+        let key = m_u64(event, sel(b"keyCode\0"));
+        if key == 51 {
+            if (*ACTIVE_APP).text_input(&[], true) { INPUT_DIRTY = true; }
+            return;
+        }
+        let chars = m_id(event, sel(b"characters\0"));
+        if chars.is_null() { return; }
+        let text = m_cstr_ret(chars, sel(b"UTF8String\0"));
+        if text.is_null() { return; }
+        let mut bytes = [0u8; 64];
+        let mut len = 0usize;
+        while len < bytes.len() && *text.add(len) != 0 {
+            let byte = *text.add(len) as u8;
+            if byte < 0x20 { return; }
+            bytes[len] = byte;
+            len += 1;
+        }
+        if len > 0 && (*ACTIVE_APP).text_input(&bytes[..len], false) { INPUT_DIRTY = true; }
+    }
+}
+
+unsafe fn canvas_view_class() -> Id {
+    if !INPUT_VIEW_CLASS.is_null() { return INPUT_VIEW_CLASS; }
+    let superclass = cls(b"NSImageView\0");
+    if superclass.is_null() { return core::ptr::null_mut(); }
+    let name = b"MB5CanvasInputView\0";
+    let class = objc_allocateClassPair(superclass, name.as_ptr() as *const c_char, 0);
+    if class.is_null() { return superclass; }
+    let accepts: extern "C" fn(Id, Sel) -> i8 = mb5_accepts_first_responder;
+    let key_down: extern "C" fn(Id, Sel, Id) = mb5_key_down;
+    let accepts_imp = core::mem::transmute::<extern "C" fn(Id, Sel) -> i8, *const c_void>(accepts);
+    let key_down_imp = core::mem::transmute::<extern "C" fn(Id, Sel, Id), *const c_void>(key_down);
+    let ok_a = class_addMethod(class, sel(b"acceptsFirstResponder\0"), accepts_imp, b"c@:\0".as_ptr() as *const c_char);
+    let ok_k = class_addMethod(class, sel(b"keyDown:\0"), key_down_imp, b"v@:@\0".as_ptr() as *const c_char);
+    if ok_a == 0 || ok_k == 0 { return core::ptr::null_mut(); }
+    objc_registerClassPair(class);
+    INPUT_VIEW_CLASS = class;
+    class
 }
 
 unsafe fn m_init_rect(o: Id, s: Sel, r: Rect) -> Id {
@@ -189,6 +246,8 @@ unsafe fn present(view: Id, ctx: *mut c_void) {
 /// buf must hold up to 2x the logical W x H pixels (for Retina).
 pub fn run(app: &mut App, buf: *mut u8, speed_percent: Option<u32>) -> i32 {
     unsafe {
+        ACTIVE_APP = app as *mut App;
+        INPUT_DIRTY = false;
         let nsapp_class = cls(b"NSApplication\0");
         if nsapp_class.is_null() {
             eprint(b"mb5-runner: NSApplication class not found (AppKit not loaded)\n");
@@ -199,7 +258,7 @@ pub fn run(app: &mut App, buf: *mut u8, speed_percent: Option<u32>) -> i32 {
             eprint(b"mb5-runner: sharedApplication returned nil\n");
             return 1;
         }
-        m_isize1(nsapp, sel(b"setActivationPolicy:\0"), 0);
+        let _ = m_bool_isize1(nsapp, sel(b"setActivationPolicy:\0"), 0);
         m_void(nsapp, sel(b"finishLaunching\0"));
 
         let window_class = cls(b"NSWindow\0");
@@ -221,9 +280,9 @@ pub fn run(app: &mut App, buf: *mut u8, speed_percent: Option<u32>) -> i32 {
             return 1;
         }
         // Do not release the window when closed; later calls would break.
-        m_bool1(win, sel(b"setReleasedWhenClosed:\0"), 0);
+        m_void_bool1(win, sel(b"setReleasedWhenClosed:\0"), 0);
         // Request mouseMoved events so software-rendered controls can show hover states.
-        m_bool1(win, sel(b"setAcceptsMouseMovedEvents:\0"), 1);
+        m_void_bool1(win, sel(b"setAcceptsMouseMovedEvents:\0"), 1);
 
         let title = app.title();
         let mut tbuf = [0u8; 128];
@@ -235,16 +294,20 @@ pub fn run(app: &mut App, buf: *mut u8, speed_percent: Option<u32>) -> i32 {
             m_cstr(cls(b"NSString\0"), sel(b"stringWithUTF8String:\0"), tbuf.as_ptr() as *const c_char),
         );
 
-        let view = m_init_rect(m_id(cls(b"NSImageView\0"), sel(b"alloc\0")), sel(b"initWithFrame:\0"), frame);
+        let view_class = canvas_view_class();
+        if view_class.is_null() { eprint(b"mb5-runner: input view class creation failed\n"); return 1; }
+        let view = m_init_rect(m_id(view_class, sel(b"alloc\0")), sel(b"initWithFrame:\0"), frame);
         if view.is_null() {
             eprint(b"mb5-runner: NSImageView init returned nil\n");
             return 1;
         }
         m_id1(win, sel(b"setContentView:\0"), view);
+        let make_first: unsafe extern "C" fn(Id, Sel, Id) -> i8 = msg();
+        let _ = make_first(win, sel(b"makeFirstResponder:\0"), view);
         m_void(win, sel(b"center\0"));
 
         // Activate the app first, then bring the window to the front.
-        m_bool1(nsapp, sel(b"activateIgnoringOtherApps:\0"), 1);
+        m_void_bool1(nsapp, sel(b"activateIgnoringOtherApps:\0"), 1);
         m_id1(win, sel(b"makeKeyAndOrderFront:\0"), core::ptr::null_mut());
         m_void(win, sel(b"orderFrontRegardless\0"));
 
@@ -339,9 +402,11 @@ pub fn run(app: &mut App, buf: *mut u8, speed_percent: Option<u32>) -> i32 {
                     } else {
                         raw_delta * 20.0
                     };
-                    dirty |= app.scroll(logical_delta);
+                    let p = m_point_ret(ev, ev_loc);
+                    dirty |= app.scroll_at(p.x, H as f64 - p.y, logical_delta);
                 }
                 m_id1(nsapp, send_event, ev);
+                if INPUT_DIRTY { pending_dirty = true; INPUT_DIRTY = false; }
             }
             pending_dirty |= dirty;
             let render_due = frame_interval_ms == 0 || now_ms.saturating_sub(last_render_ms) >= frame_interval_ms;
@@ -372,6 +437,7 @@ pub fn run(app: &mut App, buf: *mut u8, speed_percent: Option<u32>) -> i32 {
                 sleep_us(1_000);
             }
         }
+        ACTIVE_APP = core::ptr::null_mut();
         0
     }
 }

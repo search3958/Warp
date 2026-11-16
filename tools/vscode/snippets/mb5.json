@@ -1,0 +1,22 @@
+{
+  "Board": {
+    "prefix": "board",
+    "body": ["@mainBoard", "board ${1:home} {", "    vertical {", "        card {", "            text(config:title:\"${2:Title}\")", "            text(config:text:\"${3:Description}\")", "        }", "    }", "}"],
+    "description": "Create a board with a standard vertical/card layout"
+  },
+  "Procedure": {
+    "prefix": "proc",
+    "body": ["proc ${1:main} {} {", "    $0", "}"],
+    "description": "Create an MB5 script procedure"
+  },
+  "Button with event": {
+    "prefix": "button-event",
+    "body": ["button(config:text:\"${1:Continue}\", event: ${2:onContinue}())"],
+    "description": "Create a button connected to a script procedure"
+  },
+  "Fetch JSON": {
+    "prefix": "fetch-json",
+    "body": ["set response [fetch \"${1:https://api.example.com/data}\"]", "set value [json.get $response ${2:title}]"] ,
+    "description": "Fetch a JSON resource and read a root property"
+  }
+}
